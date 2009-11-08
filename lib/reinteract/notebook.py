@@ -361,6 +361,12 @@ class Notebook(gobject.GObject):
 
         return package
 
+    def __add_wrapper(self, globals_, module):
+        if hasattr(module, '__reinteract_wrap__'):
+            old = globals_['__reinteract_wrappers']
+            globals_['__reinteract_wrappers'] = [getattr(module, '__reinteract_wrap__')]
+            globals_['__reinteract_wrappers'].extend(old)
+
     def do_import(self, name, globals=None, locals=None, fromlist=None, level=None):
         # Holding the import lock around the whole import process matches what
         # Python does internally. This does mean that the machinery of loading a slow
@@ -417,11 +423,15 @@ class Notebook(gobject.GObject):
                                 self.__ensure_from_list_item(name, allname, module, local)
                         except AttributeError:
                             pass
+
+                        self.__add_wrapper(globals, module)
                     else:
                         self.__ensure_from_list_item(name, fromname, module, local)
 
                 return module
             else:
+                self.__add_wrapper(globals, module)
+
                 return_name = ".".join(names[0:return_index + 1])
 
                 if local:
@@ -466,6 +476,7 @@ class Notebook(gobject.GObject):
     def setup_globals(self, globals):
         globals['__reinteract_notebook'] = self
         globals['__reinteract_copy'] = copy.copy
+        globals['__reinteract_wrappers'] = []
         globals['help'] = _Helper()
 
     def file_for_absolute_path(self, absolute_path):
@@ -571,6 +582,8 @@ if __name__ == '__main__':
         write_file("package1/mod9.py", "from __future__ import absolute_import\nfrom . import mod2\ng = mod2.b + 2")
         write_file("package2/__init__.py", "")
         write_file("package2/mod3.py", "import package1.mod2\nc = package1.mod2.b + 1")
+        write_file("mod10.py", "def __reinteract_wrap__(obj): return 2")
+        write_file("mod11.py", "def __reinteract_wrap__(obj): return 3")
 
         sys.path.append(os.path.join(base, "ZippedModules.zip"))
         write_zipfile("ZippedModules.zip", "zipmod.py", "d = 4");
@@ -602,6 +615,10 @@ if __name__ == '__main__':
 
         do_test("import zipmod", "zipmod.d", 4)
         do_test("import zippackage.mod2", "zippackage.mod2.e", 5)
+
+        # Simple test of __reinteract_wrap__; last has highest priority
+        do_test("import mod10\nimport mod11", "__reinteract_wrappers[0](1)", 3)
+        do_test("import mod10\nimport mod11", "__reinteract_wrappers[1](1)", 2)
 
         # Test changing file contents and reloading the module
         nb = Notebook(base)

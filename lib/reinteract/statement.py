@@ -152,14 +152,21 @@ class Statement:
 
         if len(args) == 1:
             arg = args[0]
-            
-            if args[0] is None:
+
+            if arg is None:
                 return
-            elif isinstance(args[0], CustomResult) or isinstance(args[0], HelpResult):
-                self.results.append(args[0])
+
+            for wrapper in self.result_scope['__reinteract_wrappers']:
+                wrapped = wrapper(arg)
+                if wrapped != None:
+                    arg = wrapped
+                    break
+
+            if isinstance(arg, CustomResult) or isinstance(arg, HelpResult):
+                self.results.append(arg)
             else:
-                self.results.append(self.__coerce_to_unicode(repr(args[0])))
-                self.result_scope['_'] = args[0]
+                self.results.append(self.__coerce_to_unicode(repr(arg)))
+                self.result_scope['_'] = args
         else:
             self.results.append(self.__coerce_to_unicode(repr(args)))
             self.result_scope['_'] = args
@@ -343,6 +350,15 @@ if __name__=='__main__':
     s2a.compile()
     s2a.execute()
     assert_equals(s2a.results[0], "0")
+
+    # Test __reinteract_wrappers with an unrealistic example
+    s1 = Statement("__reinteract_wrappers = [ lambda x: 2 ]", worksheet)
+    s1.compile()
+    s1.execute()
+    s2 = Statement("1", worksheet, parent=s1)
+    s2.compile()
+    s2.execute()
+    assert_equals(s2.results[0], "2")
 
     # Tests of catching errors
     s1 = Statement("b = ", worksheet)
