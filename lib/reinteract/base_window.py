@@ -185,7 +185,7 @@ class BaseWindow:
         response = chooser.run()
         filename = None
         if response == gtk.RESPONSE_OK:
-            filename = chooser.get_filename()
+            filename = chooser.get_filename().decode("UTF-8")
 
         if filename is not None:
             application.open_path(filename)

@@ -25,7 +25,7 @@ class NotebookState:
     def __init__(self, app_state, path):
         self.path = path
         self.app_state = app_state
-        self.section_name = _section_name(path)
+        self.section_name = _section_name(path.encode("UTF-8"))
 
     def get_open_files(self):
         return self.app_state.get_list(self.section_name, 'open_files', [])
@@ -93,7 +93,7 @@ class ApplicationState(ConfigFile):
         if max_count >= 0:
             paths = paths[0:max_count]
 
-        return [self.get_notebook_state(path) for path in paths]
+        return [self.get_notebook_state(path.decode("UTF-8")) for path in paths]
 
     def get_notebook_state(self, path):
         if not path in self.notebook_states:

@@ -169,7 +169,7 @@ def run(parent=None):
 
             response = chooser.run()
             if response == gtk.RESPONSE_OK:
-                filename = chooser.get_filename()
+                filename = chooser.get_filename().decode("UTF-8")
                 result_window = application.open_notebook(filename)
 
             chooser.destroy()

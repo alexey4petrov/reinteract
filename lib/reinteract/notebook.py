@@ -80,6 +80,9 @@ class NotebookFile(gobject.GObject):
             return 'gtk-dialog-error'
 
     def __init__(self, path):
+        if not isinstance(path, unicode):
+            raise ValueError("Argument to NotebookFile must be unicode")
+
         gobject.GObject.__init__(self)
         self.path = path
 
@@ -100,6 +103,9 @@ class Notebook(gobject.GObject):
     }
 
     def __init__(self, folder=None):
+        if folder is not None and not isinstance(folder, unicode):
+            raise ValueError("Argument to Notebook must be unicode")
+
         gobject.GObject.__init__(self)
 
         global _counter
@@ -493,7 +499,7 @@ if __name__ == '__main__':
     
     from test_utils import assert_equals
 
-    base = tempfile.mkdtemp("", "shell_buffer")
+    base = tempfile.mkdtemp("", u"shell_buffer")
     
     def cleanup():
         for root, dirs, files in os.walk(base, topdown=False):

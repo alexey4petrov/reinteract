@@ -11,13 +11,16 @@ import os
 
 from application import application
 from window_builder import WindowBuilder
+import reunicode
 
 class SaveFileBuilder(WindowBuilder):
-    def __init__(self, title, display_name, save_button_text, check_name=None):
+    def __init__(self, title, display_name, save_button_text, validate_name, check_name=None):
         WindowBuilder.__init__(self, 'save-file')
 
         if check_name is not None:
             self.check_name = check_name
+
+        self.validate_name = validate_name
 
         self.dialog.set_title(title)
         self.dialog.set_default_response(gtk.RESPONSE_OK)
@@ -43,10 +46,11 @@ class SaveFileBuilder(WindowBuilder):
                 break
 
             raw_name = self.name_entry.get_text()
+            raw_name = reunicode.canonicalize_filename(raw_name)
 
             error_message = None
             try:
-                raw_name = application.validate_name(raw_name)
+                raw_name = self.validate_name(raw_name)
             except ValueError, e:
                 error_message = e.message
 

@@ -7,6 +7,7 @@
 ########################################################################
 
 import os
+import re
 
 import gtk
 import pango
@@ -16,6 +17,9 @@ from editor import Editor
 from global_settings import global_settings
 from shell_buffer import ShellBuffer
 from shell_view import ShellView
+
+_LETTER_OR_UNDERSCORE = re.compile("[A-Za-z_]")
+_LETTER_DIGIT_OR_UNDERSCORE = re.compile("[A-Za-z0-9_]")
 
 class LibraryEditor(Editor):
     DISCARD_FORMAT = 'Discard unsaved changes to library "%s"?'
@@ -78,6 +82,29 @@ class LibraryEditor(Editor):
     def _save(self, filename):
         self.buf.worksheet.save(filename)
         self.notebook.reset_module_by_filename(filename)
+
+    @classmethod
+    def _validate_name(cls, name):
+        # Remove surrounding whitespace
+        name = name.strip()
+        if name == "":
+            raise ValueError("Name cannot be empty")
+
+        # Remove .py extension if present.
+        name = re.compile(r".py$").sub("", name)
+
+        # Apply identifier rules from
+        # http://docs.python.org/reference/lexical_analysis.html
+        if not _LETTER_OR_UNDERSCORE.match(name[0]):
+            raise ValueError("Library name must start with a Latin letter or " \
+                             "an underscore")
+
+        for c in name[1:]:
+            if not _LETTER_DIGIT_OR_UNDERSCORE.match(c):
+                raise ValueError("Library names can only contain Latin " \
+                                 "letters, numbers and underscores")
+
+        return name
 
     #######################################################
     # Public API

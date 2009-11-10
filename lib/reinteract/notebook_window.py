@@ -14,6 +14,8 @@ from file_list import FileList
 from format_escaped import format_escaped
 from notebook import NotebookFile, WorksheetFile, LibraryFile
 from save_file import SaveFileBuilder
+from library_editor import LibraryEditor
+from worksheet_editor import WorksheetEditor
 
 gtk.rc_parse_string(
     """
@@ -173,17 +175,20 @@ class NotebookWindow(BaseNotebookWindow):
                 new_file = self.notebook.file_for_absolute_path(new_path)
                 file_list.select_file(new_file)
 
-            title = "Rename '%s'" % file.path
-            builder = SaveFileBuilder(title, file.path, "Rename", check_name)
-            builder.dialog.set_transient_for(self.window)
-            builder.name_entry.set_text(file.path)
-
             if isinstance(file, WorksheetFile):
                 extension = "rws"
+                validate_name = WorksheetEditor.validate_name
             elif isinstance(file, LibraryFile):
                 extension = "py"
+                validate_name = LibraryEditor.validate_name
             else:
                 extension = ""
+                validate_name = None
+
+            title = "Rename '%s'" % file.path
+            builder = SaveFileBuilder(title, file.path, "Rename", validate_name, check_name)
+            builder.dialog.set_transient_for(self.window)
+            builder.name_entry.set_text(file.path)
 
             builder.prompt_for_name(self.notebook.folder, extension, do_rename)
             builder.dialog.destroy()

@@ -33,12 +33,23 @@ def _string_property(name, default=None):
 
     return gobject.property(getter=getter, setter=setter, type=str, default=default)
 
+def _unicode_property(name):
+    def getter(self):
+        return self.__dict__[name]
+
+    def setter(self, value):
+        if not isinstance(value, unicode):
+            raise ValueError("Argument to %s must be unicode" % name)
+        self.__dict__[name] = value
+
+    return property(getter, setter)
+
 class GlobalSettings(gobject.GObject):
-    dialogs_dir = gobject.property(type=str)
-    examples_dir = gobject.property(type=str)
-    config_dir = gobject.property(type=str)
-    icon_file = gobject.property(type=str)
-    notebooks_dir = gobject.property(type=str)
+    dialogs_dir = _unicode_property('dialogs_dir')
+    examples_dir = _unicode_property('examples_dir')
+    config_dir = _unicode_property('config_dir')
+    icon_file = _unicode_property('icon_file')
+    notebooks_dir = _unicode_property('notebooks_dir')
     mini_mode = gobject.property(type=bool, default=False)
     main_menu_mode = gobject.property(type=bool, default=False)
     version = gobject.property(type=str)
@@ -55,18 +66,18 @@ class GlobalSettings(gobject.GObject):
         gobject.GObject.__init__(self)
 
         if sys.platform == 'win32':
-            self.config_dir = os.path.join(os.getenv('APPDATA'), 'Reinteract')
+            self.config_dir = os.path.join(os.getenv('APPDATA').decode('mbcs'), 'Reinteract')
         else:
-            self.config_dir =  os.path.expanduser("~/.reinteract")
+            self.config_dir =  os.path.expanduser(u"~/.reinteract")
 
         try:
             # Added in pygobject-2.18
-            documents_dir = glib.get_user_special_dir(glib.USER_DIRECTORY_DOCUMENTS)
+            documents_dir = glib.get_user_special_dir(glib.USER_DIRECTORY_DOCUMENTS).decode("UTF-8")
         except AttributeError, e:
             # In a shocking example of cross-platform convergence, ~/Documents
             # is the documents directory on OS X, Windows, and Linux, except
             # when localized
-            documents_dir = os.path.expanduser("~/Documents")
+            documents_dir = os.path.expanduser(u"~/Documents")
 
         self.notebooks_dir = os.path.join(documents_dir, 'Reinteract')
         if not os.path.isdir(self.notebooks_dir):

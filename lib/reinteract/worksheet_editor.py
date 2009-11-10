@@ -16,6 +16,7 @@ from editor import Editor
 from global_settings import global_settings
 from shell_buffer import ShellBuffer
 from shell_view import ShellView
+import reunicode
 
 class WorksheetEditor(Editor):
     DISCARD_FORMAT = 'Discard unsaved changes to worksheet "%s"?'
@@ -81,6 +82,10 @@ class WorksheetEditor(Editor):
 
     def _save(self, filename):
         self.buf.worksheet.save(filename)
+
+    @classmethod
+    def _validate_name(cls, name):
+        return reunicode.validate_name(name)
 
     #######################################################
     # Public API

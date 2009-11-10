@@ -50,7 +50,7 @@ class Editor(gobject.GObject):
         self.notify('file')
 
     def __prompt_for_name(self, title, save_button_text, action, check_name=None):
-        builder = SaveFileBuilder(title, self._get_display_name(), save_button_text, check_name)
+        builder = SaveFileBuilder(title, self._get_display_name(), save_button_text, self._validate_name, check_name)
         builder.dialog.set_transient_for(self.widget.get_toplevel())
 
         if self._get_filename() is not None:
@@ -83,6 +83,10 @@ class Editor(gobject.GObject):
         return NotImplementedError()
 
     def _save(self, filename):
+        return NotImplementedError()
+
+    @classmethod
+    def _validate_name(cls, name):
         return NotImplementedError()
 
     #######################################################
@@ -184,6 +188,10 @@ class Editor(gobject.GObject):
             self.notebook.refresh()
 
         self.__prompt_for_name(title=title, save_button_text="_Rename", action=action, check_name=check_name)
+
+    @classmethod
+    def validate_name(cls, name):
+        return cls._validate_name(name)
 
     @property
     def needs_calculate(self):

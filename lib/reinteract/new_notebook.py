@@ -12,6 +12,7 @@ import os
 from application import application
 from global_settings import global_settings
 from window_builder import WindowBuilder
+import reunicode
 
 class CreateNotebookBuilder(WindowBuilder):
     def __init__(self):
@@ -50,10 +51,13 @@ def run(parent=None):
         if response != gtk.RESPONSE_OK:
             break
 
+        raw_name = builder.name_entry.get_text()
+        raw_name = reunicode.canonicalize_filename(raw_name)
+
         error_message = None
         error_detail = None
         try:
-            name = application.validate_name(builder.name_entry.get_text())
+            name = reunicode.validate_name(raw_name)
         except ValueError, e:
             error_message = "<big><b>Please choose a different name</b></big>"
             error_detail = e.message

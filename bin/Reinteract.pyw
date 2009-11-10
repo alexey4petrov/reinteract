@@ -11,7 +11,7 @@
 import os
 import sys
 
-script_path = os.path.realpath(os.path.abspath(sys.argv[0]))
+script_path = os.path.realpath(os.path.abspath(sys.argv[0].decode('mbcs')))
 topdir = os.path.dirname(os.path.dirname(script_path))
 libdir = os.path.join(topdir, 'python')
 externaldir = os.path.join(topdir, 'external')

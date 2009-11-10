@@ -49,6 +49,9 @@ def format_duration(past):
 
 class NotebookInfo(object):
     def __init__(self, folder):
+        if not isinstance(folder, unicode):
+            raise ValueError("Argument to NotebookInfo must be unicode")
+
         self.folder = folder
         self.__load()
 

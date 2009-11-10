@@ -15,9 +15,9 @@ from reinteract.global_settings import global_settings
 
 prefix="@prefix@"
 datarootdir="@datarootdir@".replace("${prefix}", prefix)
-global_settings.dialogs_dir = os.path.join(datarootdir, "reinteract", "dialogs")
-global_settings.examples_dir = os.path.join(datarootdir, "reinteract", "examples")
-global_settings.icon_file = os.path.join(datarootdir, "reinteract", "Reinteract.ico")
+global_settings.dialogs_dir = os.path.join(datarootdir, u"reinteract", u"dialogs")
+global_settings.examples_dir = os.path.join(datarootdir, u"reinteract", u"examples")
+global_settings.icon_file = os.path.join(datarootdir, u"reinteract", u"Reinteract.ico")
 global_settings.version = "@VERSION@"
 
 if __name__ == "__main__":

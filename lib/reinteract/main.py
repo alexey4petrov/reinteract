@@ -60,14 +60,14 @@ def main():
     if len(args) > 0:
         if options.ui == "standard":
             for arg in args:
-                application.open_path(os.path.abspath(arg))
+                application.open_path(os.path.abspath(arg.decode("UTF-8")))
             if len(application.windows) == 0: # nothing opened successfully
                 sys.exit(1)
         else: # mini-mode, can specify one notebook
             if len(args) > 1:
                 print >>sys.stderr, "Ignoring extra command line arguments."
 
-            absolute = os.path.abspath(args[0])
+            absolute = os.path.abspath(args[0].decode("UTF-8"))
 
             # We look to see if we can find the specified notebook so that we can
             # produce a good error message instead of opening a worksheet window
