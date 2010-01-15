@@ -101,8 +101,8 @@ class WorksheetEditor(Editor):
         self.buf.worksheet.load(filename, escape=escape)
         self.buf.place_cursor(self.buf.get_start_iter())
 
-    def calculate(self):
-        self.view.calculate()
+    def calculate(self, end_at_insert=False):
+        self.view.calculate(end_at_insert)
 
     def undo(self):
         self.buf.worksheet.undo()
