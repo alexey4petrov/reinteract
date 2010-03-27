@@ -9,6 +9,7 @@
 # This module holds preferences and options that are global to the entire program.
 
 import gobject
+import glib
 import os
 import sys
 
@@ -60,7 +61,10 @@ class GlobalSettings(gobject.GObject):
 
         # In a shocking example of cross-platform convergence, ~/Documents
         # is the documents directory on OS X, Windows, and Linux
-        self.notebooks_dir = os.path.expanduser("~/Documents/Reinteract")
+        documents_dir = glib.get_user_special_dir(glib.USER_DIRECTORY_DOCUMENTS)
+        self.notebooks_dir = os.path.join(documents_dir, 'Reinteract')
+        if not os.path.isdir(self.notebooks_dir):
+            os.makedirs(self.notebooks_dir)
 
         config_location = os.path.join(self.config_dir, 'reinteract.conf')
         self.config = ConfigFile(config_location)
