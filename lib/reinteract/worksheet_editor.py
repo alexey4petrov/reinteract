@@ -100,7 +100,6 @@ class WorksheetEditor(Editor):
     def load(self, filename, escape=False):
         self.buf.worksheet.load(filename, escape=escape)
         self.buf.place_cursor(self.buf.get_start_iter())
-        self.calculate()
 
     def calculate(self):
         self.view.calculate()
