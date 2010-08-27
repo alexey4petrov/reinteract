@@ -275,7 +275,7 @@ class Notebook(gobject.GObject):
 
         if local:
             module = self.__load_local_module(fullname, loader)
-            self.__modules[name] = module
+            self.__modules[fullname] = module
         else:
             module =  loader.load_module(fullname)
 
@@ -503,6 +503,11 @@ if __name__ == '__main__':
         do_test("import package1.mod2 as m", "m.b", 2)
         do_test("from package1 import mod2", "mod2.b", 2)
         do_test("from package1 import *", "mod2.b", 2)
+
+        # Test loading the same local module a second time in the same notebook
+        nb = Notebook(base)
+        do_test("import package1.mod2", "package1.mod2.b", 2, nb=nb)
+        do_test("import package1.mod2", "package1.mod2.b", 2, nb=nb)
 
         # http://www.reinteract.org/trac/ticket/5
         do_test("import package2.mod3", "package2.mod3.c", 3)
