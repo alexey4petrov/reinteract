@@ -233,7 +233,7 @@ class Notebook(gobject.GObject):
         sys.modules[prefixed] = new
         try:
             result = loader.load_module(prefixed)
-        except:
+        except SyntaxError, e: # For runtime errors, Python will do the cleanup
             del sys.modules[prefixed]
             raise
         assert result == new
@@ -529,6 +529,19 @@ if __name__ == '__main__':
         nb.reset_module_by_filename(os.path.join(base, "mod4.py"))
         do_test("import mod4", "mod4.a", 1, nb=nb)
 
+        # Test recovering from a runtime error during import
+        nb = Notebook(base)
+        write_file("mod5.py", "a = b")
+        try:
+            do_test("import mod5", "mod5.a", 1, nb=nb)
+        except NameError, e:
+            pass
+        # the old and new files will have the same second-resolution timestamps
+        cleanup_pyc()
+        write_file("mod5.py", "a = 1")
+        nb.reset_module_by_filename(os.path.join(base, "mod5.py"))
+        do_test("import mod5", "mod5.a", 1, nb=nb)
+
         nb = Notebook(base)
         assert_equals(nb.file_for_absolute_path(os.path.dirname(base)), None)
         assert_equals(nb.file_for_absolute_path(base), None)
@@ -536,6 +549,15 @@ if __name__ == '__main__':
         assert_equals(nb.file_for_absolute_path(os.path.join(base, "package1")), None)
         assert_equals(nb.file_for_absolute_path(os.path.join(base, "package1/")), None)
         assert_equals(nb.file_for_absolute_path(os.path.join(base, "package1/mod2.py")).path, "package1/mod2.py")
+
+        # Simple test of isolation - if this was the same notebook, then
+        # we'd need to reset_module_by_filename()
+        write_file("mod6.py", "import mod7\na = mod7.a");
+        write_file("mod7.py", "a = 1")
+        do_test("import mod6", "mod6.a", 1) # creates a new notebook
+        cleanup_pyc()
+        write_file("mod7.py", "a = 2")
+        do_test("import mod6", "mod6.a", 2) # creates a different new notebook
 
     finally:
         cleanup()
