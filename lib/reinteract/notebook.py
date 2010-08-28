@@ -228,16 +228,23 @@ class Notebook(gobject.GObject):
 
         new = imp.new_module(prefixed)
         self.setup_globals(new.__dict__)
+        new.__name__ = fullname
         
         assert not prefixed in sys.modules
         sys.modules[prefixed] = new
+        self.__modules[fullname] = new
         try:
             result = loader.load_module(prefixed)
-        except SyntaxError, e: # For runtime errors, Python will do the cleanup
+        except SyntaxError, e:
             del sys.modules[prefixed]
+            del self.__modules[fullname]
+            raise
+        except:
+            # For runtime errors, Python will do the cleanup of sys.modules
+            del self.__modules[fullname]
             raise
         assert result == new
-        
+
         return result
 
     # Unlike imp.find_module(), pkgutil.find_loader() doesn't take a path
@@ -275,7 +282,6 @@ class Notebook(gobject.GObject):
 
         if local:
             module = self.__load_local_module(fullname, loader)
-            self.__modules[fullname] = module
         else:
             module =  loader.load_module(fullname)
 
@@ -316,7 +322,36 @@ class Notebook(gobject.GObject):
             getattr(module, fromname)
         except AttributeError:
             self.__find_and_load(fullname + "." + fromname, fromname, parent=module, local=local)
-        
+
+    def __get_package(self, globals):
+        # The behavior of core Python is to set module.__package__ to None when
+        # the module is created, then to compute and cache __package__ the first
+        # time it is needed for an import within the module. A bit silly, since
+        # that means negative results aren't cached, but we follow along.
+
+        if '__package__' in globals and globals['__package__'] is not None:
+            return globals['__package__'] # previously cached
+
+        if globals is None or not '__name__' in globals:
+            return None # not in a package
+
+        name = globals['__name__']
+
+        if '__path__' in globals:
+            # If __path__ is set, then the caller is itself a package
+            package = name
+        else:
+            try:
+                dotindex = name.rindex('.')
+            except ValueError:
+                return None
+
+            package = name[0:dotindex]
+
+        globals['__package__'] = package # cache
+
+        return package
+
     def do_import(self, name, globals=None, locals=None, fromlist=None, level=None):
         # Holding the import lock around the whole import process matches what
         # Python does internally. This does mean that the machinery of loading a slow
@@ -327,7 +362,40 @@ class Notebook(gobject.GObject):
         try:
             names = name.split('.')
 
-            module, local =  self.__import_recurse(names)
+            # we want to return the module pointed to by the first component of name;
+            # even if name is a relative name not an absolute name. return_index
+            # is the index of name within the absolute name
+            return_index = 0
+
+            if level != 0:
+                package = self.__get_package(globals)
+                if package is not None:
+                    package_names = package.split('.')
+
+            if level == -1 and package is not None:
+                # Pre-PEP 328, first try local import, then global import
+                try:
+                    tmp_names = package_names + names
+                    module, local = self.__import_recurse(tmp_names)
+                    names = tmp_names
+                    return_index = len(package_names)
+                except ImportError:
+                    module, local = self.__import_recurse(names)
+            else:
+                if level > 0:
+                    # Relative import, figure out the absolute name we're importing
+                    return_index = level
+                    if package is None:
+                        raise ValueError("ValueError: Attempted relative import in non-package")
+                    elif level - 1 > len(package_names):
+                        raise ValueError("Attempted relative import beyond toplevel package")
+
+                    if level > 1:
+                        package_names = package_names[0:-(level - 1)]
+
+                    names = package_names + names
+
+                module, local =  self.__import_recurse(names)
 
             if fromlist is not None:
                 # In 'from a.b import c', if a.b.c doesn't exist after loading a.b, The built-in
@@ -344,10 +412,13 @@ class Notebook(gobject.GObject):
                         self.__ensure_from_list_item(name, fromname, module, local)
 
                 return module
-            elif local:
-                return self.__modules[names[0]]
             else:
-                return sys.modules[names[0]]
+                return_name = ".".join(names[0:return_index + 1])
+
+                if local:
+                    return self.__modules[return_name]
+                else:
+                    return sys.modules[return_name]
         finally:
             imp.release_lock()
 
@@ -482,8 +553,10 @@ if __name__ == '__main__':
 
     try:
         write_file("mod1.py", "a = 1")
-        write_file("package1/__init__.py", "__all__ = ['mod2']")
+        write_file("package1/__init__.py", "import os\n__all__ = ['mod2']")
         write_file("package1/mod2.py", "b = 2")
+        write_file("package1/mod8.py", "import os\nimport mod2\nf = mod2.b + 1")
+        write_file("package1/mod9.py", "from __future__ import absolute_import\nfrom . import mod2\ng = mod2.b + 2")
         write_file("package2/__init__.py", "")
         write_file("package2/mod3.py", "import package1.mod2\nc = package1.mod2.b + 1")
 
@@ -503,6 +576,9 @@ if __name__ == '__main__':
         do_test("import package1.mod2 as m", "m.b", 2)
         do_test("from package1 import mod2", "mod2.b", 2)
         do_test("from package1 import *", "mod2.b", 2)
+
+        do_test("import package1.mod8", "package1.mod8.f", 3);
+        do_test("import package1.mod9", "package1.mod9.g", 4);
 
         # Test loading the same local module a second time in the same notebook
         nb = Notebook(base)
