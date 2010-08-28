@@ -41,8 +41,23 @@ class Popup(gtk.Window):
         
         return False
 
+    #######################################################
+    # Implemented by subclasses
+    #######################################################
+
+    # Do any dirty tricks and hacks necessary so that getting the size request of the window gives
+    # the right size.
+    def _prepare_for_position(self):
+        pass
+
+    #######################################################
+    # Public API
+    #######################################################
+
     def position_at_location(self, view, location):
         """Position the popup relative to a location within a gtk.TextView"""
+
+        self._prepare_for_position()
         
         buf = view.get_buffer()
 
@@ -57,7 +72,7 @@ class Popup(gtk.Window):
         x = cursor_rect.x
         y = cursor_rect.y + cursor_rect.height + VERTICAL_GAP
 
-        _, height = self.get_size_request()
+        _, height = self.size_request()
 
         # If the popup would go off the screen, pop it up above instead; should we
         # reverse the direction of the items here, as for a menu? I think that would
@@ -82,6 +97,8 @@ class Popup(gtk.Window):
 
         """
         
+        self._prepare_for_position()
+
         x, y = window.window.get_origin()
         width, height = window.window.get_size()
 

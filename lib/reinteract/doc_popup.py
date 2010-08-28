@@ -226,12 +226,7 @@ class DocPopup(Popup):
         # the toplevel window
         self.__update_font()
 
-    def __show(self, focus):
-        if self.showing:
-            if focus:
-                self.focus()
-            return
-
+    def _prepare_for_position(self):
         # We want to avoid:
         #
         #  - get the size for the popup without validating the TextView
@@ -247,6 +242,12 @@ class DocPopup(Popup):
         self.__view.size_request()
         self.__view.size_allocate(gtk.gdk.Rectangle(0, 0, 10000, 1000))
         self.__view.queue_resize()
+
+    def __show(self, focus):
+        if self.showing:
+            if focus:
+                self.focus()
+            return
 
         if focus:
             # changing the focus state can change our requisition by showing
