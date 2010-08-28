@@ -28,7 +28,8 @@ class NotebookState:
         self.section_name = _section_name(path.encode("UTF-8"))
 
     def get_open_files(self):
-        return self.app_state.get_list(self.section_name, 'open_files', [])
+        files = self.app_state.get_list(self.section_name, 'open_files', [])
+        return [f.decode("UTF-8") for f in files]
 
     def get_last_opened(self):
         return self.app_state.get_float(self.section_name, 'last_opened', -1)
@@ -38,6 +39,10 @@ class NotebookState:
 
     def get_current_file(self):
         value = self.app_state.get_string(self.section_name, 'current_file')
+        if value is not None:
+            return value.decode("UTF-8")
+        else:
+            return None
 
     def get_size(self):
         width = self.app_state.get_int(self.section_name, 'width', -1)
@@ -49,11 +54,17 @@ class NotebookState:
         return self.app_state.get_int(self.section_name, 'pane_position', -1)
 
     def set_open_files(self, files):
-        self.app_state.set_list(self.section_name, 'open_files', files)
+        if not all((isinstance(o, unicode) for o in files)):
+            raise ValueError("files argument must contain unicode strings")
+        import sys
+        self.app_state.set_list(self.section_name, 'open_files',
+                                [f.encode("UTF-8") for f in files])
 
     def set_current_file(self, file):
         if file:
-            self.app_state.set_string(self.section_name, 'current_file', file)
+            if not isinstance(file, unicode):
+                raise ValueError("files argument must be unicode")
+            self.app_state.set_string(self.section_name, 'current_file', file.encode("UTF-8"))
         else:
             self.app_state.remove_option(self.section_name, 'current_file')
 

@@ -807,6 +807,7 @@ class Worksheet(gobject.GObject):
             self.__file.state = new_state
 
     def __set_filename(self, filename):
+        filename = filename.decode("UTF-8")
         if filename == self.__filename:
             return
 
@@ -865,6 +866,8 @@ class Worksheet(gobject.GObject):
            will be converted into \\x<nn> and \\u<nnnn> escape sequences.
 
         """
+        if not isinstance(filename, unicode):
+            raise ValueError("filename argument must be unicode")
         f = open(filename)
         text = f.read()
         f.close()
@@ -878,6 +881,8 @@ class Worksheet(gobject.GObject):
         self.__undo_stack.clear()
 
     def save(self, filename=None):
+        if not isinstance(filename, unicode):
+            raise ValueError("filename argument must be unicode")
         if filename is None:
             if self.__filename is None:
                 raise ValueError("No current or specified filename")

@@ -58,9 +58,14 @@ def main():
     glib.set_application_name("Reinteract")
 
     if len(args) > 0:
+        if sys.platform == 'win32':
+            args = [a.decode("mbcs") for a in args]
+        else:
+            args = [a.decode("UTF-8") for a in args]
+
         if options.ui == "standard":
             for arg in args:
-                application.open_path(os.path.abspath(arg.decode("UTF-8")))
+                application.open_path(os.path.abspath(arg))
             if len(application.windows) == 0: # nothing opened successfully
                 sys.exit(1)
         else: # mini-mode, can specify one notebook

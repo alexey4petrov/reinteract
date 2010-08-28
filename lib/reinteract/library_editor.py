@@ -91,17 +91,17 @@ class LibraryEditor(Editor):
             raise ValueError("Name cannot be empty")
 
         # Remove .py extension if present.
-        name = re.compile(r".py$").sub("", name)
+        name = re.sub(r".py$", "", name)
 
         # Apply identifier rules from
         # http://docs.python.org/reference/lexical_analysis.html
         if not _LETTER_OR_UNDERSCORE.match(name[0]):
-            raise ValueError("Library name must start with a Latin letter or " \
+            raise ValueError("Library name must start with a Latin letter or "
                              "an underscore")
 
         for c in name[1:]:
             if not _LETTER_DIGIT_OR_UNDERSCORE.match(c):
-                raise ValueError("Library names can only contain Latin " \
+                raise ValueError("Library names can only contain Latin "
                                  "letters, numbers and underscores")
 
         return name

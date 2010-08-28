@@ -15,6 +15,7 @@ import pkgutil
 import sys
 
 from notebook_info import NotebookInfo
+import reunicode
 
 # Used to give each notebook a unique namespace
 _counter = 1
@@ -81,7 +82,7 @@ class NotebookFile(gobject.GObject):
 
     def __init__(self, path):
         if not isinstance(path, unicode):
-            raise ValueError("Argument to NotebookFile must be unicode")
+            raise ValueError("path argument must be unicode")
 
         gobject.GObject.__init__(self)
         self.path = path
@@ -104,7 +105,7 @@ class Notebook(gobject.GObject):
 
     def __init__(self, folder=None):
         if folder is not None and not isinstance(folder, unicode):
-            raise ValueError("Argument to Notebook must be unicode")
+            raise ValueError("folder argument must be unicode")
 
         gobject.GObject.__init__(self)
 
@@ -151,6 +152,8 @@ class Notebook(gobject.GObject):
         files_added = False
 
         for f in os.listdir(full_folder):
+            f = reunicode.canonicalize_filename(f)
+
             if folder is None and f == "index.rnb":
                 continue
 
@@ -466,6 +469,9 @@ class Notebook(gobject.GObject):
         globals['help'] = _Helper()
 
     def file_for_absolute_path(self, absolute_path):
+        if not isinstance(absolute_path, unicode):
+            raise ValueError("absolute_path argument must be unicode")
+
         assert absolute_path
         assert os.path.isabs(absolute_path)
 

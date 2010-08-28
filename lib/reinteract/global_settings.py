@@ -39,7 +39,7 @@ def _unicode_property(name):
 
     def setter(self, value):
         if not isinstance(value, unicode):
-            raise ValueError("Argument to %s must be unicode" % name)
+            raise ValueError("Value for property '%s' must be unicode" % name)
         self.__dict__[name] = value
 
     return property(getter, setter)

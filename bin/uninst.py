@@ -13,7 +13,7 @@ import re
 import subprocess
 import sys
 
-script_path = os.path.realpath(os.path.abspath(sys.argv[0]))
+script_path = os.path.realpath(os.path.abspath(sys.argv[0])).decode("UTF-8")
 topdir = os.path.dirname(os.path.dirname(script_path))
 libdir = os.path.join(topdir, 'lib')
 builderdir = os.path.join(topdir, 'dialogs')

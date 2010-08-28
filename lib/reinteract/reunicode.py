@@ -45,6 +45,7 @@ _UNSAFE_CHARACTERS = re.compile(u"[^\u0001-\ud7ff\ue000-\ufdcf\ufdf0-\ufffd]+")
 _NON_ASCII_BYTE = re.compile("[\x80-\xff]")
 
 _VALID_NAME_ASCII_CHAR = re.compile("[A-Za-z0-9._ -]")
+_ASCII_CHAR = re.compile("[\x00-\x7f]")
 # Letter, Mark, Number, Punctuation, Symbol
 _VALID_NAME_CATEGORIES = re.compile("^[LMNPS]")
 
@@ -134,7 +135,7 @@ def validate_name(name):
     bad_chars = set()
     for c in name:
         if not _VALID_NAME_ASCII_CHAR.match(c):
-            if _UNSAFE_CHARACTERS.match(c):
+            if _ASCII_CHAR.match(c) or _UNSAFE_CHARACTERS.match(c):
                 bad_chars.add(c)
             else:
                 category = unicodedata.category(c)
