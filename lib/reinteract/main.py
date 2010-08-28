@@ -8,6 +8,7 @@
 ########################################################################
 
 import glib
+import gobject
 import gtk
 import logging
 from optparse import OptionParser
@@ -15,7 +16,7 @@ import os
 import stdout_capture
 import sys
 
-glib.threads_init()
+gobject.threads_init()
 stdout_capture.init()
 
 from global_settings import global_settings

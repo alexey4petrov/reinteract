@@ -958,7 +958,7 @@ if __name__ == '__main__': #pragma: no cover
     if "-d" in sys.argv:
         logging.basicConfig(level=logging.DEBUG, format="DEBUG: %(message)s")
 
-    glib.threads_init()
+    gobject.threads_init()
 
     import stdout_capture
     stdout_capture.init()

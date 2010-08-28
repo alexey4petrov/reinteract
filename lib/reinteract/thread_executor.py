@@ -233,7 +233,7 @@ class ThreadExecutor(gobject.GObject):
 ######################################################################
 
 if __name__ == '__main__': #pragma: no cover
-    glib.threads_init()
+    gobject.threads_init()
 
     import stdout_capture
     stdout_capture.init()
