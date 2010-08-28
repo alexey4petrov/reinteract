@@ -26,6 +26,9 @@ class _StdoutStack(threading.local):
     def write(self, str):
         self.current.write(str)
 
+    def flush(self):
+        self.current.flush()
+
     def push(self, value):
         self.stack.append(self.current)
         self.current = value
@@ -84,6 +87,9 @@ class StdoutCapture:
     
     def write(self, str):
         self.__write_function(str)
+
+    def flush(self):
+        pass
 
 if __name__ == "__main__":
     init()
