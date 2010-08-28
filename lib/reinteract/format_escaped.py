@@ -20,7 +20,7 @@
 # http://docs.python.org/lib/typesseq-strings.html
 #
 
-from gobject import markup_escape_text
+from glib import markup_escape_text
 
 def _escape(o):
     if isinstance(o, basestring):

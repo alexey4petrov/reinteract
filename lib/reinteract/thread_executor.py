@@ -8,6 +8,7 @@
 ########################################################################
 
 import ctypes
+import glib
 import gobject
 import signal
 import sys
@@ -115,7 +116,7 @@ class ThreadExecutor(gobject.GObject):
     def __queue_idle(self):
         # Must be called with the lock held
         if not self.idle_id:
-            self.idle_id = gobject.idle_add(self.__run_idle)
+            self.idle_id = glib.idle_add(self.__run_idle)
 
     def __run_thread(self):
         # The patten used twice here of:
@@ -232,7 +233,7 @@ class ThreadExecutor(gobject.GObject):
 ######################################################################
 
 if __name__ == '__main__': #pragma: no cover
-    gobject.threads_init()
+    glib.threads_init()
 
     import stdout_capture
     stdout_capture.init()
@@ -259,7 +260,7 @@ if __name__ == '__main__': #pragma: no cover
             statement._got_executing = False
             executor.add_statement(statement)
 
-        loop = gobject.MainLoop()
+        loop = glib.MainLoop()
 
         def on_statement_executing(executor, statement):
             if hasattr(statement, '_got_state'):
@@ -290,13 +291,13 @@ if __name__ == '__main__': #pragma: no cover
 
         if executor.compile():
             executor.execute()
-            interrupt_source = gobject.timeout_add(500, interrupt)
-            timeout_source = gobject.timeout_add(1000, timeout)
+            interrupt_source = glib.timeout_add(500, interrupt)
+            timeout_source = glib.timeout_add(1000, timeout)
             loop.run()
             if timed_out:
                 raise AssertionError("Interrupting ThreadExecutor failed")
-            gobject.source_remove(interrupt_source)
-            gobject.source_remove(timeout_source)
+            glib.source_remove(interrupt_source)
+            glib.source_remove(timeout_source)
 
         for s in executor.statements:
             assert_equals(s._got_state, s._expected_state)

@@ -8,7 +8,6 @@
 
 import os
 
-import gobject
 import gtk
 import pango
 

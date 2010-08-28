@@ -6,7 +6,7 @@
 #
 ########################################################################
 
-import gobject
+import glib
 import gtk
 import re
 from shell_buffer import ShellBuffer, ADJUST_NONE, ADJUST_BEFORE, ADJUST_AFTER
@@ -540,7 +540,7 @@ class ShellView(gtk.TextView):
         
     def __stop_mouse_over(self):
         if self.__mouse_over_timeout:
-            gobject.source_remove(self.__mouse_over_timeout)
+            glib.source_remove(self.__mouse_over_timeout)
             self.__mouse_over_timeout = None
             
         self.__mouse_over_object = None
@@ -571,7 +571,7 @@ class ShellView(gtk.TextView):
                         timeout = self.get_settings().get_property('gtk-tooltip-timeout')
                     except TypeError: # GTK+ < 2.12
                         timeout = 500
-                    self.__mouse_over_timeout = gobject.timeout_add(timeout, self.__show_mouse_over)
+                    self.__mouse_over_timeout = glib.timeout_add(timeout, self.__show_mouse_over)
                 
         return gtk.TextView.do_motion_notify_event(self, event)
 

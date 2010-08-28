@@ -411,6 +411,7 @@ All rights reserved.
             self.compile_wrapper_python26()
 
         self.add_external_module('cairo', 'external', feature='pygtk')
+        self.add_external_module('glib', 'external', feature='pygtk')
         self.add_external_module('gobject', 'external', feature='pygtk')
         self.add_external_module('atk', 'external', feature='pygtk')
         self.add_external_module('pango', 'external', feature='pygtk')

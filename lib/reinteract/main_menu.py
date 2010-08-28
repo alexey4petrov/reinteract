@@ -6,7 +6,7 @@
 #
 ########################################################################
 
-import gobject
+import glib
 
 from about_dialog import AboutDialog
 from application import application
@@ -48,7 +48,7 @@ class MainMenu(NativeMainMenu):
         # Recursing the main loop (which we do for various messages, etc), is a bad thing
         # to do out of a Quartz menu callback, so defer the real work to the next run of
         # the main loop
-        gobject.idle_add(self.run_action, action_name, priority=gobject.PRIORITY_HIGH)
+        glib.idle_add(self.run_action, action_name, priority=glib.PRIORITY_HIGH)
 
     def on_about(self):
         application.show_about_dialog()

@@ -7,7 +7,7 @@
 #
 ########################################################################
 
-import gobject
+import glib
 import gtk
 import logging
 from optparse import OptionParser
@@ -15,7 +15,7 @@ import os
 import stdout_capture
 import sys
 
-gobject.threads_init()
+glib.threads_init()
 stdout_capture.init()
 
 from global_settings import global_settings
@@ -55,7 +55,7 @@ def main():
         sys.path[0:0] = [user_ext_path]
 
     gtk.window_set_default_icon_name("reinteract")
-    gobject.set_application_name("Reinteract")
+    glib.set_application_name("Reinteract")
 
     if len(args) > 0:
         if options.ui == "standard":

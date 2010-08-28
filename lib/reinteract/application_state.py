@@ -6,7 +6,6 @@
 #
 ########################################################################
 
-import gobject
 import os
 import re
 import time

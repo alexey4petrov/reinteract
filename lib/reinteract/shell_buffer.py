@@ -672,9 +672,10 @@ class ShellBuffer(gtk.TextBuffer):
 #
 
 if __name__ == '__main__': #pragma: no cover
+    import glib
     import sys
 
-    gobject.threads_init()
+    glib.threads_init()
 
     from notebook import Notebook
 

@@ -8,6 +8,7 @@
 
 import sys
 
+import glib
 import gobject
 import logging
 import os
@@ -595,7 +596,7 @@ class Worksheet(gobject.GObject):
 
         if executor:
             if wait:
-                loop = gobject.MainLoop()
+                loop = glib.MainLoop()
 
             def on_statement_execution_state_changed(executor, statement):
                 if (statement.state == Statement.COMPILE_ERROR or
@@ -942,7 +943,7 @@ if __name__ == '__main__': #pragma: no cover
     if "-d" in sys.argv:
         logging.basicConfig(level=logging.DEBUG, format="DEBUG: %(message)s")
 
-    gobject.threads_init()
+    glib.threads_init()
 
     import stdout_capture
     stdout_capture.init()

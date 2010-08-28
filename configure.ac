@@ -68,7 +68,7 @@ case $host in
      	# on OS X. They can just use bin/uninst.py, or they can figure out how
      	# to fix this :-)
         platform_osx=true
-        PKG_CHECK_MODULES(WRAPPER, [pygobject-2.0 >= 2.12 gtk+-2.0 >= 2.12])
+        PKG_CHECK_MODULES(WRAPPER, [pygobject-2.0 >= 2.16 gtk+-2.0 >= 2.12])
         JD_CHECK_PYTHON_HEADERS(,[AC_MSG_ERROR(could not find Python headers)])
 
         if $use_python_thunks ; then : ; else

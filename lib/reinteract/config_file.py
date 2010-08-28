@@ -7,7 +7,7 @@
 ########################################################################
 
 from ConfigParser import RawConfigParser, ParsingError, NoOptionError, NoSectionError
-import gobject
+import glib
 import os
 import re
 
@@ -141,7 +141,7 @@ class ConfigFile(object):
 
     def flush(self):
         if self.flush_timeout != 0:
-            gobject.source_remove(self.flush_timeout)
+            glib.source_remove(self.flush_timeout)
             self.flush_timeout = 0
 
         tmpname = self.location + ".tmp"
@@ -164,7 +164,7 @@ class ConfigFile(object):
 
     def queue_flush(self):
         if self.flush_timeout == 0:
-            self.flush_timeout = gobject.timeout_add(_FLUSH_INTERVAL, self.flush)
+            self.flush_timeout = glib.timeout_add(_FLUSH_INTERVAL, self.flush)
 
 ######################################################################
 
