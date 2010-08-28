@@ -145,6 +145,7 @@ class EditorWindow(BaseWindow):
         self.main_vbox.pack_start(self.current_editor.widget, expand=True, fill=True)
 
         self.path = filename
+        self.notebook.set_path([os.path.dirname(filename)])
 
         self.update_sensitivity()
 
