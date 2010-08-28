@@ -59,9 +59,15 @@ class GlobalSettings(gobject.GObject):
         else:
             self.config_dir =  os.path.expanduser("~/.reinteract")
 
-        # In a shocking example of cross-platform convergence, ~/Documents
-        # is the documents directory on OS X, Windows, and Linux
-        documents_dir = glib.get_user_special_dir(glib.USER_DIRECTORY_DOCUMENTS)
+        try:
+            # Added in pygobject-2.18
+            documents_dir = glib.get_user_special_dir(glib.USER_DIRECTORY_DOCUMENTS)
+        except AttributeError, e:
+            # In a shocking example of cross-platform convergence, ~/Documents
+            # is the documents directory on OS X, Windows, and Linux, except
+            # when localized
+            documents_dir = os.path.expanduser("~/Documents")
+
         self.notebooks_dir = os.path.join(documents_dir, 'Reinteract')
         if not os.path.isdir(self.notebooks_dir):
             os.makedirs(self.notebooks_dir)
