@@ -202,6 +202,7 @@ EXTRA_DIST =					\
 	     $(BUILD_DEPS_OSX_EXTRA)		\
 	     src/reinteract_wrapper_osx/README	\
 	     tools/run_tests.sh			\
+	     tools/check-for-missing.py		\
              $(LIST_END)
 
 DISTCLEANFILES =                                                              \
@@ -227,17 +228,10 @@ api-docs:
 	done;														\
 	cd $(top_srcdir)/lib && PYTHONPATH="$PYTHONPATH:reinteract" epydoc -v --config=$$conf --output=$$out $$modules
 
-distcheck-hook:
-	@echo "Checking against files in git"
-	@failed=false;							\
-	for f in `cd $(srcdir) && git-ls-files -x .gitignore` ; do	\
-		if test -e $(distdir)/$$f ; then : ; else		\
-			echo File missing from distribution: $$f ;	\
-			failed=true ;					\
-		fi							\
-	done ;								\
-	if $$failed ; then						\
-		exit 1 ;						\
-	fi
+# These are files checked into Git that we don't want to distribute
+DIST_EXCLUDE =					\
+	*.gitignore
 
-.PHONY: api-docs build-local-app
+distcheck-hook:
+	@echo "Checking disted files against files in git"
+	@$(srcdir)/tools/check-for-missing.py $(srcdir) $(distdir) $(DIST_EXCLUDE)
