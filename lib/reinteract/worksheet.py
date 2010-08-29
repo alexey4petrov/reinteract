@@ -817,7 +817,8 @@ class Worksheet(gobject.GObject):
             self.__file.state = new_state
 
     def __set_filename(self, filename):
-        filename = filename.decode("UTF-8")
+        if filename is not None:
+            filename = filename.decode("UTF-8")
         if filename == self.__filename:
             return
 
@@ -1448,7 +1449,7 @@ b = 2"""
     insert(0, 0, SAVE_TEST)
     calculate()
 
-    handle, fname = tempfile.mkstemp(".rws", "reinteract_worksheet")
+    handle, fname = tempfile.mkstemp(u".rws", u"reinteract_worksheet")
     os.close(handle)
 
     try:

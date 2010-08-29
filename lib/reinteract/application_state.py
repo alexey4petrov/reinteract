@@ -135,7 +135,7 @@ if __name__ == '__main__': #pragma: no cover
         application_state = ApplicationState(location)
         application_state.notebook_opened(nb_path)
         nb_state = application_state.get_notebook_state(nb_path)
-        nb_state.set_open_files(["foo.rws", "bar.rws"])
+        nb_state.set_open_files([u"foo.rws", u"bar.rws"])
         application_state.flush()
 
         application_state = ApplicationState(location)
@@ -146,7 +146,7 @@ if __name__ == '__main__': #pragma: no cover
 
         nb_state = application_state.get_notebook_state(nb_path)
         assert nb_state.get_last_opened() > 0
-        assert_equals(nb_state.get_open_files(), ["foo.rws", "bar.rws"])
+        assert_equals(nb_state.get_open_files(), [u"foo.rws", u"bar.rws"])
 
     finally:
         try:

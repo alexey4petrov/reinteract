@@ -527,7 +527,7 @@ if __name__ == '__main__': #pragma: no cover
 
     import tempfile
 
-    notebook_folder = tempfile.mkdtemp("", "reinteract_notebook.")
+    notebook_folder = tempfile.mkdtemp("", u"reinteract_notebook.")
 
     def make_folder(relative):
         absolute = os.path.join(notebook_folder, relative)
@@ -555,13 +555,13 @@ if __name__ == '__main__': #pragma: no cover
             os.remove(absolute)
 
     try:
-        make_folder("subdir")
+        make_folder(u"subdir")
 
-        make_file("worksheet_a.rws")
-        make_file("subdir/worksheet_c.rws")
+        make_file(u"worksheet_a.rws")
+        make_file(u"subdir/worksheet_c.rws")
 
-        make_file("library_a.py")
-        make_file("subdir/library_b.py")
+        make_file(u"library_a.py")
+        make_file(u"subdir/library_b.py")
 
         notebook = Notebook(notebook_folder)
         file_list = FileList(notebook)
@@ -587,7 +587,7 @@ if __name__ == '__main__': #pragma: no cover
                "subdir",
                ">library_b.py")
 
-        remove("subdir/worksheet_c.rws")
+        remove(u"subdir/worksheet_c.rws")
         notebook.refresh()
 
         expect("Worksheets",
@@ -597,8 +597,8 @@ if __name__ == '__main__': #pragma: no cover
                "subdir",
                ">library_b.py")
 
-        make_folder("subdir/subsubdir")
-        make_file("subdir/subsubdir/misc.txt")
+        make_folder(u"subdir/subsubdir")
+        make_file(u"subdir/subsubdir/misc.txt")
         notebook.refresh()
 
         expect("Worksheets",
@@ -613,7 +613,7 @@ if __name__ == '__main__': #pragma: no cover
                ">>misc.txt")
 
         # Test insertion where the next item is at the toplevel
-        make_file("worksheet_b.rws")
+        make_file(u"worksheet_b.rws")
         notebook.refresh()
 
         expect("Worksheets",
@@ -629,7 +629,7 @@ if __name__ == '__main__': #pragma: no cover
                ">>misc.txt")
 
         # Test insertion where the next item is at the same sublevel
-        make_file("subdir/library_0.py")
+        make_file(u"subdir/library_0.py")
         notebook.refresh()
 
         expect("Worksheets",
@@ -646,7 +646,7 @@ if __name__ == '__main__': #pragma: no cover
                ">>misc.txt")
 
         # Test insertion where the next item is at a lower level
-        make_file("subdir/library_c.py")
+        make_file(u"subdir/library_c.py")
         notebook.refresh()
 
         expect("Worksheets",
@@ -664,7 +664,7 @@ if __name__ == '__main__': #pragma: no cover
                ">>misc.txt")
 
         # Test a removal where the next row is at a lower level
-        remove("subdir/library_c.py")
+        remove(u"subdir/library_c.py")
         notebook.refresh()
 
         expect("Worksheets",
@@ -681,7 +681,7 @@ if __name__ == '__main__': #pragma: no cover
                ">>misc.txt")
 
         # Test a removal of trailing items
-        make_file("subdir/aaa.txt")
+        make_file(u"subdir/aaa.txt")
         remove("subdir/subsubdir/misc.txt")
         notebook.refresh()
 
@@ -697,9 +697,9 @@ if __name__ == '__main__': #pragma: no cover
                "subdir",
                ">aaa.txt")
 
-        remove("library_a.py")
-        remove("subdir/library_0.py")
-        remove("subdir/library_b.py")
+        remove(u"library_a.py")
+        remove(u"subdir/library_0.py")
+        remove(u"subdir/library_b.py")
         notebook.refresh()
 
         expect("Worksheets",
