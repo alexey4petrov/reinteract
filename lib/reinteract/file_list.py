@@ -14,8 +14,6 @@ import pango
 
 from notebook import Notebook, NotebookFile, WorksheetFile, MiscFile, LibraryFile
 
-_HEADER_COLOR = gtk.gdk.Color(0xffff,0xdddd,0xbbbb)
-
 _debug = logging.getLogger("FileList").debug
 
 ######################################################################
@@ -168,6 +166,14 @@ class _BgPixbufRenderer(gtk.CellRendererPixbuf):
 
 ######################################################################
 
+# Tint the background with a bit of the active color to distinguish header rows
+def _header_color(style):
+    color1 = style.base[gtk.STATE_NORMAL]
+    color2 = style.base[gtk.STATE_ACTIVE]
+    return gtk.gdk.Color(int((3 * color1.red + color2.red) / 4),
+                         int((3 * color1.green + color2.green) / 4),
+                         int((3 * color1.blue + color2.blue) / 4))
+
 class FileList(gtk.TreeView):
     __gsignals__ = {
         'open-file':  (gobject.SIGNAL_RUN_LAST, gobject.TYPE_NONE, (gobject.TYPE_PYOBJECT,)),
@@ -253,7 +259,7 @@ class FileList(gtk.TreeView):
         cell.props.text = item.get_text()
 
         if isinstance(item, _HeaderItem):
-            cell.props.background_gdk = _HEADER_COLOR
+            cell.props.background_gdk = _header_color(self.style)
         else:
             cell.props.background_set = False
 
@@ -266,7 +272,7 @@ class FileList(gtk.TreeView):
         item = model.get_value(iter, 0)
 
         if isinstance(item, _HeaderItem):
-            cell.props.background_gdk = gtk.gdk.Color(0xffff,0xdddd,0xbbbb)
+            cell.props.background_gdk = _header_color(self.style)
         else:
             cell.props.background_gdk = None
 
