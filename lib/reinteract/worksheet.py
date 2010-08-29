@@ -90,7 +90,8 @@ class Worksheet(gobject.GObject):
         'chunk-status-changed': (gobject.SIGNAL_RUN_LAST, gobject.TYPE_NONE, (gobject.TYPE_PYOBJECT,)),
         'chunk-results-changed': (gobject.SIGNAL_RUN_LAST, gobject.TYPE_NONE, (gobject.TYPE_PYOBJECT,)),
         # This is only for the convenience of the undo stack; otherwise we ignore cursor position
-        'place-cursor': (gobject.SIGNAL_RUN_LAST, gobject.TYPE_NONE, (int, int))
+        'place-cursor': (gobject.SIGNAL_RUN_LAST, gobject.TYPE_NONE, (int, int)),
+        'filename-changed': (gobject.SIGNAL_RUN_LAST, gobject.TYPE_NONE, ())
     }
 
     def __init__(self, notebook, edit_only=False):
@@ -817,8 +818,6 @@ class Worksheet(gobject.GObject):
             self.__file.state = new_state
 
     def __set_filename(self, filename):
-        if filename is not None:
-            filename = filename.decode("UTF-8")
         if filename == self.__filename:
             return
 
@@ -840,7 +839,11 @@ class Worksheet(gobject.GObject):
     def __get_filename(self):
         return self.__filename
 
-    filename = gobject.property(getter=__get_filename, setter=__set_filename, type=str, default=None)
+    # This should be a gobject.property, but we define filenames to be unicode strings
+    # and it's impossible to have a unicode-string valued property. Unicode strings
+    # set on a string gobject.property get endecoded to UTF-8. So, we use the separate
+    # ::filename-changed signal.
+    filename = property(__get_filename, __set_filename)
 
     @gobject.property
     def file(self):
@@ -861,10 +864,9 @@ class Worksheet(gobject.GObject):
     state = gobject.property(type=int, default=NotebookFile.EXECUTE_SUCCESS)
 
     def __set_filename_and_modified(self, filename, modified):
-        self.freeze_notify()
         self.filename = filename
         self.code_modified = modified
-        self.thaw_notify()
+        self.emit('filename-changed')
 
     def load(self, filename, escape=False):
         """Load a file from disk into the worksheet. Can raise IOError if the

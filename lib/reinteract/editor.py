@@ -20,6 +20,10 @@ from shell_view import ShellView
 from save_file import SaveFileBuilder
 
 class Editor(gobject.GObject):
+    __gsignals__ = {
+        'filename-changed': (gobject.SIGNAL_RUN_LAST, gobject.TYPE_NONE, ())
+    }
+
     def __init__(self, notebook):
         gobject.GObject.__init__(self)
 
@@ -36,7 +40,7 @@ class Editor(gobject.GObject):
             self._unsaved_index = None
 
     def _update_filename(self, *args):
-        self.notify('filename')
+        self.emit('filename-changed')
         self.notify('title')
 
     def _update_modified(self, *args):
@@ -208,7 +212,11 @@ class Editor(gobject.GObject):
     def redo(self):
         pass
 
-    @gobject.property
+    # This should be a gobject.property, but we define filenames to be unicode strings
+    # and it's impossible to have a unicode-string valued property. Unicode strings
+    # set on a string gobject.property get endecoded to UTF-8. So, we use the separate
+    # ::filename-changed signal.
+    @property
     def filename(self):
         return self._get_filename()
 

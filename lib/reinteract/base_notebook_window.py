@@ -84,7 +84,7 @@ class BaseNotebookWindow(BaseWindow):
         self.nb_widget.add(editor.widget)
         editor.widget._notebook_window_editor = editor
         editor.connect('notify::title', self.on_editor_notify_title)
-        editor.connect('notify::filename', self.on_editor_notify_filename)
+        editor.connect('filename-changed', self.on_editor_filename_changed)
         editor.connect('notify::modified', self.on_editor_notify_modified)
         editor.connect('notify::state', self.on_editor_notify_state)
 
@@ -252,7 +252,7 @@ class BaseNotebookWindow(BaseWindow):
     def on_editor_notify_title(self, editor, *args):
         self._update_editor_title(editor)
 
-    def on_editor_notify_filename(self, editor, *args):
+    def on_editor_filename_changed(self, editor, *args):
         self._update_open_files()
         self._update_current_file()
 
