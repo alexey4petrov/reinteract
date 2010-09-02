@@ -17,6 +17,7 @@ from global_settings import global_settings
 from shell_buffer import ShellBuffer
 from shell_view import ShellView
 import reunicode
+from worksheet_print import WorksheetPrintOperation
 
 class WorksheetEditor(Editor):
     DISCARD_FORMAT = 'Discard unsaved changes to worksheet "%s"?'
@@ -103,6 +104,10 @@ class WorksheetEditor(Editor):
 
     def calculate(self, end_at_insert=False):
         self.view.calculate(end_at_insert)
+
+    def print_contents(self):
+        print_op = WorksheetPrintOperation(self.buf.worksheet)
+        print_op.run(gtk.PRINT_OPERATION_ACTION_PRINT_DIALOG, self.widget.get_toplevel())
 
     def undo(self):
         self.buf.worksheet.undo()

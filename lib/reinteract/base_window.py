@@ -83,6 +83,7 @@ class BaseWindow:
             ('open',          gtk.STOCK_OPEN,  None,             None,         None, self.on_open),
             ('save',          gtk.STOCK_SAVE,  None,             None,         None, self.on_save),
             ('rename',        None,            "_Rename...",     None,         None, self.on_rename),
+            ('print',         gtk.STOCK_PRINT, "_Print...",      "<control>p", None, self.on_print),
             ('close',         gtk.STOCK_CLOSE, None,             "<control>w", None, self.on_close),
 
             ('quit',          gtk.STOCK_QUIT, None,                None,         None, self.on_quit),
@@ -201,6 +202,10 @@ class BaseWindow:
         if self.current_editor:
             self.current_editor.rename()
 
+    def on_print(self, action):
+        if self.current_editor:
+            self.current_editor.print_contents()
+
     def on_close(self, action):
         self._close_current()
 
@@ -294,4 +299,3 @@ class BaseWindow:
 
         # This seems more annoying than useful. gedit doesn't desensitize save
         # self._set_action_sensitive('save', self.current_editor is not None and self.current_editor.modified)
-

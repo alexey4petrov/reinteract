@@ -17,6 +17,7 @@ from editor import Editor
 from global_settings import global_settings
 from shell_buffer import ShellBuffer
 from shell_view import ShellView
+from worksheet_print import WorksheetPrintOperation
 
 _LETTER_OR_UNDERSCORE = re.compile("[A-Za-z_]")
 _LETTER_DIGIT_OR_UNDERSCORE = re.compile("[A-Za-z0-9_]")
@@ -119,6 +120,10 @@ class LibraryEditor(Editor):
     def load(self, filename, escape=False):
         self.buf.worksheet.load(filename, escape=escape)
         self.buf.place_cursor(self.buf.get_start_iter())
+
+    def print_contents(self):
+        print_op = WorksheetPrintOperation(self.buf.worksheet)
+        print_op.run(gtk.PRINT_OPERATION_ACTION_PRINT_DIALOG, self.widget.get_toplevel())
 
     def undo(self):
         self.buf.worksheet.undo()

@@ -18,6 +18,7 @@ from notebook import NotebookFile
 from shell_buffer import ShellBuffer
 from shell_view import ShellView
 from save_file import SaveFileBuilder
+from print_operation import PrintOperation
 
 class Editor(gobject.GObject):
     __gsignals__ = {
@@ -204,6 +205,9 @@ class Editor(gobject.GObject):
                 self.state != NotebookFile.EXECUTING)
 
     def calculate(self, end_at_insert=False):
+        pass
+
+    def print_contents(self):
         pass
 
     def undo(self):
