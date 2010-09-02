@@ -11,6 +11,8 @@ import re
 import sys
 
 import gtk
+import gio
+import glib
 
 from application import application
 from file_list import FileList
@@ -132,12 +134,29 @@ class BaseWindow:
         elif filename.endswith(".py") or filename.endswith(".PY"):
             editor = LibraryEditor(self.notebook)
         else:
-            dialog = gtk.MessageDialog(buttons=gtk.BUTTONS_OK,
-                                       type=gtk.MESSAGE_ERROR)
-            dialog.set_markup(format_escaped("<big><b>Don't know how to open '%s'</b></big>", os.path.basename(filename)))
-            dialog.format_secondary_text("'%s' does not have a recognized file extension" % filename)
-            dialog.run()
-            dialog.destroy()
+            gfile = gio.File(filename)
+            context = gtk.gdk.AppLaunchContext()
+            context.set_screen(self.window.get_screen())
+            context.set_timestamp(gtk.get_current_event_time())
+            try:
+                handler = gfile.query_default_handler()
+            except gio.Error as e:
+                dialog = gtk.MessageDialog(buttons=gtk.BUTTONS_OK,
+                                           type=gtk.MESSAGE_ERROR)
+                dialog.set_markup(format_escaped("<big><b>Don't know how to open '%s'</b></big>", os.path.basename(filename)))
+                dialog.format_secondary_text(str(e))
+                dialog.run()
+                dialog.destroy()
+                return None
+            try:
+                handler.launch([gfile], context)
+            except glib.GError as e:
+                dialog = gtk.MessageDialog(buttons=gtk.BUTTONS_OK,
+                                           type=gtk.MESSAGE_ERROR)
+                dialog.set_markup(format_escaped("<big><b>Failed to open '%s'</b></big>", os.path.basename(filename)))
+                dialog.format_secondary_text(str(e))
+                dialog.run()
+                dialog.destroy()
             return None
 
         try:
