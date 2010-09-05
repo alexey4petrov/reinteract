@@ -219,6 +219,8 @@ class ShellBuffer(gtk.TextBuffer):
 
         start = self.get_iter_at_mark(chunk.results_start_mark)
         self.apply_tag(self.__result_tag, start, location)
+        if chunk.error_message:
+            self.apply_tag(self.__error_tag, start, location)
         chunk.results_end_mark = self.create_mark(None, location, True)
         chunk.results_start_mark.source = chunk
 
@@ -556,8 +558,11 @@ class ShellBuffer(gtk.TextBuffer):
             self.apply_tag(self.__comment_tag, start, end)
 
     def on_chunk_status_changed(self, worksheet, chunk):
-        _debug("...chunk %s status changed", chunk);
-        pass
+        _debug("...chunk %s status changed", chunk)
+        if chunk.needs_execute and chunk.results_start_mark is not None:
+            start = self.get_iter_at_mark(chunk.results_start_mark)
+            end = self.get_iter_at_mark(chunk.results_end_mark)
+            self.apply_tag(self.__recompute_tag, start, end)
 
     def on_chunk_results_changed(self, worksheet, chunk):
         _debug("...chunk %s results changed", chunk);
