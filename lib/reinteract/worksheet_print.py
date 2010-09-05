@@ -58,6 +58,12 @@ class _PageLayout(object):
         self.y = 0
         self.page_start_line = None
 
+        # We track comments specially so we can group them with following code
+        # when breaking pages; these variables track comments we've seen when we
+        # haven't hit a following statement yet
+        self.comment_start_line = None
+        self.comment_start_y = None
+
     def create_pango_layout(self, text, *styles):
         layout = self.context.create_pango_layout()
 
@@ -92,19 +98,45 @@ class _PageLayout(object):
         return layout
 
     def check_for_page_break(self, height):
-        # BlankChunks never force page breaks, otherwise, if we've overflowed, and this
-        # chunk isn't already on a page of its own, start a new page
-        if (not isinstance(self.current_chunk, BlankChunk) and
-            height + self.y > self.context.get_height() and
-            self.page_start_line != self.current_chunk.start):
-            self.pages.append(_Page(self.page_start_line, self.current_chunk.start))
+        # No break needed
+        if self.y + height <= self.context.get_height():
+            return
 
-            self.y = self.y - self.chunk_start_y
-            self.chunk_start_y = 0
-            self.page_start_line = self.current_chunk.start
-            self.page_number += 1
-            self.page_count += 1
-            self.append_header()
+        # BlankChunks never force page breaks
+        if isinstance(self.current_chunk, BlankChunk):
+            return
+
+        # We try to group comments with code, but if comments+<current chunk> overflows the page
+        # we break off the comments and put the current chunk by itself on a new page
+        if self.comment_start_line is None or self.y - self.comment_start_y + height > self.context.get_height():
+            start_line = self.current_chunk.start
+            start_y = self.chunk_start_y
+
+            if start_line == self.page_start_line:
+                # current chunk overflows the page, nothing we can do without more sophisticated
+                # logic to break up a single chunk when paginating, just let the overflow happen
+                return
+
+            # Remember that we've split off the comments
+            if isinstance(self.current_chunk, CommentChunk):
+                self.comment_start_line = start_line
+                self.comment_start_y = 0
+            else:
+                self.comment_start_line = None
+                self.comment_start_y = None
+        else:
+            start_line = self.comment_start_line
+            start_y = self.comment_start_y
+            self.comment_start_y = 0
+
+        self.pages.append(_Page(self.page_start_line, start_line))
+
+        self.y = self.y - start_y
+        self.chunk_start_y = 0
+        self.page_start_line = start_line
+        self.page_number += 1
+        self.page_count += 1
+        self.append_header()
 
     def append_pango_layout(self, layout):
         _, layout_height = layout.get_size()
@@ -267,6 +299,10 @@ class _PageLayout(object):
             self.append_header()
             self.page_start_line = chunk.start
 
+        if isinstance(chunk, CommentChunk) and self.comment_start_line is None:
+            self.comment_start_line = chunk.start
+            self.comment_start_y = self.y
+
         self.current_chunk = chunk
         self.chunk_start_y = self.y
 
@@ -275,6 +311,10 @@ class _PageLayout(object):
 
         self.current_chunk = None
         self.page_end_line = chunk.end
+
+        if isinstance(chunk, StatementChunk):
+            self.comment_start_line = None
+            self.comment_start_y = None
 
     def finish(self):
         if self.phase == _MEASURE and self.page_start_line is not None:
