@@ -8,6 +8,7 @@
 ########################################################################
 
 import cairo
+import pango
 import gtk
 import matplotlib
 from matplotlib.figure import Figure
@@ -124,6 +125,8 @@ class PlotWidget(gtk.DrawingArea):
                 self.figure.set_edgecolor(orig_edgecolor)
                 self.figure.set_canvas(self.canvas)
 
+        # Return dimensions to caller.
+
 #    def do_size_allocate(self, allocation):
 #        gtk.DrawingArea.do_size_allocate(self, allocation)
 #        
@@ -209,6 +212,44 @@ class Axes(RecordedObject, custom_result.CustomResult):
         widget = PlotWidget(self)
         self._replay(widget.axes)
         return widget
+
+    def print_result(self, print_context, render=True):
+        figure = Figure(facecolor='white', figsize=(6,4.5))
+        figure.set_dpi(print_context.get_dpi_x())
+        # Don't draw the frame, please.
+        figure.set_frameon(False)
+
+        canvas = _PlotResultCanvas(figure)
+
+        axes = figure.add_subplot(111)
+        self._replay(axes)
+
+        width, height = figure.bbox.width, figure.bbox.height
+
+        if render:
+            cr = print_context.get_cairo_context()
+
+            renderer = RendererCairo(figure.dpi)
+            renderer.set_width_height(width, height)
+            if hasattr(renderer, 'gc'):
+                # matplotlib-0.99 and newer
+                renderer.gc.ctx = cr
+            else:
+                # matplotlib-0.98
+
+                # RendererCairo.new_gc() does a restore to get the context back
+                # to its original state after changes
+                cr.save()
+                renderer.ctx = cr
+
+            figure.draw(renderer)
+
+            if not hasattr(renderer, 'gc'):
+                # matplotlib-0.98
+                # Reverse the save() we did before drawing
+                cr.restore()
+
+        return height
 
 def filter_method(baseclass, name):
     if not default_filter(baseclass, name):

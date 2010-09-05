@@ -89,21 +89,24 @@ class _PageLayout(object):
 
         return layout
 
+    def check_for_page_break(self, height):
+        # BlankChunks never force page breaks, otherwise, if we've overflowed, and this
+        # chunk isn't already on a page of its own, start a new page
+        if (not isinstance(self.current_chunk, BlankChunk) and
+            height + self.y > self.context.get_height() - self.bottom_margin and
+            self.page_start_line != self.current_chunk.start):
+            self.pages.append(_Page(self.page_start_line, self.current_chunk.start))
+
+            self.y = self.y - self.chunk_start_y + self.top_margin
+            self.chunk_start_y = self.top_margin
+            self.page_start_line = self.current_chunk.start
+
     def append_pango_layout(self, layout):
         _, layout_height = layout.get_size()
         layout_height = layout_height / pango.SCALE
 
         if self.phase == _MEASURE:
-            # BlankChunks never force page breaks, otherwise, if we've overflowed, and this
-            # chunk isn't already on a page of its own, start a new page
-            if (not isinstance(self.current_chunk, BlankChunk) and
-                layout_height + self.y > self.context.get_height() - self.bottom_margin and
-                self.page_start_line != self.current_chunk.start):
-                self.pages.append(_Page(self.page_start_line, self.current_chunk.start))
-
-                self.y = self.y - self.chunk_start_y + self.top_margin
-                self.chunk_start_y = self.top_margin
-                self.page_start_line = self.current_chunk.start
+            self.check_for_page_break(layout_height)
         else: # phase == _RENDER
             if layout._paragraph_background is not None:
                 self.cr.save()
@@ -199,8 +202,22 @@ class _PageLayout(object):
                     layout.set_attributes(paragraph_attrs)
                     self.append_pango_layout(layout)
                 elif isinstance(result, CustomResult):
-                    # FIXME: implement
-                    pass
+                    try:
+                         if self.phase == _MEASURE:
+                             height = result.print_result(self.context, render=False)
+                             self.check_for_page_break(height)
+                         else:
+                             try:
+                                 self.cr.save()
+                                 self.cr.translate(0, self.y)
+                                 height = result.print_result(self.context, render=True)
+                             finally:
+                                 self.cr.restore()
+
+                         self.y += height
+                    except NotImplementedError, e:
+                        layout = create_result_layout(unicode(result))
+                        self.append_pango_layout(layout)
 
     def append_chunk(self, chunk):
         if self.page_start_line is None:

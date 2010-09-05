@@ -12,6 +12,20 @@ class CustomResult(object):
     def create_widget(self):
         raise NotImplementedError()
 
+    def print_result(self, print_context, render):
+        """Measure the result for printing or print it. If this isn't overridden, then
+        the printing code will fall back to unicode(result). The result should be
+        printed starting at a y position of 0 - an appropriate translation will already
+        be set on the print context obtained with print_context.get_cairo_context().
+
+        @param print_context: gtk.PrintContext where printing is occurring
+        @render: if False, then we're measuring for pagination, and the routine should
+          simply return the height. If True, then the routine should print the object
+          and also return the height.
+
+        """
+        raise NotImplementedError()
+
 def show_menu(widget, event, save_callback=None):
     """Convenience function to create a right-click menu with a Save As option"""
 

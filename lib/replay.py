@@ -63,6 +63,9 @@ class PlayResult(custom_result.CustomResult):
             if c.get_user_data() == button:
                 cursor = gtk.gdk.Cursor(gtk.gdk.LEFT_PTR)
                 c.set_cursor(cursor)
+
+    def __str__(self):
+        return "<PlayResult(len=%fs)>" % (len(self.__data) / 44100.)
     
 def play(data):
     if data.dtype != float32 and data.dtype != float64:
