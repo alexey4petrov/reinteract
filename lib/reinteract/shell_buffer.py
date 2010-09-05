@@ -19,7 +19,7 @@ import doc_format
 from notebook import HelpResult
 import reunicode
 from statement import WarningResult
-import retokenize
+from style import DEFAULT_STYLE
 from worksheet import Worksheet, NEW_LINE_RE
 
 _debug = logging.getLogger("ShellBuffer").debug
@@ -99,47 +99,26 @@ class ShellBuffer(gtk.TextBuffer):
         self.worksheet.connect('chunk-results-changed', self.on_chunk_results_changed)
         self.worksheet.connect('place-cursor', self.on_place_cursor)
 
-        self.__result_tag = self.create_tag(family="monospace",
-                                            style="italic",
-                                            wrap_mode=gtk.WRAP_WORD,
-                                            editable=False)
-        # Order here is significant ... we want the recompute tag to have higher priority, so
-        # define it second
-        self.__warning_tag = self.create_tag(foreground="#aa8800")
-        self.__error_tag = self.create_tag(foreground="#aa0000")
-        self.__recompute_tag = self.create_tag(foreground="#888888")
-        self.__comment_tag = self.create_tag(foreground="#3f7f5f")
+        style = DEFAULT_STYLE
+
+        self.__result_tag = style.get_tag(self, 'result')
+        # Bit of a cheat - don't want to add these to StyleSpec, since they are editor specific.
+        # If the spec was shared by an alias, this would do unexpected things.
+        self.__result_tag.set_properties(wrap_mode=gtk.WRAP_WORD, editable=False)
+        self.__warning_tag = style.get_tag(self, 'warning')
+        self.__error_tag = style.get_tag(self, 'error')
+        # We want the recompute tag to have higher priority, so we fetch it after result_tag
+        # which will result in it being defined second
+        self.__recompute_tag = style.get_tag(self, 'recompute')
+        self.__comment_tag = style.get_tag(self, 'comment')
+        self.__help_tag = style.get_tag(self, 'help')
+
         self.__bold_tag = self.create_tag(weight=pango.WEIGHT_BOLD)
-        self.__help_tag = self.create_tag(family="sans",
-                                          style=pango.STYLE_NORMAL,
-                                          paragraph_background="#ffff88",
-                                          left_margin=10,
-                                          right_margin=10)
 
-        punctuation_tag = None
-
-        self.__fontify_tags = {
-            retokenize.TOKEN_KEYWORD      : self.create_tag(foreground="#7f0055", weight=600),
-            retokenize.TOKEN_NAME         : None,
-            retokenize.TOKEN_COMMENT      : self.__comment_tag,
-            retokenize.TOKEN_BUILTIN_CONSTANT : self.create_tag(foreground="#55007f"),
-            retokenize.TOKEN_STRING       : self.create_tag(foreground="#00aa00"),
-            retokenize.TOKEN_PUNCTUATION  : punctuation_tag,
-            retokenize.TOKEN_CONTINUATION : punctuation_tag,
-            retokenize.TOKEN_LPAREN       : punctuation_tag,
-            retokenize.TOKEN_RPAREN       : punctuation_tag,
-            retokenize.TOKEN_LSQB         : punctuation_tag,
-            retokenize.TOKEN_RSQB         : punctuation_tag,
-            retokenize.TOKEN_LBRACE       : punctuation_tag,
-            retokenize.TOKEN_RBRACE       : punctuation_tag,
-            retokenize.TOKEN_BACKQUOTE    : punctuation_tag,
-            retokenize.TOKEN_COLON        : punctuation_tag,
-            retokenize.TOKEN_DOT          : punctuation_tag,
-            retokenize.TOKEN_EQUAL        : punctuation_tag,
-            retokenize.TOKEN_AUGEQUAL     : punctuation_tag,
-            retokenize.TOKEN_NUMBER       : None,
-            retokenize.TOKEN_JUNK         : self.create_tag(underline="error"),
-        }
+        self.__fontify_tags = {}
+        for subject in style.specs:
+            if isinstance(subject, int): # A token type
+                self.__fontify_tags[subject] = style.get_tag(self, subject)
 
         self.__line_marks = [self.create_mark(None, self.get_start_iter(), True)]
         self.__line_marks[0].line = 0
