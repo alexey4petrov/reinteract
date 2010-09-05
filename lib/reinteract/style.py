@@ -126,6 +126,7 @@ DEFAULT_STYLE = Style({
         'error'                           : StyleSpec(foreground="#aa0000"),
         'warning'                         : StyleSpec(foreground="#aa8800"),
         'comment'                         : StyleSpec(foreground="#3f7f5f"),
+        'header'                          : StyleSpec(family="sans-serif"),
         'help'                            : StyleSpec(family="sans-serif",
                                                       left_margin=10,
                                                       right_margin=10,

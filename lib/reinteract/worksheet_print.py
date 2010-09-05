@@ -8,6 +8,7 @@
 
 import gtk
 import logging
+import os
 import pango
 import pangocairo
 
@@ -36,14 +37,13 @@ class _PageLayout(object):
     # confusion with pango.Layout in the name; pango.Layout's are used for individual
     # paragraphs of text.
 
-    def __init__(self, worksheet, context, phase):
+    header_rule_spacing = 0.125 * 72. # 1/8th inch
+    header_rule_thickness = 1         # 1pt
+
+    def __init__(self, worksheet, context, phase, page_number=1, page_count=0):
         self.worksheet = worksheet
         self.context = context
 
-        self.left_margin = 0.5 / 72.
-        self.right_margin = 0.5 / 72.
-        self.top_margin = 0.5 / 72.
-        self.bottom_margin = 1 / 72.
         self.font = pango.FontDescription("monospace 12")
 
         self.phase = phase
@@ -53,7 +53,9 @@ class _PageLayout(object):
         else: # phase == _RENDER
             self.cr = self.context.get_cairo_context()
 
-        self.y = self.top_margin
+        self.page_number = page_number
+        self.page_count = page_count
+        self.y = 0
         self.page_start_line = None
 
     def create_pango_layout(self, text, *styles):
@@ -82,7 +84,7 @@ class _PageLayout(object):
             if spec.paragraph_background:
                 layout._paragraph_background = pango.Color(spec.paragraph_background)
 
-        layout._width = self.context.get_width() - self.left_margin - layout._left_margin - self.right_margin - layout._right_margin
+        layout._width = self.context.get_width() - layout._left_margin - layout._right_margin
         layout.set_width(int(pango.SCALE * layout._width))
 
         layout.set_attributes(attrs)
@@ -93,13 +95,16 @@ class _PageLayout(object):
         # BlankChunks never force page breaks, otherwise, if we've overflowed, and this
         # chunk isn't already on a page of its own, start a new page
         if (not isinstance(self.current_chunk, BlankChunk) and
-            height + self.y > self.context.get_height() - self.bottom_margin and
+            height + self.y > self.context.get_height() and
             self.page_start_line != self.current_chunk.start):
             self.pages.append(_Page(self.page_start_line, self.current_chunk.start))
 
-            self.y = self.y - self.chunk_start_y + self.top_margin
-            self.chunk_start_y = self.top_margin
+            self.y = self.y - self.chunk_start_y
+            self.chunk_start_y = 0
             self.page_start_line = self.current_chunk.start
+            self.page_number += 1
+            self.page_count += 1
+            self.append_header()
 
     def append_pango_layout(self, layout):
         _, layout_height = layout.get_size()
@@ -113,17 +118,55 @@ class _PageLayout(object):
                 self.cr.set_source_rgb(layout._paragraph_background.red / 65535.,
                                        layout._paragraph_background.green / 65535.,
                                        layout._paragraph_background.blue / 65535.)
-                self.cr.rectangle(self.left_margin + layout._left_margin,
+                self.cr.rectangle(layout._left_margin,
                                   self.y,
                                   layout._width,
                                   layout_height)
                 self.cr.fill()
                 self.cr.restore()
 
-            self.cr.move_to(self.left_margin + layout._left_margin, self.y)
+            self.cr.move_to(layout._left_margin, self.y)
             self.cr.show_layout(layout)
 
         self.y += layout_height
+
+    def append_header(self):
+        if self.worksheet.filename is None:
+            filename = "Unsaved Worksheet"
+        else:
+            filename = os.path.basename(self.worksheet.filename)
+
+        left_layout = self.create_pango_layout(filename, 'header')
+        left_width, left_height = left_layout.get_size()
+        left_width /= pango.SCALE
+        left_height /= pango.SCALE
+
+        right_layout = self.create_pango_layout("Page %d of %d" % (self.page_number, self.page_count))
+        right_width, right_height = right_layout.get_size()
+        right_width /= pango.SCALE
+        right_height /= pango.SCALE
+
+        if self.phase == _RENDER:
+            self.cr.move_to(0, self.y)
+            self.cr.show_layout(left_layout)
+
+            self.cr.move_to(self.context.get_width() - right_width, self.y)
+            self.cr.show_layout(right_layout)
+
+        self.y += max(left_height, right_height)
+
+        self.y += self.header_rule_spacing + self.header_rule_thickness / 2
+
+        if self.phase == _RENDER:
+            self.cr.save()
+            self.cr.set_line_width(self.header_rule_thickness)
+            self.cr.move_to(0, self.y)
+            self.cr.line_to(self.context.get_width(), self.y)
+
+            self.cr.stroke()
+            self.cr.restore()
+
+        self.y += self.header_rule_spacing + self.header_rule_thickness / 2
 
     def append_chunk_text(self, chunk):
         text = self.worksheet.get_text(start_line=chunk.start, end_line=chunk.end - 1)
@@ -221,6 +264,7 @@ class _PageLayout(object):
 
     def append_chunk(self, chunk):
         if self.page_start_line is None:
+            self.append_header()
             self.page_start_line = chunk.start
 
         self.current_chunk = chunk
@@ -267,7 +311,8 @@ class WorksheetPrintOperation(gtk.PrintOperation):
     def do_draw_page(self, context, page_nr):
         page = self.__pages[page_nr]
 
-        page_layout = _PageLayout(self.worksheet, context, phase=_RENDER)
+        page_layout = _PageLayout(self.worksheet, context, phase=_RENDER,
+                                  page_number=page_nr + 1, page_count=len(self.__pages))
 
         for chunk in self.worksheet.iterate_chunks(page.start_line, page.end_line):
            page_layout.append_chunk(chunk)
