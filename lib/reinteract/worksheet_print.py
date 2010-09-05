@@ -18,7 +18,7 @@ import doc_format
 from statement import Statement, WarningResult, HelpResult, CustomResult
 from style import DEFAULT_STYLE
 
-_debug = logging.getLogger("PrintOperation").debug
+_debug = logging.getLogger("WorksheetPrint").debug
 
 # The two phases of printing
 _MEASURE = 0

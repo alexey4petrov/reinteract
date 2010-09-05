@@ -40,7 +40,6 @@ reinteractpkg_PYTHON =                                                        \
                     lib/reinteract/open_notebook.py                           \
                     lib/reinteract/popup.py                                   \
                     lib/reinteract/preferences_dialog.py                      \
-                    lib/reinteract/print_operation.py                         \
                     lib/reinteract/recorded_object.py                         \
                     lib/reinteract/retokenize.py                              \
                     lib/reinteract/rewrite.py                                 \
@@ -50,6 +49,7 @@ reinteractpkg_PYTHON =                                                        \
                     lib/reinteract/shell_view.py                              \
                     lib/reinteract/statement.py                               \
                     lib/reinteract/stdout_capture.py                          \
+                    lib/reinteract/style.py                                   \
                     lib/reinteract/test_utils.py                              \
                     lib/reinteract/thread_executor.py                         \
                     lib/reinteract/tokenized_statement.py                     \
@@ -58,6 +58,7 @@ reinteractpkg_PYTHON =                                                        \
                     lib/reinteract/window_builder.py                          \
                     lib/reinteract/worksheet.py                               \
                     lib/reinteract/worksheet_editor.py                        \
+                    lib/reinteract/worksheet_print.py                         \
                     $(LIST_END)
 
 replaydir = $(pythondir)
