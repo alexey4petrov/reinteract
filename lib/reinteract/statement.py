@@ -166,7 +166,8 @@ class Statement:
                 self.results.append(arg)
             else:
                 self.results.append(self.__coerce_to_unicode(repr(arg)))
-                self.result_scope['_'] = args
+
+            self.result_scope['_'] = args[0]
         else:
             self.results.append(self.__coerce_to_unicode(repr(args)))
             self.result_scope['_'] = args
