@@ -226,6 +226,7 @@ class _PageLayout(object):
                         spec.add_pango_attributes(attrs, start_index, end_index)
                     index = end_index
                     offset = end_offset
+                index += len(line[offset:].encode("UTF-8"))
                 index += 1 # newline
 
             layout.set_attributes(attrs) # set the copy back
