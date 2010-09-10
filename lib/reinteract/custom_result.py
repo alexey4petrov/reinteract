@@ -1,4 +1,5 @@
 # Copyright 2007 Owen Taylor
+# Copyright 2010 Jorn Baayen
 #
 # This file is part of Reinteract and distributed under the terms
 # of the BSD license. See the file COPYING in the Reinteract
@@ -25,6 +26,56 @@ class CustomResult(object):
 
         """
         raise NotImplementedError()
+
+class ResultWidget(gtk.DrawingArea):
+    """Base class for custom result widgets that draw their own content"""
+
+    __gsignals__ = {
+        'parent-set': 'override',
+        'screen-changed' : 'override',
+    }
+
+    def __init__(self):
+        gtk.DrawingArea.__init__(self)
+
+        self.parent_style_set_id = 0
+        self.notify_resolution_id = 0
+
+    def do_screen_changed(self, previous_screen):
+        if self.notify_resolution_id > 0:
+            previous_screen.handler_disconnect(self.notify_resolution_id)
+            self.notify_resolution_id = 0
+
+        screen = self.get_screen()
+        if screen:
+            self.notify_resolution_id = \
+                screen.connect("notify::resolution", self._on_notify_resolution)
+            self.sync_dpi(screen.get_resolution())
+
+    def do_parent_set(self, previous_parent):
+        # We follow the parent GtkTextView text size.
+        if self.parent_style_set_id > 0:
+            previous_parent.handler_disconnect(self.parent_style_set_id)
+            self.parent_style_set_id = 0
+
+        if self.parent:
+            self.parent_style_set_id = \
+                self.parent.connect("style-set", self._on_parent_style_set)
+            self.sync_style(self.parent.style)
+
+    def _on_notify_resolution(self, screen, param_spec):
+        self.sync_dpi(screen.get_resolution())
+
+    def _on_parent_style_set(self, widget, previous_style):
+        self.sync_style(self.parent.style)
+
+        self.queue_resize()
+
+    def sync_dpi(self, dpi):
+        pass
+
+    def sync_style(self, style):
+        pass
 
 def show_menu(widget, event, save_callback=None):
     """Convenience function to create a right-click menu with a Save As option"""

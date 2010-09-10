@@ -1,5 +1,6 @@
 # Copyright 2007, 2008 Owen Taylor
 # Copyright 2008 Kai Willadsen
+# Copyright 2009, 2010 Jorn Baayen
 #
 # This file is part of Reinteract and distributed under the terms
 # of the BSD license. See the file COPYING in the Reinteract
@@ -25,7 +26,7 @@ class _PlotResultCanvas(FigureCanvasCairo):
         # ourselves
         pass
 
-class PlotWidget(gtk.DrawingArea):
+class PlotWidget(custom_result.ResultWidget):
     __gsignals__ = {
         'button-press-event': 'override',
         'button-release-event': 'override',
@@ -35,7 +36,7 @@ class PlotWidget(gtk.DrawingArea):
     }
 
     def __init__(self, result):
-        gtk.DrawingArea.__init__(self)
+        custom_result.ResultWidget.__init__(self)
         self.figure = Figure(facecolor='white', figsize=(6,4.5))
         self.canvas = _PlotResultCanvas(self.figure)
 
@@ -101,7 +102,14 @@ class PlotWidget(gtk.DrawingArea):
             # matplotlib >= 0.98
             requisition.width = self.figure.bbox.width
             requisition.height = self.figure.bbox.height
-            
+
+    def sync_dpi(self, dpi):
+        self.figure.set_dpi(dpi)
+
+    def sync_style(self, style):
+        self.cached_contents = None
+
+        matplotlib.rcParams['font.size'] = self.parent.style.font_desc.get_size() / pango.SCALE
 
     def __save(self, filename):
         # The save/restore here was added to matplotlib's after 0.90. We duplicate
