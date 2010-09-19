@@ -8,6 +8,7 @@
 
 import copy
 import pkgutil
+import threading
 import traceback
 import sys
 
@@ -37,6 +38,8 @@ class Statement:
     EXECUTE_SUCCESS = 4
     EXECUTE_ERROR = 5
     INTERRUPTED = 6
+
+    __local = threading.local()
 
     def __init__(self, text, worksheet, parent=None):
         self.__text = text
@@ -207,6 +210,7 @@ class Statement:
         self.state = Statement.EXECUTING
 
         self.__worksheet.global_scope['__reinteract_statement'] = self
+        Statement.__local.current = self
         self.__capture = StdoutCapture(self.__stdout_write)
         self.__capture.push()
 
@@ -223,6 +227,7 @@ class Statement:
             self.result_scope = None
 
         self.__worksheet.global_scope['__reinteract_statement'] = None
+        Statement.__local.current = None
         self.__stdout_buffer = None
         self.__capture.pop()
         self.__capture = None
@@ -302,6 +307,15 @@ class Statement:
         """Mark a statement that executed succesfully as needing execution again"""
         if self.state != Statement.NEW and self.state != Statement.COMPILE_ERROR:
             self.state = Statement.COMPILE_SUCCESS
+
+    @classmethod
+    def get_current(self):
+        """Gets the currently executing statement, if any. If no statement is
+        currently executing, returns None."""
+        try:
+            return Statement.__local.current
+        except AttributeError, e:
+            return None
 
 if __name__=='__main__':
     import stdout_capture
