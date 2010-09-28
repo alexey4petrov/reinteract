@@ -71,13 +71,19 @@ class Popup(gtk.Window):
         x = cursor_rect.x
         y = cursor_rect.y + cursor_rect.height + VERTICAL_GAP
 
-        _, height = self.size_request()
+        width, height = self.size_request()
 
         # If the popup would go off the screen, pop it up above instead; should we
         # reverse the direction of the items here, as for a menu? I think that would
         # be more confusing than not doing so.
         if y + height > window.get_screen().get_height():
             y = cursor_rect.y - VERTICAL_GAP - height
+
+        # Move the popup to the left until it is entirely on screen, or until the
+        # left side hits the left edge of the screen.
+        if x + width > window.get_screen().get_width():
+            x = window.get_screen().get_width() - width
+            if x < 0: x = 0
 
         # If we are already showing, at the right vertical position, move to the left
         # if necessary, but not to the right. This behavior is desirable for
