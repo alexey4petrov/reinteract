@@ -618,6 +618,8 @@ class ShellView(gtk.TextView):
             else:
                 self.__watch_window.hide()
 
+        self.set_cursor_visible(worksheet.state != NotebookFile.EXECUTING)
+
     def on_after_insert_text(self, buf, location, text, len):
         if buf.worksheet.in_user_action() and not buf.in_modification():
             self.__inserted_in_user_action = True
