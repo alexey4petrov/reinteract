@@ -32,6 +32,7 @@ class ShellView(gtk.TextView):
             buf.worksheet.connect('chunk-inserted', self.on_chunk_inserted)
             buf.worksheet.connect('chunk-changed', self.on_chunk_changed)
             buf.worksheet.connect('chunk-status-changed', self.on_chunk_status_changed)
+            buf.worksheet.connect('chunk-deleted', self.on_chunk_deleted)
             buf.worksheet.connect('notify::state', self.on_notify_state)
 
             # Track changes to update completion
@@ -66,6 +67,10 @@ class ShellView(gtk.TextView):
         self.__arg_highlight_start = None
         self.__arg_highlight_end = None
         buf.connect('mark-set', self.on_mark_set)
+
+        self.__cursor_chunk = None
+        self.__scroll_to = buf.create_mark(None, buf.get_start_iter(), True)
+        self.__scroll_idle = None
 
     def __get_worksheet_line_yrange(self, line):
         buffer_line = self.get_buffer().pos_to_iter(line)
@@ -126,6 +131,8 @@ class ShellView(gtk.TextView):
         self.__watch_window.set_user_data(None)
         self.__watch_window.destroy()
         self.__watch_window = None
+        if self.__scroll_idle is not None:
+            glib.idle_remove(self.__scroll_idle)
         gtk.TextView.do_unrealize(self)
 
     def do_size_allocate(self, allocation):
@@ -616,6 +623,37 @@ class ShellView(gtk.TextView):
 
     def on_chunk_status_changed(self, worksheet, chunk):
         self.__invalidate_status(chunk)
+        
+        if self.__cursor_chunk == chunk and not chunk.executing:
+            # This is the chunk with the cursor and it's done executing
+            self.__scroll_idle = glib.idle_add(self.scroll_result_onscreen)
+
+    def scroll_result_onscreen(self):
+        """Scroll so that both the insertion cursor and the following result
+        are onscreen.  If we cannot get both, get as much of the result while
+        still getting the insertion cursor."""
+
+        buf = self.get_buffer()
+        try:
+            iter = buf.pos_to_iter(self.__cursor_chunk.end) # Start of next chunk
+        except IndexError:
+            iter = buf.get_end_iter()
+        else:
+            iter.backward_line() # Move to line before start of next chunk
+
+        buf.move_mark(self.__scroll_to, iter)
+        self.scroll_mark_onscreen(self.__scroll_to)
+        self.scroll_mark_onscreen(buf.get_insert())
+
+        self.__cursor_chunk = None
+        self.__scroll_idle = None
+        return False
+
+    def on_chunk_deleted(self, worksheet, chunk):
+        if self.__cursor_chunk == chunk:
+            self.__cursor_chunk = None
+            glib.idle_remove(self.__scroll_idle)
+            self.__scroll_idle = None
 
     def on_notify_state(self, worksheet, param_spec):
         if (self.flags() & gtk.REALIZED) != 0:
@@ -677,23 +715,16 @@ class ShellView(gtk.TextView):
 
     def calculate(self, end_at_insert=False):
         buf = self.get_buffer()
+        line, _ = buf.iter_to_pos(buf.get_iter_at_mark(buf.get_insert()), ADJUST_BEFORE)
 
         if end_at_insert:
-            end_line = buf.iter_to_pos(buf.get_iter_at_mark(buf.get_insert()), 
-                ADJUST_BEFORE)[0] + 1 # +1 to include line with cursor
+            end_line = line + 1 # +1 to include line with cursor
         else:
             end_line = None
 
         buf.worksheet.calculate(end_line=end_line)
-
-        # This is a hack to work around the fact that scroll_mark_onscreen()
-        # doesn't wait for a size-allocate cycle, so doesn't properly handle
-        # embedded request widgets
-        self.size_request()
-        self.size_allocate((self.allocation.x, self.allocation.y,
-                            self.allocation.width, self.allocation.height))
-
-        self.scroll_mark_onscreen(buf.get_insert())
+        
+        self.__cursor_chunk = buf.worksheet.get_chunk(line)
 
     def copy_as_doctests(self):
         buf = self.get_buffer()
