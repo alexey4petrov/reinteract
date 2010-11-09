@@ -616,7 +616,8 @@ class ShellBuffer(gtk.TextBuffer):
         raise AssertionError("Not reached")
 
     def get_public_text(self, start=None, end=None):
-        """Gets the text in the buffer in the specified range, ignoring results
+        """Gets the text in the buffer in the specified range, ignoring results.
+        If range only contains results, then return the (text) results.
 
         This method satisfies the contract required by sanitize_textview_ipc.py
 
@@ -633,7 +634,15 @@ class ShellBuffer(gtk.TextBuffer):
         start_line, start_offset = self.iter_to_pos(start, adjust=ADJUST_AFTER)
         end_line, end_offset = self.iter_to_pos(end, adjust=ADJUST_BEFORE)
 
-        return self.worksheet.get_text(start_line, start_offset, end_line, end_offset)
+        text = self.worksheet.get_text(start_line, start_offset, end_line, end_offset)
+
+        # Coming up with nothing means either the user selected nothing, or the
+        # selection was entirely within one result; in the second case, the user
+        # wanted the result text.
+        if text == "" or text == "\n":
+            text = self.get_text(start, end)
+
+        return text
 
     def get_pair_location(self):
         """Return an iter pointing to the character paired with the character before the cursor, or None"""
