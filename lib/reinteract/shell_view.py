@@ -584,6 +584,9 @@ class ShellView(gtk.TextView):
     def do_backspace(self):
         buf = self.get_buffer()
         
+        if buf.get_has_selection():
+            return gtk.TextView.do_backspace(self)
+
         insert = buf.get_iter_at_mark(buf.get_insert())
         line, offset = buf.iter_to_pos(insert)
         
