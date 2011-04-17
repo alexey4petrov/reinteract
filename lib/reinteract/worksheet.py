@@ -38,6 +38,8 @@ COMMENT = 1
 STATEMENT_START = 2
 CONTINUATION_RE = re.compile(r'^(?:\s+|(?:else|elif|except|finally)[^A-Za-z0-9_])')
 CONTINUATION = 3
+DECORATOR_RE = re.compile(r'^@') # Decorators in blocks are already handled
+DECORATOR = 4
 
 NEW_LINE_RE = re.compile(r'\n|\r|\r\n')
 
@@ -48,6 +50,8 @@ def calc_line_class(text):
         return COMMENT
     elif CONTINUATION_RE.match(text):
         return CONTINUATION
+    elif DECORATOR_RE.match(text):
+        return DECORATOR
     else:
         return STATEMENT_START
 
@@ -308,14 +312,32 @@ class Worksheet(gobject.GObject):
                     rescan_start = chunk.start
                     break
 
+            # See if the last (non-blank, non-comment) line of the chunk
+            # we're rescanning is a decorator
+            prev_decorator = False
+            line = rescan_end
+            while line > 0:
+                line -= 1
+                line_class = calc_line_class(self.__lines[line])
+                if line_class in (STATEMENT_START, CONTINUATION):
+                    break
+                elif line_class == DECORATOR:
+                    prev_decorator = True
+                    break
+
             while rescan_end < len(self.__lines):
                 chunk = self.__chunks[rescan_end]
                 # The check for continuation line is needed because the first statement
                 # in a buffer can start with a continuation line
                 if isinstance(chunk, StatementChunk) and \
                         chunk.start == rescan_end and \
-                        not CONTINUATION_RE.match(self.__lines[chunk.start]):
+                        not CONTINUATION_RE.match(self.__lines[chunk.start]) and \
+                        not prev_decorator:
                     break
+                # A StatementChunk cannot end with a decorator.  Thus, the next chunk
+                # cannot be following a decorator.
+                if isinstance(chunk, StatementChunk):
+                    prev_decorator = False
                 rescan_end = chunk.end
         else:
             rescan_start = self.__changes.start
@@ -336,6 +358,7 @@ class Worksheet(gobject.GObject):
         chunk_lines = []
 
         seen_start = False
+        prev_decorator = False
         for line in xrange(rescan_start, rescan_end):
             line_text = self.__lines[line]
 
@@ -344,9 +367,10 @@ class Worksheet(gobject.GObject):
                 chunk_lines.append(line_text)
             elif line_class == COMMENT:
                 chunk_lines.append(line_text)
-            elif line_class == CONTINUATION and seen_start:
+            elif (line_class == CONTINUATION and seen_start) or prev_decorator:
                 chunk_lines.append(line_text)
                 statement_end = line + 1
+                prev_decorator = (line_class == DECORATOR)
             else:
                 seen_start = True
                 if len(chunk_lines) > 0:
@@ -354,6 +378,7 @@ class Worksheet(gobject.GObject):
                 chunk_start = line
                 statement_end = line + 1
                 chunk_lines = [line_text]
+                prev_decorator = (line_class == DECORATOR)
 
         self.__assign_lines(chunk_start, chunk_lines, statement_end)
 
