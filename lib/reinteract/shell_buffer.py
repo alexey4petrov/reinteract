@@ -524,6 +524,8 @@ class ShellBuffer(gtk.TextBuffer):
         else:
             self.__insert_results(chunk)
 
+        self.__adjust_recompute_tag(chunk)
+
         if isinstance(chunk, StatementChunk):
             self.__fontify_statement_chunk(chunk, changed_lines)
         elif isinstance(chunk, CommentChunk):
@@ -534,10 +536,16 @@ class ShellBuffer(gtk.TextBuffer):
 
     def on_chunk_status_changed(self, worksheet, chunk):
         _debug("...chunk %s status changed", chunk)
-        if chunk.needs_execute and chunk.results_start_mark is not None:
+        self.__adjust_recompute_tag(chunk)
+
+    def __adjust_recompute_tag(self, chunk):
+        if chunk.results_start_mark is not None:
             start = self.get_iter_at_mark(chunk.results_start_mark)
             end = self.get_iter_at_mark(chunk.results_end_mark)
-            self.apply_tag(self.__recompute_tag, start, end)
+            if chunk.needs_execute or chunk.needs_compile:
+                self.apply_tag(self.__recompute_tag, start, end)
+            elif not chunk.executing:
+                self.remove_tag(self.__recompute_tag, start, end)
 
     def on_chunk_results_changed(self, worksheet, chunk):
         _debug("...chunk %s results changed", chunk);
