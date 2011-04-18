@@ -152,6 +152,7 @@ DEFAULT_STYLE = Style({
         retokenize.TOKEN_BACKQUOTE        : 'punctuation',
         retokenize.TOKEN_COLON            : 'punctuation',
         retokenize.TOKEN_DOT              : 'punctuation',
+        retokenize.TOKEN_AT               : StyleSpec(foreground="#7f0055", weight=600),
         retokenize.TOKEN_EQUAL            : 'punctuation',
         retokenize.TOKEN_AUGEQUAL         : 'punctuation',
         retokenize.TOKEN_NUMBER           : None,

@@ -28,6 +28,7 @@ TOKEN_DOT          = 16
 TOKEN_EQUAL        = 17
 TOKEN_AUGEQUAL     = 18
 TOKEN_BUILTIN_CONSTANT = 19
+TOKEN_AT           = 20
 
 FLAG_OPEN = 1
 FLAG_CLOSE = 2
@@ -53,6 +54,7 @@ _PUNCTUATION_TOKENS = {
     '}' : TOKEN_RBRACE,
     '`' : TOKEN_BACKQUOTE,
     ':' : TOKEN_COLON,
+    '@' : TOKEN_AT,
     '=' : TOKEN_EQUAL,
     '+=' : TOKEN_AUGEQUAL,
     '-=' : TOKEN_AUGEQUAL,
@@ -280,7 +282,8 @@ if __name__ == '__main__':
             print "For %s, in_stack=%s, got out_stack=%s, expected out_stack=%s" % (repr(str), in_stack, stack, expected_stack)
             failed = True
 
-    expect('@', [(TOKEN_PUNCTUATION, '@')])
+    expect('@', [(TOKEN_AT, '@')])
+    expect(';', [(TOKEN_PUNCTUATION, ';')])
     expect('(', [(TOKEN_LPAREN, '(')], expected_stack=['('])
     expect('<<', [(TOKEN_PUNCTUATION, '<<')])
     expect('<<=', [(TOKEN_AUGEQUAL, '<<=')])
