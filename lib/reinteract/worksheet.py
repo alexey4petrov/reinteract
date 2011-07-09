@@ -1230,6 +1230,28 @@ if __name__ == '__main__': #pragma: no cover
     delete(0, 0, 1, 0)
     expect([S(0,1)])
 
+    # Decorators
+    clear()
+    insert(0, 0, "def foo():\n    return 42")
+    expect([S(0,2)])
+    insert(0, 0, "@decorated\n")
+    expect([S(0,3)])
+    insert(0, 0, "@decorated\n")
+    expect([S(0,4)])
+
+    # decorator in the middle breaks things up
+    insert(3, 0, "@decorated\n")
+    expect([S(0,3), S(3,5)])
+    delete(3, 0, 4, 0)
+    expect([S(0,4)])
+
+    # lonely decorator at the end of a worksheet
+    clear()
+    insert(0, 0, "@decorated\n# some comment\n")
+    expect([S(0,1), C(1,2), B(2,3)])
+    insert(2, 0, "def foo():\n    return 42")
+    expect([S(0,4)])
+
     # Calculation
     clear()
     insert(0, 0, "1 + 1")
