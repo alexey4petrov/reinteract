@@ -327,8 +327,6 @@ class WorksheetPrintOperation(gtk.PrintOperation):
     """
 
     __gsignals__ = {
-        'begin-print' : 'override',
-        'draw-page': 'override'
     }
 
     def __init__(self, worksheet):

@@ -25,11 +25,6 @@ class DocPopup(Popup):
     """Class implementing a popup showing docs about an object"""
     
     __gsignals__ = {
-        'destroy': 'override',
-        'size-request': 'override',
-        'size-allocate': 'override',
-        'map': 'override',
-        'style-set': 'override'
     }
 
     #

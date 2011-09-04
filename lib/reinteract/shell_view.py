@@ -23,20 +23,8 @@ ALL_WHITESPACE_RE = re.compile("^\s*$")
 
 class ShellView(gtk.TextView):
     __gsignals__ = {
-        'backspace' : 'override',
-        'expose-event': 'override',
-        'focus-out-event': 'override',
-        'button-press-event': 'override',
-        'button-release-event': 'override',
-        'motion-notify-event': 'override',
-        'key-press-event': 'override',
-        'leave-notify-event': 'override',
-        'motion-notify-event': 'override',
-        'realize': 'override',
-        'unrealize': 'override',
-        'size-allocate': 'override'
    }
-        
+
     def __init__(self, buf):
         self.edit_only = buf.worksheet.edit_only
 

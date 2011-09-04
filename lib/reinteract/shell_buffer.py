@@ -76,10 +76,6 @@ def _backward_line(iter):
 
 class ShellBuffer(gtk.TextBuffer):
     __gsignals__ = {
-        'begin-user-action': 'override',
-        'end-user-action': 'override',
-        'insert-text': 'override',
-        'delete-range': 'override',
         'add-custom-result':  (gobject.SIGNAL_RUN_LAST, gobject.TYPE_NONE, (gobject.TYPE_PYOBJECT, gobject.TYPE_PYOBJECT)),
         'pair-location-changed': (gobject.SIGNAL_RUN_LAST, gobject.TYPE_NONE, (gobject.TYPE_PYOBJECT, gobject.TYPE_PYOBJECT))
     }

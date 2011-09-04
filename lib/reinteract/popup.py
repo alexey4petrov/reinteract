@@ -19,7 +19,6 @@ class Popup(gtk.Window):
     """Base class for various popups"""
     
     __gsignals__ = {
-        'expose-event': 'override',
     }
     
     def __init__(self):

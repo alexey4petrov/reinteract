@@ -31,8 +31,6 @@ class ResultWidget(gtk.DrawingArea):
     """Base class for custom result widgets that draw their own content"""
 
     __gsignals__ = {
-        'parent-set': 'override',
-        'screen-changed' : 'override',
     }
 
     def __init__(self):
