@@ -768,7 +768,7 @@ class Worksheet(gobject.GObject):
 
         while line < end_line:
             si.write("\n")
-            si.write(self.__lines[line][start_offset:])
+            si.write(self.__lines[line])
             line += 1
 
         si.write("\n")
@@ -1405,6 +1405,7 @@ if __name__ == '__main__': #pragma: no cover
     clear()
     insert(0, 0, "12\n34\n56")
     expect_text("12\n34\n56", -1, -1, 0, 0)
+    expect_text("2\n34\n5", 0, 1, 2, 1)
     expect_text("", -1, -1, -1, -1)
     expect_text("1", 0, 0, 0, 1)
     expect_text("2\n3", 0, 1, 1, 1)
