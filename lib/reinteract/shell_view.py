@@ -329,6 +329,13 @@ class ShellView(gtk.TextView):
             indent_text = self.__find_default_indent(iter)
 
         diff = self.__reindent_line(iter, indent_text)
+
+        if not buf.get_has_selection():
+            iter = buf.get_iter_at_mark(buf.get_insert())
+            if iter.get_line_offset() < len(indent_text):
+                iter.set_line_offset(len(indent_text))
+                buf.place_cursor(iter)
+
         while True:
             line += 1
             if line > end_line:
@@ -583,7 +590,7 @@ class ShellView(gtk.TextView):
             line_text = buf.worksheet.get_line(line)[0:offset]
 
             if re.match(r"^[\t ]+$", line_text):
-                self.__reindent_line(insert, self.__find_outdent(insert))
+                self.__reindent_selection(outdent=True)
                 return
                        
         return gtk.TextView.do_backspace(self)
