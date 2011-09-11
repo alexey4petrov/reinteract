@@ -8,6 +8,7 @@
 ########################################################################
 
 import copy
+import gio
 import gobject
 import imp
 import os
@@ -130,7 +131,9 @@ class Notebook(gobject.GObject):
         sys.modules[self.__prefix] = self.__root_module
 
         self.files = {}
+        self.__monitors = {}
         self.worksheets = set()
+
 
         if folder:
             self.info = NotebookInfo(folder)
@@ -143,11 +146,21 @@ class Notebook(gobject.GObject):
     # Loading and Saving
     ############################################################
 
-    def __load_files(self, folder, old_files, new_files):
+    def __load_files(self, folder, old_files, new_files, old_monitors, new_monitors):
         if folder:
             full_folder = os.path.join(self.folder, folder)
         else:
             full_folder = self.folder
+
+        if full_folder in old_monitors:
+            new_monitors[full_folder] = old_monitors[full_folder]
+            del old_monitors[full_folder]
+        else:
+            try:
+                new_monitors[full_folder] = gio.File(full_folder).monitor_directory()
+                new_monitors[full_folder].connect("changed", self._on_monitor_changed)
+            except gio.Error:
+                pass # probably not supported on the operating system
 
         files_added = False
 
@@ -171,7 +184,7 @@ class Notebook(gobject.GObject):
             full_path = os.path.join(full_folder, f)
 
             if os.path.isdir(full_path):
-                files_added = self.__load_files(relative, old_files, new_files) or files_added
+                files_added = self.__load_files(relative, old_files, new_files, old_monitors, new_monitors) or files_added
             elif relative in old_files:
                 new_files[relative] = old_files[relative]
                 del old_files[relative]
@@ -196,6 +209,12 @@ class Notebook(gobject.GObject):
                 files_added = True
 
         return files_added
+
+    def _on_monitor_changed(self, monitor, f, other_file, event_type):
+        if event_type in (gio.FILE_MONITOR_EVENT_CREATED,
+                          gio.FILE_MONITOR_EVENT_DELETED,
+                          gio.FILE_MONITOR_EVENT_MOVED):
+            self.refresh()
 
     ############################################################
     # Import handling
@@ -463,7 +482,9 @@ class Notebook(gobject.GObject):
 
         old_files = self.files
         self.files = {}
-        files_added = self.__load_files(None, old_files, self.files)
+        old_monitors = self.__monitors
+        self.__monitors = {}
+        files_added = self.__load_files(None, old_files, self.files, old_monitors, self.__monitors)
         if files_added or len(old_files) > 0:
             self.emit('files-changed')
 
