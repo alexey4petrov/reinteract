@@ -84,7 +84,7 @@ class Popup(gtk.Window):
         # the completion popup as we type extra characters
         if self.showing:
             old_x, old_y = self.window.get_position()
-            if y == old_y or x >= old_x:
+            if y == old_y and x >= old_x:
                 return
         self.move(x, y)
 
