@@ -140,7 +140,7 @@ class BaseWindow:
             context.set_timestamp(gtk.get_current_event_time())
             try:
                 handler = gfile.query_default_handler()
-            except gio.Error as e:
+            except gio.Error, e:
                 dialog = gtk.MessageDialog(buttons=gtk.BUTTONS_OK,
                                            type=gtk.MESSAGE_ERROR)
                 dialog.set_markup(format_escaped("<big><b>Don't know how to open '%s'</b></big>", os.path.basename(filename)))
@@ -150,7 +150,7 @@ class BaseWindow:
                 return None
             try:
                 handler.launch([gfile], context)
-            except glib.GError as e:
+            except glib.GError, e:
                 dialog = gtk.MessageDialog(buttons=gtk.BUTTONS_OK,
                                            type=gtk.MESSAGE_ERROR)
                 dialog.set_markup(format_escaped("<big><b>Failed to open '%s'</b></big>", os.path.basename(filename)))
