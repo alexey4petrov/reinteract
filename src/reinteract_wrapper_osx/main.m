@@ -74,6 +74,22 @@ fileExists(NSString *path)
     return TRUE;
 }
 
+static PyObject *
+string_to_unicode(NSString *string)
+{
+    NSUInteger length = [string length];
+    Py_UNICODE *buffer = malloc(length * sizeof(Py_UNICODE));
+    PyObject *result;
+    if (!buffer)
+        Py_RETURN_NONE;
+
+    [string getCharacters:buffer range:NSMakeRange(0, length)];
+    result = PyUnicode_FromUnicode(buffer, length);
+    free(buffer);
+
+    return result;
+}
+
 int main(int argc, char *argv[])
 {
     NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
@@ -160,15 +176,15 @@ int main(int argc, char *argv[])
 
     PyObject *globalSettings = getModuleAttribute("reinteract.global_settings", "global_settings");
 
-    PyObject *pyDialogsDir = PyString_FromString([dialogsDir UTF8String]);
+    PyObject *pyDialogsDir = string_to_unicode(dialogsDir);
     PyObject_SetAttrString(globalSettings, "dialogs_dir", pyDialogsDir);
     Py_DECREF(pyDialogsDir);
 
-    PyObject *pyExamplesDir = PyString_FromString([examplesDir UTF8String]);
+    PyObject *pyExamplesDir = string_to_unicode(examplesDir);
     PyObject_SetAttrString(globalSettings, "examples_dir", pyExamplesDir);
     Py_DECREF(pyExamplesDir);
 
-    PyObject *pyIconFile = PyString_FromString([iconFile UTF8String]);
+    PyObject *pyIconFile = string_to_unicode(iconFile);
     PyObject_SetAttrString(globalSettings, "icon_file", pyIconFile);
     Py_DECREF(pyIconFile);
 
