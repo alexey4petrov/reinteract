@@ -113,6 +113,30 @@ def _do_match(t, pattern, start_pos=0, start_pattern_index=0):
     else:
         return result
 
+def _do_substitute(pattern, args):
+    if len(pattern) == 2 and isinstance(pattern[1], tuple):
+        # Optimize the most common case
+        return (pattern[0], _do_substitute(pattern[1], args))
+    else:
+        v = [pattern[0]]
+        for i in xrange(1, len(pattern)):
+            p = pattern[i]
+            if isinstance (p, tuple):
+                v.append(_do_substitute(p, args))
+            elif p == '':
+                v.append('')
+            else:
+                first = p[0]
+                if first == '.':
+                    v.append(args[p[1:]])
+                elif first == '*':
+                    v.extend(args[p[1:]])
+                elif first == '\\':
+                    v.append(p[1:])
+                else:
+                    v.append(p)
+        return v
+
 _path_pattern = \
                      (symbol.test,
                       (symbol.or_test,
@@ -837,6 +861,7 @@ class Rewriter:
 if __name__ == '__main__':
     import copy
     import re
+    from dump_ast import dump_ast
     from test_utils import assert_equals
 
     def rewrite_and_compile(code, output_func_name=None, future_features=None, print_func_name=None, encoding="utf8"):
@@ -896,6 +921,37 @@ if __name__ == '__main__':
     result = _do_match((token.NAME, (token.NAME, 'x'), 'y'),
                        (token.NAME, (token.NAME, '.a'), '.b'))
     assert_equals(result, {'a': 'x', 'b': 'y'})
+
+    #
+    # Tests of _do_substitute
+    #
+    def tree_equals(a, b):
+        if len(a) != len(b):
+            return False
+        for i in xrange(0, len(a)):
+            if ((isinstance(a[i], tuple) or isinstance(a[i], list)) and
+                 (isinstance(b[i], tuple) or isinstance(b[i], list))):
+                if not tree_equals(a[i], b[i]):
+                    return False
+            else:
+                if a[i] != b[i]:
+                    return False
+
+        return True
+
+    def assert_tree_equals(result, expected):
+        if not tree_equals(result, expected):
+            raise AssertionError("Got:\n %s\nExpected:\n%s" % (dump_ast(result), dump_ast(expected)))
+
+    result = _do_substitute((symbol.test, (token.NAME, 'x'), (token.NAME, '\\y')),
+                            {})
+    assert_tree_equals(result, (symbol.test, (token.NAME, 'x'), (token.NAME, 'y')))
+    result = _do_substitute((symbol.test, (token.NAME, '.a'), (token.NAME, '.b')),
+                            {'a': 'x', 'b': 'y'})
+    assert_tree_equals(result, (symbol.test, (token.NAME, 'x'), (token.NAME, 'y')))
+    result = _do_substitute((symbol.test, '*a'),
+                            {'a': ((token.NAME, 'x'), (token.NAME, 'y')) })
+    assert_tree_equals(result, (symbol.test, (token.NAME, 'x'), (token.NAME, 'y')))
 
     #
     # Test _create_funccall_expr_stmt
