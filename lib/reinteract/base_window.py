@@ -291,6 +291,15 @@ class BaseWindow:
                 else:
                     self.current_editor.calculate(end_at_insert=True)
             return True
+
+        # If the calculate and calculate-to-line actions are insensitive,
+        # GTK+ ignores the Return keybinding, and passes them through to the editor.
+        # But the user didn't want to insert a line break, so block such keys
+        if (event.keyval == gtk.keysyms.Return and
+            (event.state & gtk.gdk.CONTROL_MASK != 0 or event.state & gtk.gdk.SHIFT_MASK != 0)):
+            if self.current_editor and not self.current_editor.needs_calculate:
+                return True
+
         return False
 
     def on_delete_event(self, window, event):
