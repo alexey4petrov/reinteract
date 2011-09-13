@@ -12,6 +12,15 @@ import token
 import symbol
 import sys
 
+from dump_ast import dump_ast
+
+TEXT_TRANSFORMS = (
+    (re.compile(r'^(\s*)build((?:\s+as\s+[a-zA-Z_][a-zA-Z_0-9]*\s*)?):', re.MULTILINE),
+     r'\1with __reinteract_builder()\2:'),
+    (re.compile(r'^(\s*)build\s+([^\r\n]*?)((?:\s+as\s+[a-zA-Z_][a-zA-Z_0-9]*\s*)?):', re.MULTILINE),
+     r'\1with __reinteract_builder(\2)\3:'),
+)
+
 class UnsupportedSyntaxError(Exception):
     """Exception thrown when some type of Python code that we can't support was used"""
     def __init__(self, value):
@@ -21,6 +30,7 @@ class UnsupportedSyntaxError(Exception):
 
 class _RewriteState(object):
     def __init__(self, output_func_name=None, print_func_name=None, future_features=None):
+        self.build_variable_count = 0
         self.mutated = []
         self.output_func_name = output_func_name
         self.print_func_name = print_func_name
@@ -467,13 +477,105 @@ def _rewrite_docstring_block_stmt(t, state):
     return _rewrite_tree(t, state,
                          { symbol.suite:      _rewrite_docstring_suite })
 
+
+_with_stmt_pattern = \
+    (symbol.with_stmt,
+     (token.NAME, 'with'),
+     (symbol.with_item,
+      (symbol.test,
+       (symbol.or_test,
+        (symbol.and_test,
+         (symbol.not_test,
+          (symbol.comparison,
+           (symbol.expr,
+            (symbol.xor_expr,
+             (symbol.and_expr,
+              (symbol.shift_expr,
+               (symbol.arith_expr,
+                (symbol.term,
+                 (symbol.factor,
+                  (symbol.power,
+                   (symbol.atom,
+                    (token.NAME, '__reinteract_builder')),
+                   (symbol.trailer,
+                    (token.LPAR, '('),
+                    '*arglist',
+                    (token.RPAR, ')'))))))))))))))),
+      '*as'),
+     (token.COLON, ':'),
+     (symbol.suite,
+      (token.NEWLINE, ''),
+      (token.INDENT, ''),
+      '*stmts',
+      (token.DEDENT, '')))
+
+_as_expression_pattern = \
+    (symbol.expr,
+     (symbol.xor_expr,
+      (symbol.and_expr,
+       (symbol.shift_expr,
+        (symbol.arith_expr,
+         (symbol.term,
+          (symbol.factor,
+           (symbol.power,
+            (symbol.atom,
+             (token.NAME, '.var'))))))))))
+
+def _create_variable_stmt(var):
+    return (symbol.stmt,
+            (symbol.simple_stmt,
+             (symbol.small_stmt,
+              (symbol.expr_stmt,
+               (symbol.testlist,
+                (symbol.test,
+                 (symbol.or_test,
+                  (symbol.and_test,
+                   (symbol.not_test,
+                    (symbol.comparison,
+                     (symbol.expr,
+                      (symbol.xor_expr,
+                       (symbol.and_expr,
+                        (symbol.shift_expr,
+                         (symbol.arith_expr,
+                          (symbol.term,
+                           (symbol.factor,
+                            (symbol.power,
+                             (symbol.atom,
+                              (token.NAME, var)))))))))))))))))),
+             (token.NEWLINE, '')))
+
+def _rewrite_with_stmt(t, state):
+    dump_ast(t, output_filename="/tmp/dump.py")
+    result = _do_match(t, _with_stmt_pattern)
+
+    if result is not None:
+        var = None
+        if len(result['as']) == 0:
+            var = '__reinteract_build' + str(state.build_variable_count)
+            state.build_variable_count += 1
+            result['as'] = ((token.NAME, 'as'),
+                            _do_substitute(_as_expression_pattern, { 'var': var }))
+        elif len(result['as']) == 2 and result['as'][0] == (token.NAME, 'as'):
+            subresult = _do_match(result['as'][1], _as_expression_pattern)
+            if subresult is not None:
+                var = subresult['var']
+
+        if var is not None:
+            output_stmt = _rewrite_stmt(_create_variable_stmt(var), state)
+            result['stmts'] = ([_rewrite_stmt(s, state) for s in result['stmts']] +
+                               [output_stmt])
+
+            return _do_substitute(_with_stmt_pattern, result)
+
+    return _rewrite_block_stmt(t, state)
+
 _rewrite_compound_stmt_actions = {
     symbol.if_stmt:    _rewrite_block_stmt,
     symbol.while_stmt: _rewrite_block_stmt,
     symbol.for_stmt:   _rewrite_block_stmt,
     symbol.try_stmt:   _rewrite_block_stmt,
     symbol.funcdef:    _rewrite_docstring_block_stmt,
-    symbol.with_stmt:  _rewrite_block_stmt
+    symbol.with_stmt:  _rewrite_with_stmt
 }
 
 def _rewrite_compound_stmt(t, state):
@@ -798,7 +900,12 @@ class Rewriter:
         self.code = code
         self.encoding = encoding
         self.future_features = future_features
-        self.original = parser.suite(code).totuple()
+
+        new = code
+        for pattern, replacement in TEXT_TRANSFORMS:
+            new = pattern.sub(replacement, new)
+
+        self.original = parser.suite(new).totuple()
 
     def get_imports(self):
         """

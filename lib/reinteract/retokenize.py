@@ -33,7 +33,7 @@ TOKEN_AT           = 20
 FLAG_OPEN = 1
 FLAG_CLOSE = 2
 
-_KEYWORDS = set([ 'and', 'as', 'assert', 'break', 'class', 'continue', 'def',
+_KEYWORDS = set([ 'and', 'as', 'assert', 'break', 'build', 'class', 'continue', 'def',
                   'del', 'elif', 'else', 'except', 'exec', 'finally',  'for',
                   'from', 'global', 'if', 'import', 'in', 'is', 'lambda', 'not',
                   'or', 'pass', 'print', 'raise',  'return', 'try', 'while',

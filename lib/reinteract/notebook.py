@@ -50,6 +50,20 @@ class _Helper:
         
         return HelpResult(arg)
 
+class _Builder:
+    def __init__(self, arg=None):
+        self.arg = arg
+
+    def __enter__(self):
+        if hasattr(self.arg, '__enter__'):
+            return self.arg.__enter__()
+        else:
+            return self.arg
+
+    def __exit__(self, exception_type, exception_value, traceback):
+        if hasattr(self.arg, '__exit__'):
+            return self.arg.__exit__(exception_type, exception_value, traceback)
+
 ######################################################################
 
 class NotebookFile(gobject.GObject):
@@ -498,6 +512,7 @@ class Notebook(gobject.GObject):
         globals['__reinteract_notebook'] = self
         globals['__reinteract_copy'] = copy.copy
         globals['__reinteract_wrappers'] = []
+        globals['__reinteract_builder'] = _Builder
         globals['help'] = _Helper()
 
     def file_for_absolute_path(self, absolute_path):
