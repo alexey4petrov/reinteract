@@ -39,10 +39,11 @@ def _do_match(t, pattern, start_pos=0, start_pattern_index=0):
     # Match an AST tree against a pattern. Along with symbol/token names, patterns
     # can contain strings:
     #
-    #  '': ignore the matched item
-    #  'name': store the matched item into the result dict under 'name'
+    #  '.': match anything, skip
+    #  '.name': store the matched item into the result dict under 'name'
     #  '*': matches multiple items (greedy); ignore matched items
     #  '*name': matches items (greedy); store the matched items as a sequence into the result dict
+    #  '\\<anything>' '<anything>': match literally
     #
     # Returns None if nothing matched or a dict of key/value pairs
     #
@@ -65,35 +66,49 @@ def _do_match(t, pattern, start_pos=0, start_pattern_index=0):
                 return None
             result.update(subresult)
         else:
-            if len(pattern[i]) > 0 and pattern[i][0] == '*':
-                if i + 1 < len(pattern):
-                    # Non-final *, need to find where the tail portion matches, start
-                    # backwards from the end to implement a greedy match
-                    for tail_pos in xrange(len(t) - 1, pos - 1, -1):
-                        tail_result = _do_match(t, pattern,
-                                                start_pos=tail_pos,
-                                                start_pattern_index=i + 1)
-                        if tail_result is not None:
-                            result.update(tail_result)
-                            break
-                    else:
-                        return None
-                else:
-                    tail_pos = len(t)
-
-                if pattern[i] != '*':
-                    result[pattern[i][1:]] = t[pos:tail_pos]
-
-                return result
-            else:
-                if pos >= len(t):
+            if pattern[i] == '':
+                if t[i] != '':
                     return None
-                if pattern[i] != '':
-                    result[pattern[i]] = t[pos]
+            else:
+                first = pattern[i][0]
+                if first == '*':
+                    if i + 1 < len(pattern):
+                        # Non-final *, need to find where the tail portion matches, start
+                        # backwards from the end to implement a greedy match
+                        for tail_pos in xrange(len(t) - 1, pos - 1, -1):
+                            tail_result = _do_match(t, pattern,
+                                                    start_pos=tail_pos,
+                                                    start_pattern_index=i + 1)
+                            if tail_result is not None:
+                                result.update(tail_result)
+                                break
+                        else:
+                            return None
+                    else:
+                        tail_pos = len(t)
+
+                    if pattern[i] != '*':
+                        result[pattern[i][1:]] = t[pos:tail_pos]
+
+                    return result
+                else:
+                    # One item in pattern matches one item
+                    if pos >= len(t):
+                        return None
+
+                    if first == '.':
+                        if pattern[i] != '.':
+                            result[pattern[i][1:]] = t[pos]
+                    elif first == '\\':
+                        if t[pos] != pattern[i][1:]:
+                            return None
+                    else:
+                        if t[pos] != pattern[i]:
+                            return None
 
         pos += 1
 
-    if pos > len(t):
+    if pos != len(t):
         return None
     else:
         return result
@@ -142,10 +157,10 @@ _method_call_pattern = \
                                  (symbol.power,
                                   '*path',
                                   (symbol.trailer,
-                                   (token.DOT, ''),
-                                   (token.NAME, 'method_name')),
+                                   (token.DOT, '\\.'),
+                                   (token.NAME, '.method_name')),
                                   (symbol.trailer,
-                                   (token.LPAR, ''),
+                                   (token.LPAR, '('),
                                    '*'))))))))))))))
 
 def _is_test_method_call(t):
@@ -174,10 +189,9 @@ _attribute_pattern = \
                                  (symbol.power,
                                   '*path',
                                   (symbol.trailer,
-                                   (token.DOT, ''),
-                                   (token.NAME, '')))))))))))))))
-    
-    
+                                   (token.DOT, '\\.'),
+                                   (token.NAME, '.')))))))))))))))
+
 def _is_test_attribute(t):
     # Check if the given AST is a "test" of the form 'a...b.c' If it
     # matches, returns 'a...b', otherwise returns None
@@ -205,9 +219,8 @@ _slice_pattern = \
                                  (symbol.power,
                                   '*path',
                                   (symbol.trailer,
-                                   (token.LSQB, ''),
+                                   (token.LSQB, '['),
                                    '*'))))))))))))))
-    
 
 
 def _is_test_slice(t):
@@ -240,7 +253,8 @@ _literal_string_pattern = \
                          (symbol.power,
                           (symbol.atom,
                            (token.STRING,
-                            '*')))))))))))))))))))
+                            '*')))))))))))))))))),
+          '*')
 
 def _is_simple_stmt_literal_string(t):
     # Tests if the given string is a simple statement that is a literal string
@@ -579,7 +593,7 @@ _import_pattern = \
       (symbol.simple_stmt,
        (symbol.small_stmt,
         (symbol.import_stmt,
-         'imp')),
+         '.imp')),
        '*')),
       '*')
 
@@ -823,6 +837,7 @@ class Rewriter:
 if __name__ == '__main__':
     import copy
     import re
+    from test_utils import assert_equals
 
     def rewrite_and_compile(code, output_func_name=None, future_features=None, print_func_name=None, encoding="utf8"):
         return Rewriter(code, encoding, future_features).rewrite_and_compile(output_func_name, print_func_name)
@@ -854,11 +869,37 @@ if __name__ == '__main__':
                            (symbol.power,
                             (symbol.atom,
                              (token.NUMBER, str(c))))))))))))))))
-            
+
+    #
+    # Tests of _do_match
+    #
+    result = _do_match((token.NAME, 'x',), (token.NUMBER, 'x',))
+    assert_equals(result, None)
+    result = _do_match((token.NAME, 'x',), (token.NAME, 'y',))
+    assert_equals(result, None)
+    result = _do_match((token.NAME, 'x',), (token.NAME,))
+    assert_equals(result, None)
+    result = _do_match((token.NAME, 'x',), (token.NAME, 'x', 'y'))
+    assert_equals(result, None)
+    result = _do_match((token.NAME, 'x',), (token.NAME, 'x',))
+    assert_equals(result, {})
+    result = _do_match((token.NAME, 'x',), (token.NAME, '\\y',))
+    assert_equals(result, None)
+    result = _do_match((token.NAME, 'x',), (token.NAME, '\\x',))
+    assert_equals(result, {})
+    result = _do_match((token.NAME, '',), (token.NAME, '',))
+    assert_equals(result, {})
+    result = _do_match((token.NAME, 'x',), (token.NAME, '.a',))
+    assert_equals(result, {'a':'x'})
+    result = _do_match((token.NAME, 'x', 'y', 'z'), (token.NAME, '*a', 'z'))
+    assert_equals(result, {'a':('x', 'y')})
+    result = _do_match((token.NAME, (token.NAME, 'x'), 'y'),
+                       (token.NAME, (token.NAME, '.a'), '.b'))
+    assert_equals(result, {'a': 'x', 'b': 'y'})
 
     #
     # Test _create_funccall_expr_stmt
-    # 
+    #
 
     def test_funccall(args):
         t = create_file_input(_create_funccall_expr_stmt('set_test_args',
