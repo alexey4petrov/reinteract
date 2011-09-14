@@ -1085,7 +1085,18 @@ if __name__ == '__main__':
         
         test_args = []
         def set_test_args(*args): test_args[:] = args
-        scope = { 'reinteract_output': set_test_args }
+
+        class Builder:
+            def __init__(self, arg=None):
+                self.arg = arg
+
+            def __enter__(self):
+                return self.arg
+
+            def __exit__(self, exception_type, exception_value, traceback):
+                pass
+
+        scope = { 'reinteract_output': set_test_args, '__reinteract_builder': Builder }
 
         exec compiled in scope
 
@@ -1105,6 +1116,14 @@ if __name__ == '__main__':
     test_output('def x():\n    "x"\n    return 1\ny = x()', ())
     test_output('def x():\n    """"x\n"""\n    return 1\ny = x()', ())
     test_output('def x(): "x"\ny = x()', ())
+
+    #
+    # Test our build "keyword"
+    #
+    test_output('build list() as l:\n    l.append(1)', ([1],))
+    test_output('build list():\n    pass', ([],))
+    test_output('build as l:\n    l = 42', (42,))
+    test_output('build:\n    pass', (None,))
 
     #
     # Test that our intercepting of print works
