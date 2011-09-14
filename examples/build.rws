@@ -1,0 +1,67 @@
+# Reinteract generally sticks pretty close to standard Python,
+# but the 'build' keyword is an exception. Sometimes you
+# want to do multiple things "at once" as a single unit.
+# The most common reason for doing this is that you are
+# using an external module that doesn't support making
+# copies of an object's state. You get the dreaded warning:
+#  '<object>' apparently modified, but can't copy it
+
+# A simple example of build:
+
+build list() as l:
+    l.append(1)
+    l.append(2)
+
+# As you can see from the above, build works a lot like
+# Python's 'with' statement, but output's the named
+# variable at the end of the block.
+
+# We can also omit the initialization statement, and
+# set the variable later in the block
+
+build as l:
+    print l
+    l = list()
+    l.append(1)
+    l.append(2)
+
+# or even omit everything and just use the build: to group
+# a number of statements.
+
+import reinteract.custom_result
+build:
+    f = open(reinteract.custom_result.__file__)
+    lines = f.readlines()
+    count = len(lines)
+    f.close()
+count
+
+# Finally, we can omit the variable name.
+
+build list():
+    pass
+
+# This seems useless on the face of it, but the build statement
+# optionally supports the same "context manager" protocol as the
+# with statement, and this can be used to provide implicit
+# context. (The reinteract author thinks that the first example
+# in this file is the right way to do the following, but
+# wanted to show off more complex possibilities.)
+
+from reinteract.statement import Statement
+
+class build_list():
+    def __enter__(self):
+        l = []
+        Statement.get_current()._list = l
+        return l
+
+    def __exit__(self, exception_type, exception_value, traceback):
+        Statement.get_current()._list = None
+
+def append(v):
+    Statement.get_current()._list.append(v)
+
+build build_list():
+    append(1)
+    append(2)
