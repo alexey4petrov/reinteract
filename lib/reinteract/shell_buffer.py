@@ -103,9 +103,10 @@ class ShellBuffer(gtk.TextBuffer):
         self.__result_tag.set_properties(wrap_mode=gtk.WRAP_WORD, editable=False)
         self.__warning_tag = style.get_tag(self, 'warning')
         self.__error_tag = style.get_tag(self, 'error')
+        self.__error_line_tag = style.get_tag(self, 'error-line')
         # We want the recompute tag to have higher priority, so we fetch it after result_tag
         # which will result in it being defined second
-        self.__recompute_tag = style.get_tag(self, 'recompute')
+        self.__status_tags = style.get_tag(self, 'recompute')
         self.__comment_tag = style.get_tag(self, 'comment')
         self.__help_tag = style.get_tag(self, 'help')
 
@@ -524,7 +525,7 @@ class ShellBuffer(gtk.TextBuffer):
         else:
             self.__insert_results(chunk)
 
-        self.__adjust_recompute_tag(chunk)
+        self.__adjust_status_tags(chunk)
 
         if isinstance(chunk, StatementChunk):
             self.__fontify_statement_chunk(chunk, changed_lines)
@@ -536,16 +537,25 @@ class ShellBuffer(gtk.TextBuffer):
 
     def on_chunk_status_changed(self, worksheet, chunk):
         _debug("...chunk %s status changed", chunk)
-        self.__adjust_recompute_tag(chunk)
+        self.__adjust_status_tags(chunk)
 
-    def __adjust_recompute_tag(self, chunk):
+    def __adjust_status_tags(self, chunk):
         if chunk.results_start_mark is not None:
             start = self.get_iter_at_mark(chunk.results_start_mark)
             end = self.get_iter_at_mark(chunk.results_end_mark)
             if chunk.needs_execute or chunk.needs_compile:
-                self.apply_tag(self.__recompute_tag, start, end)
+                self.apply_tag(self.__status_tags, start, end)
             elif not chunk.executing:
-                self.remove_tag(self.__recompute_tag, start, end)
+                self.remove_tag(self.__status_tags, start, end)
+
+        start = self.pos_to_iter(chunk.start)
+        end = self.pos_to_iter(chunk.end - 1, -1)
+        self.remove_tag(self.__error_line_tag, start, end)
+
+        if isinstance(chunk, StatementChunk) and chunk.error_message and chunk.error_line is not None:
+            start = self.pos_to_iter(chunk.start + chunk.error_line - 1)
+            end = self.pos_to_iter(chunk.start + chunk.error_line - 1, -1)
+            self.apply_tag(self.__error_line_tag, start, end)
 
     def on_chunk_results_changed(self, worksheet, chunk):
         _debug("...chunk %s results changed", chunk);

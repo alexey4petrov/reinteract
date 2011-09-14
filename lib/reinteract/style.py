@@ -124,6 +124,7 @@ class Style:
 
 DEFAULT_STYLE = Style({
         'error'                           : StyleSpec(foreground="#aa0000"),
+        'error-line'                      : StyleSpec(paragraph_background="#ffddaa"),
         'warning'                         : StyleSpec(foreground="#aa8800"),
         'comment'                         : StyleSpec(foreground="#3f7f5f"),
         'header'                          : StyleSpec(family="sans-serif"),

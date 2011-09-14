@@ -283,7 +283,7 @@ class Statement:
             error_type, value, tb = sys.exc_info()
 
             self.error_message = self.__format_traceback(error_type, value, tb)
-            self.error_line = tb.tb_frame.f_lineno
+            self.error_line = tb.tb_next.tb_lineno
             self.error_offset = None
 
             self.state = Statement.EXECUTE_ERROR
