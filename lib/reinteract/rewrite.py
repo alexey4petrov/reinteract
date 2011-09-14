@@ -545,7 +545,6 @@ def _create_variable_stmt(var):
              (token.NEWLINE, '')))
 
 def _rewrite_with_stmt(t, state):
-    dump_ast(t, output_filename="/tmp/dump.py")
     result = _do_match(t, _with_stmt_pattern)
 
     if result is not None:

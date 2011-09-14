@@ -246,7 +246,6 @@ class Statement:
         # our custom import implementation
         skip_filenames = [self.__get_module_filename(m) for m in (notebook, pkgutil)]
         extracted = filter(lambda x: x[0] not in skip_filenames, traceback.extract_tb(tb)[2:])
-        extracted = traceback.extract_tb(tb)
 
         formatted = "".join(traceback.format_list(extracted))
         last_line = "".join(traceback.format_exception_only(error_type, value))
