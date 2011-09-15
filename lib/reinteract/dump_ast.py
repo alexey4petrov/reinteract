@@ -58,7 +58,7 @@ def dump_ast(ast, output_filename=None):
         _dump(si.write, ast, '')
         return si.getvalue()
 
-if __name__ == '__main__':
+if __name__ == '__main__': # INTERACTIVE
     if len(sys.argv) != 2:
         print >>sys.stderr, "Usage: dump_ast.py '<expr>'"
         sys.exit(1)
