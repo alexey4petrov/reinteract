@@ -625,6 +625,25 @@ def _rewrite_file_input(t, state):
 ######################################################################
 # Import procesing
 
+class Imports:
+    def __init__(self, imports):
+        self.imports = imports
+
+    def get_future_features(self):
+        result = set()
+        for module, symbols in self.imports:
+            if module == '__future__' and symbols != '*' and symbols[0][0] != '.':
+                result.update((sym for sym, _ in symbols))
+
+        return result
+
+    def module_is_referenced(self, module_name):
+        for module, _ in self.imports:
+            if module == module_name:
+                return True
+
+        return False
+
 # dotted_name: NAME ('.' NAME)*
 def _process_dotted_name(t):
     assert t[0] == symbol.dotted_name
@@ -728,10 +747,10 @@ def _get_imports(t):
     if args:
         imp = args['imp']
         if imp[0] == symbol.import_name:
-            return _process_import_name(imp)
+            return Imports(_process_import_name(imp))
         else:
             assert imp[0] == symbol.import_from
-            return _process_import_from(imp)
+            return Imports(_process_import_from(imp))
     else:
         return None
 
@@ -910,8 +929,7 @@ class Rewriter:
         """
         Return information about any imports made by the statement
 
-        @returns: A list of tuples, which each tuple is either (module_name, '*'),
-          (module_name, [('.', as_name)]), or (module_name, [(name, as_name), ...]).
+        @returns: a rewriter.Imports object, or None.
 
         """
 
@@ -1272,25 +1290,29 @@ a.a = A()
     # Test import detection
     #
 
-    def test_imports(code, expected):
-        rewriter = Rewriter(code)
-        result = rewriter.get_imports()
-        if result != expected:
-            raise AssertionError("Got '%s', expected '%s'" % (result, expected))
+    def get_imports(code):
+        return Rewriter(code).get_imports()
 
-    test_imports('a + 1', None)
-    test_imports('import re', [('re', [('.', 're')])])
-    test_imports('import re as r', [('re', [('.', 'r')])])
-    test_imports('import re, os as o', [('re', [('.', 're')]), ('os', [('.', 'o')])])
+    def test_imports(code, referenced):
+        imports = get_imports(code)
+        for module in referenced:
+            if not imports.module_is_referenced(module):
+                raise AssertionError("'%s': %s should be referenced and isn't",
+                                     code, referenced)
 
-    test_imports('from re import match', [('re', [('match', 'match')])])
-    test_imports('from re import match as m', [('re', [('match', 'm')])])
-    test_imports('from re import match as m, sub as s', [('re', [('match', 'm'), ('sub', 's')])])
-    test_imports('from re import (match as m, sub as s)', [('re', [('match', 'm'), ('sub', 's')])])
-    test_imports('from ..re import match', [('..re', [('match', 'match')])])
-    test_imports('from re import *', [('re', '*')])
+    assert_equals(get_imports('a + 1'), None)
+    test_imports('import re', ['re'])
+    test_imports('import re as r', ['re'])
+    test_imports('import re, os as o', ['re', 'os'])
 
-    test_imports('from __future__ import division', [('__future__', [('division', 'division')])])
+    test_imports('from re import match', ['re'])
+    test_imports('from re import match as m', ['re'])
+    test_imports('from re import match as m, sub as s', ['re'])
+    test_imports('from re import (match as m, sub as s)', ['re'])
+    test_imports('from ..re import match', ['..re'])
+    test_imports('from re import *', ['re'])
+
+    assert_equals(get_imports('from __future__ import division').get_future_features(), set(['division']))
 
     #
     # Test passing in future_features to use in compilation

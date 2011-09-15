@@ -127,13 +127,11 @@ class Statement:
 
         self.future_features = self.__parent_future_features
         if self.imports is not None:
-            for module, symbols in self.imports:
-                if module == '__future__' and symbols != '*' and symbols[0][0] != '.':
-                    merged = set()
-                    if self.future_features:
-                        merged.update(self.future_features)
-                    merged.update((sym for sym, _ in symbols))
-                    self.future_features = sorted(merged)
+            merged = set()
+            if self.future_features:
+                merged.update(self.future_features)
+            merged.update(self.imports.get_future_features())
+            self.future_features = sorted(merged)
 
         self.state = Statement.COMPILE_SUCCESS
         return True

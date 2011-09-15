@@ -592,9 +592,9 @@ class Worksheet(gobject.GObject):
             if imports is None:
                 continue
 
-            for module, _ in imports:
-                if module == module_name:
-                    self.__mark_rest_for_execute(chunk.start)
+            if imports.module_is_referenced(module_name):
+                self.__mark_rest_for_execute(chunk.start)
+                return
 
     def calculate(self, wait=False, end_line=None):
         _debug("Calculating")
