@@ -107,9 +107,9 @@ class Statement:
 
         try:
             rewriter = Rewriter(self.__text, future_features=self.__parent_future_features)
-            self.imports = rewriter.get_imports()
             self.__compiled, self.__mutated = rewriter.rewrite_and_compile(output_func_name='reinteract_output',
                                                                            copy_func_name="__reinteract_copy")
+            self.imports = rewriter.get_imports()
         except SyntaxError, e:
             self.error_message = e.msg
             self.error_line = e.lineno

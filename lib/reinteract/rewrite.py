@@ -6,13 +6,12 @@
 #
 ########################################################################
 
-import parser
+import __future__
+import ast
 import re
 import token
 import symbol
 import sys
-
-from dump_ast import dump_ast
 
 TEXT_TRANSFORMS = (
     (re.compile(r'^(\s*)build((?:\s+as\s+[a-zA-Z_][a-zA-Z_0-9]*\s*)?):', re.MULTILINE),
@@ -28,875 +27,352 @@ class UnsupportedSyntaxError(Exception):
     def __str__(self):
         return repr(self.value)
 
-class _RewriteState(object):
-    def __init__(self, output_func_name=None, print_func_name=None, future_features=None):
-        self.build_variable_count = 0
-        self.mutated = []
-        self.output_func_name = output_func_name
-        self.print_func_name = print_func_name
-        self.future_features = future_features
-
-    def add_mutated(self, path):
-        # Make sure our "mutation" isn't something like "asdfa".length(); we
-        # will miss some valid mutations that we could handle like
-        # (some_list).append(5). If such cases ever become and issue, we
-        # could add some code here to simplify them into a "normal" form.
-        if path[0][1][0] == token.NAME:
-            if not path in self.mutated:
-                self.mutated.append(path)
-
-def _do_match(t, pattern, start_pos=0, start_pattern_index=0):
-    # Match an AST tree against a pattern. Along with symbol/token names, patterns
-    # can contain strings:
-    #
-    #  '.': match anything, skip
-    #  '.name': store the matched item into the result dict under 'name'
-    #  '*': matches multiple items (greedy); ignore matched items
-    #  '*name': matches items (greedy); store the matched items as a sequence into the result dict
-    #  '\\<anything>' '<anything>': match literally
-    #
-    # Returns None if nothing matched or a dict of key/value pairs
-    #
-    # start_pos/start_pattern_index are used to match a trailing portion of the
-    # tree against a trailing portion of the pattern; this is used internally to implement
-    # non-terminal wildcards in patterns.
-    #
-    if start_pattern_index == 0:
-        if (t[0] != pattern[0]):
-            return None
-
-    result = {}
-    pos = max(1, start_pos)
-    for i in xrange(max(1, start_pattern_index), len(pattern)):
-        if isinstance(pattern[i], tuple):
-            if pos >= len(t):
-                return None
-            subresult = _do_match(t[pos], pattern[i])
-            if subresult is None:
-                return None
-            result.update(subresult)
-        else:
-            if pattern[i] == '':
-                if t[i] != '':
-                    return None
-            else:
-                first = pattern[i][0]
-                if first == '*':
-                    if i + 1 < len(pattern):
-                        # Non-final *, need to find where the tail portion matches, start
-                        # backwards from the end to implement a greedy match
-                        for tail_pos in xrange(len(t) - 1, pos - 1, -1):
-                            tail_result = _do_match(t, pattern,
-                                                    start_pos=tail_pos,
-                                                    start_pattern_index=i + 1)
-                            if tail_result is not None:
-                                result.update(tail_result)
-                                break
-                        else:
-                            return None
-                    else:
-                        tail_pos = len(t)
-
-                    if pattern[i] != '*':
-                        result[pattern[i][1:]] = t[pos:tail_pos]
-
-                    return result
-                else:
-                    # One item in pattern matches one item
-                    if pos >= len(t):
-                        return None
-
-                    if first == '.':
-                        if pattern[i] != '.':
-                            result[pattern[i][1:]] = t[pos]
-                    elif first == '\\':
-                        if t[pos] != pattern[i][1:]:
-                            return None
-                    else:
-                        if t[pos] != pattern[i]:
-                            return None
-
-        pos += 1
-
-    if pos != len(t):
-        return None
-    else:
-        return result
-
-def _do_substitute(pattern, args):
-    if len(pattern) == 2 and isinstance(pattern[1], tuple):
-        # Optimize the most common case
-        return (pattern[0], _do_substitute(pattern[1], args))
-    else:
-        v = [pattern[0]]
-        for i in xrange(1, len(pattern)):
-            p = pattern[i]
-            if isinstance (p, tuple):
-                v.append(_do_substitute(p, args))
-            elif p == '':
-                v.append('')
-            else:
-                first = p[0]
-                if first == '.':
-                    v.append(args[p[1:]])
-                elif first == '*':
-                    v.extend(args[p[1:]])
-                elif first == '\\':
-                    v.append(p[1:])
-                else:
-                    v.append(p)
-        return v
-
-_path_pattern = \
-                     (symbol.test,
-                      (symbol.or_test,
-                       (symbol.and_test,
-                        (symbol.not_test,
-                         (symbol.comparison,
-                          (symbol.expr,
-                           (symbol.xor_expr,
-                            (symbol.and_expr,
-                             (symbol.shift_expr,
-                              (symbol.arith_expr,
-                               (symbol.term,
-                                (symbol.factor,
-
-                                 (symbol.power,
-                                  '*path')))))))))))))
-
-def _is_test_path(t):
-    # Check if the given AST is "test" of the form 'a.b...c' (where there
-    # may be slices and method calls in the path). If it  matches,
-    # returns 'a.b...c, otherwise returns None
-    args = _do_match(t, _path_pattern)
-    if args is None:
-        return None
-    else:
-        return args['path']
-
-_method_call_pattern = \
-                     (symbol.test,
-                      (symbol.or_test,
-                       (symbol.and_test,
-                        (symbol.not_test,
-                         (symbol.comparison,
-                          (symbol.expr,
-                           (symbol.xor_expr,
-                            (symbol.and_expr,
-                             (symbol.shift_expr,
-                              (symbol.arith_expr,
-                               (symbol.term,
-                                (symbol.factor,
-
-                                 (symbol.power,
-                                  '*path',
-                                  (symbol.trailer,
-                                   (token.DOT, '\\.'),
-                                   (token.NAME, '.method_name')),
-                                  (symbol.trailer,
-                                   (token.LPAR, '('),
-                                   '*'))))))))))))))
-
-def _is_test_method_call(t):
-    # Check if the given AST is a "test" of the form 'a...b.c()' If it
-    # matches, returns ('a...b', 'c'), otherwise returns None
-    args = _do_match(t, _method_call_pattern)
-    if args is None:
-        return None
-    else:
-        return args['path'], args['method_name']
-
-_attribute_pattern = \
-                     (symbol.test,
-                      (symbol.or_test,
-                       (symbol.and_test,
-                        (symbol.not_test,
-                         (symbol.comparison,
-                          (symbol.expr,
-                           (symbol.xor_expr,
-                            (symbol.and_expr,
-                             (symbol.shift_expr,
-                              (symbol.arith_expr,
-                               (symbol.term,
-                                (symbol.factor,
-
-                                 (symbol.power,
-                                  '*path',
-                                  (symbol.trailer,
-                                   (token.DOT, '\\.'),
-                                   (token.NAME, '.')))))))))))))))
-
-def _is_test_attribute(t):
-    # Check if the given AST is a "test" of the form 'a...b.c' If it
-    # matches, returns 'a...b', otherwise returns None
-    args = _do_match(t, _attribute_pattern)
-    
-    if args is None:
-        return None
-    else:
-        return args['path']
-
-_slice_pattern = \
-                     (symbol.test,
-                      (symbol.or_test,
-                       (symbol.and_test,
-                        (symbol.not_test,
-                         (symbol.comparison,
-                          (symbol.expr,
-                           (symbol.xor_expr,
-                            (symbol.and_expr,
-                             (symbol.shift_expr,
-                              (symbol.arith_expr,
-                               (symbol.term,
-                                (symbol.factor,
-
-                                 (symbol.power,
-                                  '*path',
-                                  (symbol.trailer,
-                                   (token.LSQB, '['),
-                                   '*'))))))))))))))
-
-
-def _is_test_slice(t):
-    # Check if the given AST is a "test" of the form 'a...b[c]' If it
-    # matches, returns 'a...b', otherwise returns None
-    args = _do_match(t, _slice_pattern)
-
-    if args is None:
-        return None
-    else:
-        return args['path']
-
-_literal_string_pattern = \
-         (symbol.simple_stmt,
-          (symbol.small_stmt,
-           (symbol.expr_stmt,
-            (symbol.testlist,
-             (symbol.test,
-              (symbol.or_test,
-               (symbol.and_test,
-                (symbol.not_test,
-                 (symbol.comparison,
-                  (symbol.expr,
-                   (symbol.xor_expr,
-                    (symbol.and_expr,
-                     (symbol.shift_expr,
-                      (symbol.arith_expr,
-                       (symbol.term,
-                        (symbol.factor,
-                         (symbol.power,
-                          (symbol.atom,
-                           (token.STRING,
-                            '*')))))))))))))))))),
-          '*')
-
-def _is_simple_stmt_literal_string(t):
-    # Tests if the given string is a simple statement that is a literal string
-    return _do_match(t, _literal_string_pattern) is not None
-
-def _do_create_funccall_expr_stmt(name, trailer):
-    return (symbol.expr_stmt,
-            (symbol.testlist,
-             (symbol.test,
-              (symbol.or_test,
-               (symbol.and_test,
-                (symbol.not_test,
-                 (symbol.comparison,
-                  (symbol.expr,
-                   (symbol.xor_expr,
-                    (symbol.and_expr,
-                     (symbol.shift_expr,
-                      (symbol.arith_expr,
-                       (symbol.term,
-                        (symbol.factor,
-                         (symbol.power,
-                          (symbol.atom,
-                           (token.NAME, name)),
-                          trailer)))))))))))))))
-    
-def _create_funccall_expr_stmt(name, args):
-    # Creates an 'expr_stmt' that calls a function. args is a list of
-    # "test" AST's to pass as arguments to the function
-    if len(args) == 0:
-        trailer = (symbol.trailer,
-                   (token.LPAR, '('),
-                   (token.RPAR, ')'))
-    else:
-        arglist = [ symbol.arglist ]
-        for a in args:
-            if len(arglist) > 1:
-                arglist.append((token.COMMA, ','))
-            arglist.append((symbol.argument, a))
-                
-        trailer = (symbol.trailer,
-                   (token.LPAR, ')'),
-                   arglist,
-                   (token.RPAR, ')'))
-
-    return _do_create_funccall_expr_stmt(name, trailer)
-
-def _rewrite_tree(t, state, actions):
-    # Generic rewriting of an AST, actions is a map of symbol/token type to function
-    # to call to produce a modified version of the the subtree
-    result = t
-    for i in xrange(1, len(t)):
-        subnode = t[i]
-        subtype = subnode[0]
-        if actions.has_key(subtype):
-            filtered = actions[subtype](subnode, state)
-            if filtered != subnode:
-                if result is t:
-                    result = list(t)
-                result[i] = filtered
-                
-    return result
-        
 # Method names that are considered not to be getters. The Python
 # standard library contains methods called isfoo() and getfoo()
 # (though not hasfoo()) so we don't for a word boundary. It could
 # be tightened if false positives becomes a problem.
 _GETTER_RE = re.compile("get|is|has")
 
-def _rewrite_expr_stmt(t, state):
-    # expr_stmt: testlist (augassign (yield_expr|testlist) |
-    #                      ('=' (yield_expr|testlist))*)
-    
-    assert(t[0] == symbol.expr_stmt)
-    assert(t[1][0] == symbol.testlist)
-    
-    if len(t) == 2:
-        # testlist
-        subnode = t[1]
-        for i in xrange(1, len(subnode)):
-            subsubnode = subnode[i]
-            if subsubnode[0] == symbol.test:
-                result = _is_test_method_call(subsubnode)
-                if result is not None:
-                    path, method_name = result
-                    if _GETTER_RE.match(method_name) is None:
-                        state.add_mutated(path)
+# This visitor class does the main work of rewriting - it walks over
+# the tree, inserts print and output functions, and collects imports
+# and mutated objects.
+class _Transformer(ast.NodeTransformer):
+    def __init__(self, output_func_name=None, print_func_name=None, copy_func_name=None, future_features=None):
+        self.build_variable_count = 0
+        self.imports = None
+        self.mutated = None
+        self.output_func_name = output_func_name
+        self.print_func_name = print_func_name
+        self.copy_func_name = copy_func_name
+        self.future_features = future_features
 
-        if state.output_func_name is not None:
-            return _create_funccall_expr_stmt(state.output_func_name, filter(lambda x: type(x) != int and x[0] == symbol.test, subnode))
+    def add_mutated(self, node):
+        if self.mutated is None:
+            self.mutated = _MutationCollector(self.copy_func_name)
+        self.mutated.process(node)
+
+    def handle_assign_targets(self, targets):
+        for target in targets:
+            if isinstance(target, ast.Subscript):
+                self.add_mutated(target.value)
+            elif isinstance(target, ast.Attribute):
+                self.add_mutated(target.value)
+            elif isinstance(target, ast.List) or isinstance(target, ast.Tuple):
+                self.handle_assign_targets(target.elts)
+
+    def visit_Assign(self, node):
+        self.handle_assign_targets(node.targets)
+
+        return self.generic_visit(node)
+
+    def visit_AugAssign(self, node):
+        self.add_mutated(node.target)
+
+        return self.generic_visit(node)
+
+    def visit_Expr(self, node):
+        if isinstance(node.value, ast.Call):
+            func = node.value.func
+            if isinstance(func, ast.Attribute):
+                if _GETTER_RE.match(func.attr) is None:
+                    self.add_mutated(func.value)
+
+        if self.output_func_name is not None:
+            output_value = self.visit(node.value)
+
+            call = node.value = ast.Call()
+            call.func = ast.Name()
+            call.func.id = self.output_func_name
+            call.func.ctx = ast.Load()
+
+            # FIXME: we did this before, but maybe by accident? Isn't
+            # it just best to pass a single value to the output value
+            # always?
+            if isinstance(output_value, ast.Tuple):
+                call.args = output_value.elts
+            else:
+                call.args = [output_value]
+
+            call.keywords = []
+
+            return node
         else:
-            return t
-    else:
-        if (t[2][0] == symbol.augassign):
-            # testlist augassign (yield_expr|testlist)
-            subnode = t[1]
-            assert(len(subnode) == 2) # can only augassign one thing, despite the grammar
-            
-            # Depending on what a is, a += b can modify a. For example appending
-            # to an array with a += [3]. If a is immutable (a number say), then copying
-            # it is unnecessary, but cheap
-            path = _is_test_path(subnode[1])
-            if path is not None:
-                state.add_mutated(path)
+            return self.generic_visit(node)
+
+    def visit_FunctionDef(self, node):
+        if (len(node.body) > 0 and
+            isinstance(node.body[0], ast.Expr) and
+            isinstance(node.body[0].value, ast.Str)):
+
+            old_body = node.body
+
+            node.body = [node.body[0]]
+            for i in xrange(1, len(node.body)):
+                node.body.append(self.visit(node.body[i]))
         else:
-            # testlist ('=' (yield_expr|testlist))+
-            for i in xrange(1, len(t) - 1):
-                if (t[i + 1][0] == token.EQUAL):
-                    subnode = t[i]
-                    assert(subnode[0] == symbol.testlist)
-                    for j in xrange(1, len(subnode)):
-                        subsubnode = subnode[j]
-                        if subsubnode[0] == symbol.test:
-                            path = _is_test_slice(subsubnode)
-                            if path is None:
-                                path = _is_test_attribute(subnode[1])
+            node.body = [self.visit(n) for n in node.body]
 
-                            if path is not None:
-                                state.add_mutated(path)
-        return t
+        node.decorator_list = [self.visit(n) for n in node.decorator_list]
 
-def _rewrite_print_stmt(t, state):
-    # print_stmt: 'print' ( [ test (',' test)* [','] ] |
-    #                       '>>' test [ (',' test)+ [','] ] )
-    if state.print_func_name !=None and t[2][0] == symbol.test:
-        return _create_funccall_expr_stmt(state.print_func_name, filter(lambda x: type(x) != int and x[0] == symbol.test, t))
-    else:
-        return t
+        return node
 
-def _rewrite_global_stmt(t, state):
-    raise UnsupportedSyntaxError("The global statement is not supported")
-    
-def _rewrite_small_stmt(t, state):
-    # small_stmt: (expr_stmt | print_stmt  | del_stmt | pass_stmt | flow_stmt |
-    #              import_stmt | global_stmt | exec_stmt | assert_return)
-    return _rewrite_tree(t, state,
-                         { symbol.expr_stmt:  _rewrite_expr_stmt,
-                           symbol.print_stmt: _rewrite_print_stmt,
-                           symbol.global_stmt: _rewrite_global_stmt })
+    def visit_Global(self, node):
+        raise UnsupportedSyntaxError("The global statement is not supported")
 
-    # Future special handling: import_stmt
-    # Not valid: flow_stmt, global_stmt
+    def visit_Print(self, node):
+        if self.print_func_name != None and node.dest is None:
+            result = ast.Expr()
+            ast.copy_location(result, node)
 
-def _rewrite_simple_stmt(t, state):
-    # simple_stmt: small_stmt (';' small_stmt)* [';'] NEWLINE
-    return _rewrite_tree(t, state,
-                         { symbol.small_stmt: _rewrite_small_stmt })
+            result.value = ast.Call()
+            result.value.func = ast.Name()
+            result.value.func.id = self.print_func_name
+            result.value.func.ctx = ast.Load()
+            result.value.args = [self.visit(n) for n in node.values]
+            result.value.keywords = []
+            # We could pass node.nl into the function, as a keyword argument,
+            # but we'd have to figure out what the actual effect is of that.
 
-def _rewrite_suite(t, state):
-    # suite: simple_stmt | NEWLINE INDENT stmt+ DEDENT
-    return _rewrite_tree(t, state,
-                         { symbol.simple_stmt: _rewrite_simple_stmt,
-                           symbol.stmt:        _rewrite_stmt })
-
-def _rewrite_block_stmt(t, state):
-    return _rewrite_tree(t, state,
-                         { symbol.suite:      _rewrite_suite })
-
-def _rewrite_docstring_suite(t, state):
-    # suite: simple_stmt | NEWLINE INDENT stmt+ DEDENT
-    if t[1][0] == symbol.simple_stmt:
-        # Check if the only child is a docstring
-        if _is_simple_stmt_literal_string(t[1]):
-            return t
+            return result
         else:
-            return _rewrite_suite(t, state)
-    else:
-        result = t
-        i = 3
-        assert t[i][0] == symbol.stmt
-        # Skip the first statement if it is a docstring
-        if _is_simple_stmt_literal_string(t[i][1]):
-            i += 1
-        while t[i][0] == symbol.stmt:
-            filtered = _rewrite_stmt(t[i], state)
-            if filtered != t[i]:
-                if result is t:
-                    result = list(t)
-                result[i] = filtered
-            i += 1
+            return self.generic_visit(node)
 
-        return result
+    def visit_With(self, node):
+        if (isinstance(node.context_expr, ast.Call) and
+            isinstance(node.context_expr.func, ast.Name) and
+            node.context_expr.func.id == '__reinteract_builder'):
 
-def _rewrite_docstring_block_stmt(t, state):
-    # Like _rewrite_block_stmt, but if the first statement is a literal
-    # string interpret it as a docstring and don't rewrite it to output
-    return _rewrite_tree(t, state,
-                         { symbol.suite:      _rewrite_docstring_suite })
+            if node.optional_vars:
+                var = node.optional_vars.id
+                optional_vars = node.optional_vars
+            else:
+                var = '__reinteract_build' + str(self.build_variable_count)
+                optional_vars = ast.Name()
+                optional_vars.id = var
+                optional_vars.ctx = ast.Store()
+                self.build_variable_count += 1
 
+            output_stmt = ast.Expr()
+            output_stmt.value = ast.Name()
+            output_stmt.value.id = var
+            output_stmt.value.ctx = ast.Load()
 
-_with_stmt_pattern = \
-    (symbol.with_stmt,
-     (token.NAME, 'with'),
-     (symbol.with_item,
-      (symbol.test,
-       (symbol.or_test,
-        (symbol.and_test,
-         (symbol.not_test,
-          (symbol.comparison,
-           (symbol.expr,
-            (symbol.xor_expr,
-             (symbol.and_expr,
-              (symbol.shift_expr,
-               (symbol.arith_expr,
-                (symbol.term,
-                 (symbol.factor,
-                  (symbol.power,
-                   (symbol.atom,
-                    (token.NAME, '__reinteract_builder')),
-                   (symbol.trailer,
-                    (token.LPAR, '('),
-                    '*arglist',
-                    (token.RPAR, ')'))))))))))))))),
-      '*as'),
-     (token.COLON, ':'),
-     (symbol.suite,
-      (token.NEWLINE, ''),
-      (token.INDENT, ''),
-      '*stmts',
-      (token.DEDENT, '')))
+            node.optional_vars = optional_vars
+            node.body = [self.visit(n) for n in node.body]
+            node.body.append(self.visit(output_stmt))
 
-_as_expression_pattern = \
-    (symbol.expr,
-     (symbol.xor_expr,
-      (symbol.and_expr,
-       (symbol.shift_expr,
-        (symbol.arith_expr,
-         (symbol.term,
-          (symbol.factor,
-           (symbol.power,
-            (symbol.atom,
-             (token.NAME, '.var'))))))))))
+            return node
+        else:
+            return self.generic_visit(node)
 
-def _create_variable_stmt(var):
-    return (symbol.stmt,
-            (symbol.simple_stmt,
-             (symbol.small_stmt,
-              (symbol.expr_stmt,
-               (symbol.testlist,
-                (symbol.test,
-                 (symbol.or_test,
-                  (symbol.and_test,
-                   (symbol.not_test,
-                    (symbol.comparison,
-                     (symbol.expr,
-                      (symbol.xor_expr,
-                       (symbol.and_expr,
-                        (symbol.shift_expr,
-                         (symbol.arith_expr,
-                          (symbol.term,
-                           (symbol.factor,
-                            (symbol.power,
-                             (symbol.atom,
-                              (token.NAME, var)))))))))))))))))),
-             (token.NEWLINE, '')))
+    def add_import(self, imp):
+        if self.imports is None:
+            self.imports = Imports()
 
-def _rewrite_with_stmt(t, state):
-    result = _do_match(t, _with_stmt_pattern)
+        self.imports._add_import(imp)
 
-    if result is not None:
-        var = None
-        if len(result['as']) == 0:
-            var = '__reinteract_build' + str(state.build_variable_count)
-            state.build_variable_count += 1
-            result['as'] = ((token.NAME, 'as'),
-                            _do_substitute(_as_expression_pattern, { 'var': var }))
-        elif len(result['as']) == 2 and result['as'][0] == (token.NAME, 'as'):
-            subresult = _do_match(result['as'][1], _as_expression_pattern)
-            if subresult is not None:
-                var = subresult['var']
+    def visit_Import(self, node):
+        self.add_import(node)
 
-        if var is not None:
-            output_stmt = _rewrite_stmt(_create_variable_stmt(var), state)
-            result['stmts'] = ([_rewrite_stmt(s, state) for s in result['stmts']] +
-                               [output_stmt])
+        return self.generic_visit(node)
 
-            return _do_substitute(_with_stmt_pattern, result)
+    def visit_ImportFrom(self, node):
+        # We might want to consider making relative imports mean "from libraries
+        # in this reinteract module", but that requires work elsewhere - currently
+        # if we passed relative imports here, the execution would give:
+        # 'Attempted relative import in non-package'
+        #
+        # See https://bugzilla.gnome.org/show_bug.cgi?id=659328
+        #
+        if node.level > 0:
+            raise UnsupportedSyntaxError("Relative imports are not supported")
 
-    return _rewrite_block_stmt(t, state)
+        self.add_import(node)
 
-_rewrite_compound_stmt_actions = {
-    symbol.if_stmt:    _rewrite_block_stmt,
-    symbol.while_stmt: _rewrite_block_stmt,
-    symbol.for_stmt:   _rewrite_block_stmt,
-    symbol.try_stmt:   _rewrite_block_stmt,
-    symbol.funcdef:    _rewrite_docstring_block_stmt,
-    symbol.with_stmt:  _rewrite_with_stmt
-}
-
-def _rewrite_compound_stmt(t, state):
-    # compound_stmt: if_stmt | while_stmt | for_stmt | try_stmt | with_stmt | funcdef | classdef
-    return _rewrite_tree(t, state, _rewrite_compound_stmt_actions)
-
-def _rewrite_stmt(t, state):
-    # stmt: simple_stmt | compound_stmt
-    return _rewrite_tree(t, state,
-                         { symbol.simple_stmt:   _rewrite_simple_stmt,
-                           symbol.compound_stmt: _rewrite_compound_stmt })
-
-def _create_future_import_statement(future_features):
-    import_as_names = [symbol.import_as_names]
-    for feature in future_features:
-        if len(import_as_names) > 1:
-            import_as_names.append((token.COMMA, ','))
-        import_as_names.append((symbol.import_as_name,
-                                (token.NAME, feature)))
-
-    return (symbol.stmt,
-            (symbol.simple_stmt,
-             (symbol.small_stmt,
-              (symbol.import_stmt,
-               (symbol.import_from,
-                (token.NAME,
-                 'from'),
-                (symbol.dotted_name,
-                 (token.NAME,
-                  '__future__')),
-                (token.NAME,
-                 'import'),
-                import_as_names))),
-             (token.NEWLINE, '')))
-
-def _rewrite_file_input(t, state):
-    # file_input: (NEWLINE | stmt)* ENDMARKER
-    if state.future_features:
-        # Ideally, we'd be able to pass in flags to the AST.compile() operation as we can with the
-        # builtin compile() function. Lacking that ability, we just munge an import statement into
-        # the start of the syntax tree
-        return ((symbol.file_input, _create_future_import_statement(state.future_features)) +
-                tuple((_rewrite_stmt(x, state) if x[0] == symbol.stmt else x) for x in t[1:]))
-        
-    else:
-        return _rewrite_tree(t, state, { symbol.stmt: _rewrite_stmt })
+        return self.generic_visit(node)
 
 ######################################################################
 # Import procesing
 
 class Imports:
-    def __init__(self, imports):
-        self.imports = imports
+    def __init__(self):
+        self.imports = []
+
+    def _add_import(self, imp):
+        self.imports.append(imp)
 
     def get_future_features(self):
         result = set()
-        for module, symbols in self.imports:
-            if module == '__future__' and symbols != '*' and symbols[0][0] != '.':
-                result.update((sym for sym, _ in symbols))
+
+        for imp in self.imports:
+            if isinstance(imp, ast.ImportFrom) and imp.module == '__future__':
+                for alias in imp.names:
+                    result.add(alias.name)
 
         return result
 
     def module_is_referenced(self, module_name):
-        for module, _ in self.imports:
-            if module == module_name:
-                return True
+        prefix = module_name + "."
+
+        for imp in self.imports:
+            if isinstance(imp, ast.ImportFrom):
+                if imp.module == module_name or imp.module.startswith(prefix):
+                    return True
+            elif isinstance(imp, ast.Import):
+                for alias in imp.names:
+                    if alias.name == module_name or alias.name.startswith(prefix):
+                        return True
 
         return False
 
-# dotted_name: NAME ('.' NAME)*
-def _process_dotted_name(t):
-    assert t[0] == symbol.dotted_name
-    joined = "".join((t[i][1] for i in xrange(1, len(t))))
-    basename = t[-1][1]
-
-    return joined, basename
-
-# dotted_as_name: dotted_name [('as' | NAME) NAME]
-def _process_dotted_as_name(t):
-    assert t[0] == symbol.dotted_as_name
-    name, basename = _process_dotted_name(t[1])
-    if len(t) == 2:
-        as_name = basename
-    else:
-        assert len(t) == 4
-        assert t[2] == (token.NAME, 'as')
-        as_name = t[3][1]
-
-    return (name, [( '.', as_name )])
-
-# dotted_as_names: dotted_as_name (',' dotted_as_name)*
-def _process_dotted_as_names(t):
-    assert t[0] == symbol.dotted_as_names
-    result = []
-    for i in xrange(1, len(t)):
-        if t[i][0] == token.COMMA:
-            continue
-        result.append(_process_dotted_as_name(t[i]))
-
-    return result
-
-# import_name: 'import' dotted_as_names
-def _process_import_name(t):
-    assert t[0] == symbol.import_name
-    assert t[1] == (token.NAME, 'import')
-    return _process_dotted_as_names(t[2])
-
-# import_as_name: NAME [('as' | NAME) NAME]
-def _process_import_as_name(t):
-    assert t[0] == symbol.import_as_name
-    assert t[1][0] == token.NAME
-    if len(t) == 2:
-        return (t[1][1], t[1][1])
-    else:
-        assert len(t) == 4
-        assert t[3][0] == token.NAME
-        return (t[1][1], t[3][1])
-
-# import_as_names: import_as_name (',' import_as_name)* [',']
-def _process_import_as_names(t):
-    assert t[0] == symbol.import_as_names
-    result = []
-    for i in xrange(1, len(t)):
-        if t[i][0] == token.COMMA:
-            continue
-        sym, as_name = _process_import_as_name(t[i])
-        result.append((sym, as_name))
-
-    return result
-
-# import_from: ('from' ('.'* dotted_name | '.'+)
-#                            'import' ('*' | '(' import_as_names ')' | import_as_names))
-def _process_import_from(t):
-    assert t[0] == symbol.import_from
-    assert t[1] == (token.NAME, 'from')
-    name = ""
-    i = 2
-    while t[i][0] == token.DOT:
-        name += "."
-        i += 1
-    if t[i][0] == symbol.dotted_name:
-        joined, _ = _process_dotted_name(t[i])
-        name += joined
-        i += 1
-    assert t[i] == (token.NAME, 'import')
-    i += 1
-    if t[i][0] == token.STAR:
-        import_map = '*'
-    elif t[i][0] == token.LPAR:
-        import_map = _process_import_as_names(t[i + 1])
-        assert t[i + 2][0] == token.RPAR
-    else:
-        import_map = _process_import_as_names(t[i])
-
-    return [(name, import_map)]
-
-_import_pattern = \
-    (symbol.file_input,
-     (symbol.stmt,
-      (symbol.simple_stmt,
-       (symbol.small_stmt,
-        (symbol.import_stmt,
-         '.imp')),
-       '*')),
-      '*')
-
-# import_stmt: import_name | import_from
-def _get_imports(t):
-    args = _do_match(t, _import_pattern)
-    if args:
-        imp = args['imp']
-        if imp[0] == symbol.import_name:
-            return Imports(_process_import_name(imp))
-        else:
-            assert imp[0] == symbol.import_from
-            return Imports(_process_import_from(imp))
-    else:
-        return None
-
 ######################################################################
-# Turn list of paths that are mutated into code to copy them
+# Mutation handling
+#
+# When _Transformer is walking over the tree, it indentifies candidates
+# for mutated objects - in '<X>.append(1)' or '<X>[1] = 2' <X> is
+# identified as a possible mutated object. These are objects we need to
+# make a backup copy of before executing the code. Mutated objects
+# are passed to this code, where we do a number of things:
+#
+#  * Create a "description" - a human readable string - for the mutated object.
+#  * Identify parent objects that also need to be copied - if we assign
+#    to a.b.c, then we need to copy a.b, but before we copy a.b, we need
+#    to copy a.
+#  * Create and compile code snippets to do the cop where possible -
+#    in some cases, like get_an_object().a = 3, it doesn't make sense to say
+#    get_an_object() = copy(get_an_object()).
+#  * Discard certain classes of mutated object that we can't handle, and might
+#    not be mutations - e.g. "abcd".length() isn't a mutation, though we
+#    consider a.length() to be one.
 
-def _get_path_root(path):
-    atom_value = path[0][1]
-    assert atom_value[0] == token.NAME
-
-    return atom_value[1]
-
-def _describe_path(path):
-    # Turn a path into a (skeletal) textual description
-
-    # path: atom trailer*
-
-    # atom: ('(' [yield_expr|testlist_gexp] ')' |
-    #       '[' [listmaker] ']' |
-    #       '{' [dictmaker] '}' |
-    #       '`' testlist1 '`' |
-    #       NAME | NUMBER | STRING+)
-    atom_value = path[0][1]
-    if atom_value[0] == token.NAME:
-        result = atom_value[1]
-    elif atom_value[0] == token.LPAR:
-        result = "(...)"
-    elif atom_value[0] == token.LSQB:
-        result = "[...]"
-    elif atom_value[0] == token.LBRACE:
-        result = "{...}"
-    elif atom_value[0] == token.BACKQUOTE:
-        result = "`...`"
-    elif atom_value[0] == token.NUMBER:
-        result = str(atom_value[1])
-    elif atom_value[0] == token.STRING:
-        result = '"..."'
-
-    # trailer: '(' [arglist] ')' | '[' subscriptlist ']' | '.' NAME
-    for trailer in path[1:]:
-        trailer_value = trailer[1]
-        if trailer_value[0] == token.LPAR:
-            result += "(...)"
-        elif trailer_value[0] == token.LSQB:
-            result += "[...]"
-        elif trailer_value[0] == token.DOT:
-            result += "." + trailer[2][1]
-
+def _node_with_context(node, ctx):
+    if isinstance(node, ast.Attribute):
+        result = ast.Attribute()
+        result.value = node.value
+        result.attr = node.attr
+    elif isinstance(node, ast.Name):
+        result = ast.Name()
+        result.id = node.id
+        result.ctx = ctx
+    elif isinstance(node, ast.Subscript):
+        result = ast.Subscript()
+        result.value = node.value
+        result.slice = node.slice
+    result.ctx = ctx
     return result
 
-def create_path_test(path):
-    return (symbol.test,
-            (symbol.or_test,
-             (symbol.and_test,
-              (symbol.not_test,
-               (symbol.comparison,
-                (symbol.expr,
-                 (symbol.xor_expr,
-                  (symbol.and_expr,
-                   (symbol.shift_expr,
-                    (symbol.arith_expr,
-                     (symbol.term,
-                      (symbol.factor,
-                       (symbol.power,) + path))))))))))))
+# This NodeVisitor subclass is a little unusual in a couple of ways;;
+#
+# * It's only designed to walk expressions, not other constructs
+# * It walks expressions linearly - visit() walks at most one of
+#   the children of the node. We work from the end of an of an
+#   expression like a.b[1].c to the root.
+# * The return value from visit() (which we override) is just the description,
+#   but where we have node specific visit functions, those return a tuple of
+#   the description, and whether we're going to succeed in making copying
+#   a backup copy; the overridden visit() function strips the second part out.
+#
+class _MutationCollector(ast.NodeVisitor):
+    def __init__(self, copy_func_name):
+        self.copy_func_name = copy_func_name
+        self.mutated = []
+        self.seen_mutations = set()
+        self.root = None
+        self.adding_mutations = True
 
-def _create_copy_code(path, copy_func_name):
-    path_test = create_path_test(path)
+    def process(self, node):
+        self.adding_mutations = True
+        self.root = None
+        description = self.visit(node)
 
-    return (symbol.file_input,
-            (symbol.stmt,
-             (symbol.simple_stmt,
-              (symbol.small_stmt,
-               (symbol.expr_stmt,
-                (symbol.testlist,
-                 path_test),
-                (token.EQUAL,
-                 '='),
-                (symbol.testlist,
-                 (symbol.test,
-                  (symbol.or_test,
-                   (symbol.and_test,
-                    (symbol.not_test,
-                     (symbol.comparison,
-                      (symbol.expr,
-                       (symbol.xor_expr,
-                        (symbol.and_expr,
-                         (symbol.shift_expr,
-                          (symbol.arith_expr,
-                           (symbol.term,
-                            (symbol.factor,
-                             (symbol.power,
-                              (symbol.atom,
-                               (token.NAME,
-                                copy_func_name)),
-                              (symbol.trailer,
-                               (token.LPAR,
-                                '('),
-                               (symbol.arglist,
-                                (symbol.argument,
-                                 path_test)),
-                               (token.RPAR,
-                                ')')))))))))))))))))),
-              (token.NEWLINE, '\n'))),
-            (token.ENDMARKER, '\n'))
+        if not self.adding_mutations:
+            self._add_mutation(description, node, False)
 
-def _compile_copy_code(path, copy_func_name):
-    copy_code = _create_copy_code(path, copy_func_name)
-    return parser.sequence2ast(copy_code).compile()
+    def _add_mutation(self, description, node, compile_it):
+        # Make sure our "mutation" isn't something like "asdfa".length()
+        if self.root is None:
+            return
 
-def _compile_mutations(paths, copy_func_name):
-    # First add prefixes - if a.b.c is mutated, then we need to
-    # shallow-copy first a and then a.b
+        key = ast.dump(node, annotate_fields=False)
+        if not key in self.seen_mutations:
+            self.seen_mutations.add(key)
+            code = self._compile_copy_func(node) if compile_it else None
+            self.mutated.append((self.root, description, code))
 
-    paths_to_copy = set()
+    def _compile_copy_func(self, node):
+        module = ast.Module()
+        ast.copy_location(module, node)
 
-    # path: atom trailer*
-    # trailer: '(' [arglist] ')' | '[' subscriptlist ']' | '.' NAME
-    #
-    # We normally chop of trailers one by one, but if we have
-    # .NAME(...) (two trailers) then we chop that off as one piece
-    #
-    for path in paths:
-        while True:
-            # Dont' try to copy things that don't look like they
-            # can be assigned to
-            if path[-1][1][0] != token.LPAR:
-                paths_to_copy.add(path)
+        assign = ast.Assign()
+        module.body = [assign]
 
-            if len(path) == 1:
-                break
+        target = _node_with_context(node, ast.Store())
+        assign.targets = [target]
 
-            if (path[-1][1][0] == token.LPAR and
-                len(path) > 2 and
-                path[-2][1][0] == token.DOT):
+        assign.value = call = ast.Call()
+        name = call.func = ast.Name()
+        name.id = self.copy_func_name
+        name.ctx = ast.Load()
 
-                path = path[0:-2]
-            else:
-                path = path[0:-1]
+        source = _node_with_context(node, ast.Load())
+        source.ctx = ast.Load()
+        call.args = [source]
+        call.keywords = []
 
-    # Sort the paths with shorter paths earlier so that we copy prefixes
-    # before longer versions
-    paths_to_copy = sorted(paths_to_copy, lambda x,y: cmp(len(x),len(y)))
+        ast.fix_missing_locations(module)
+        return compile(module, '<copy>', 'exec')
 
-    return [(_get_path_root(path),
-             _describe_path(path),
-             _compile_copy_code(path, copy_func_name)) for path in paths_to_copy]
+    def visit(self, node):
+        result = ast.NodeVisitor.visit(self, node)
+        if result is None:
+            result = '(...)', False
+
+        description, can_copy = result
+        if not can_copy:
+            self.adding_mutations = False
+
+        if self.adding_mutations:
+            self._add_mutation(description, node, True)
+
+        return description
+
+    def generic_visit(self):
+        assert False # Not reached
+
+    def visit_Attribute(self, node):
+        return self.visit(node.value) + "." + node.attr, True
+
+    def visit_Call(self, node):
+        self.adding_mutations = False
+        return self.visit(node.func) + "(...)", False
+
+    def visit_Dict(self, node):
+        return '{...}', False
+
+    def visit_DictComp(self, node):
+        return '{...}', False
+
+    def visit_ListComp(self, node):
+        return '[...]', False
+
+    def visit_List(self, node):
+        return '[...]', False
+
+    def visit_Name(self, node):
+        self.root = node.id
+        return node.id, True
+
+    def visit_Num(self, node):
+        return repr(node.n), False
+
+    def visit_Repr(self, node):
+        return '`...`', False
+
+    def visit_Subscript(self, node):
+        return self.visit(node.value) + "[...]", True
+
+    def visit_Str(self, node):
+        return '"..."', False
 
 ######################################################################
 
@@ -911,29 +387,30 @@ class Rewriter:
         @param future_features: a list of names from the __future__ module
 
         """
-        if (isinstance(code, unicode)):
-            code = code.encode("utf8")
-            encoding = "utf8"
+        # The other thing we could do is prepend '# coding=<encoding name>\n'
+        # to the string. In any case, we expect input to normally be unicode.
+        if not isinstance(code, unicode):
+            code = code.decode(encoding)
 
         self.code = code
-        self.encoding = encoding
         self.future_features = future_features
 
         new = code
         for pattern, replacement in TEXT_TRANSFORMS:
             new = pattern.sub(replacement, new)
 
-        self.original = parser.suite(new).totuple()
+        self.nodes = ast.parse(new)
 
     def get_imports(self):
         """
-        Return information about any imports made by the statement
+        Return information about any imports made by the statement. Must be
+        called after rewrite_and_compile().
 
         @returns: a rewriter.Imports object, or None.
 
         """
 
-        return _get_imports(self.original)
+        return self.imports
 
     def rewrite_and_compile(self, output_func_name=None, print_func_name=None, copy_func_name="__copy"):
         """
@@ -964,23 +441,27 @@ class Rewriter:
 
         @returns: a tuple of the compiled code followed by a list of mutations
         """
-        state = _RewriteState(output_func_name=output_func_name,
-                              print_func_name=print_func_name,
-                              future_features=self.future_features)
+        transformer = _Transformer(output_func_name=output_func_name,
+                                   print_func_name=print_func_name,
+                                   copy_func_name=copy_func_name,
+                                   future_features=self.future_features)
 
-        rewritten = _rewrite_file_input(self.original, state)
-        encoded = (symbol.encoding_decl, rewritten, self.encoding)
-        try:
-            compiled = parser.sequence2ast(encoded).compile()
-        except parser.ParserError, e:
-            if "Illegal number of children for try/finally node" in e.message:
-                raise UnsupportedSyntaxError("try/except/finally not supported due to Python issue 4529")
-            else:
-                raise UnsupportedSyntaxError("Unexpected parser error: " + e.message);
+        rewritten = transformer.visit(self.nodes)
+        ast.fix_missing_locations(rewritten)
 
-        return (compiled, _compile_mutations(state.mutated, copy_func_name))
+        self.imports = transformer.imports
 
-##################################################3
+        compile_flags = 0
+        if self.future_features:
+            for feature in self.future_features:
+                compile_flags |= getattr(__future__, feature).compiler_flag
+
+        compiled = compile(rewritten, '<statement>', 'exec', flags=compile_flags)
+        mutated = transformer.mutated.mutated if transformer.mutated else ()
+
+        return (compiled, mutated)
+
+##################################################
 
 if __name__ == '__main__':
     import copy
@@ -990,110 +471,6 @@ if __name__ == '__main__':
 
     def rewrite_and_compile(code, output_func_name=None, future_features=None, print_func_name=None, encoding="utf8"):
         return Rewriter(code, encoding, future_features).rewrite_and_compile(output_func_name, print_func_name)
-
-    def create_file_input(s):
-        # Wrap up a statement (like an expr_stmt) into a file_input, so we can
-        # parse/compile it
-        return (symbol.file_input,
-                (symbol.stmt,
-                 (symbol.simple_stmt,
-                  (symbol.small_stmt, s),
-                  (token.NEWLINE, '\n'))),
-                (token.ENDMARKER, '\n'))
-
-    def create_constant_test(c):
-        # Create a test symbol which is a constant number
-        return (symbol.test,
-                (symbol.or_test,
-                 (symbol.and_test,
-                  (symbol.not_test,
-                   (symbol.comparison,
-                    (symbol.expr,
-                     (symbol.xor_expr,
-                      (symbol.and_expr,
-                       (symbol.shift_expr,
-                        (symbol.arith_expr,
-                         (symbol.term,
-                          (symbol.factor,
-                           (symbol.power,
-                            (symbol.atom,
-                             (token.NUMBER, str(c))))))))))))))))
-
-    #
-    # Tests of _do_match
-    #
-    result = _do_match((token.NAME, 'x',), (token.NUMBER, 'x',))
-    assert_equals(result, None)
-    result = _do_match((token.NAME, 'x',), (token.NAME, 'y',))
-    assert_equals(result, None)
-    result = _do_match((token.NAME, 'x',), (token.NAME,))
-    assert_equals(result, None)
-    result = _do_match((token.NAME, 'x',), (token.NAME, 'x', 'y'))
-    assert_equals(result, None)
-    result = _do_match((token.NAME, 'x',), (token.NAME, 'x',))
-    assert_equals(result, {})
-    result = _do_match((token.NAME, 'x',), (token.NAME, '\\y',))
-    assert_equals(result, None)
-    result = _do_match((token.NAME, 'x',), (token.NAME, '\\x',))
-    assert_equals(result, {})
-    result = _do_match((token.NAME, '',), (token.NAME, '',))
-    assert_equals(result, {})
-    result = _do_match((token.NAME, 'x',), (token.NAME, '.a',))
-    assert_equals(result, {'a':'x'})
-    result = _do_match((token.NAME, 'x', 'y', 'z'), (token.NAME, '*a', 'z'))
-    assert_equals(result, {'a':('x', 'y')})
-    result = _do_match((token.NAME, (token.NAME, 'x'), 'y'),
-                       (token.NAME, (token.NAME, '.a'), '.b'))
-    assert_equals(result, {'a': 'x', 'b': 'y'})
-
-    #
-    # Tests of _do_substitute
-    #
-    def tree_equals(a, b):
-        if len(a) != len(b):
-            return False
-        for i in xrange(0, len(a)):
-            if ((isinstance(a[i], tuple) or isinstance(a[i], list)) and
-                 (isinstance(b[i], tuple) or isinstance(b[i], list))):
-                if not tree_equals(a[i], b[i]):
-                    return False
-            else:
-                if a[i] != b[i]:
-                    return False
-
-        return True
-
-    def assert_tree_equals(result, expected):
-        if not tree_equals(result, expected):
-            raise AssertionError("Got:\n %s\nExpected:\n%s" % (dump_ast(result), dump_ast(expected)))
-
-    result = _do_substitute((symbol.test, (token.NAME, 'x'), (token.NAME, '\\y')),
-                            {})
-    assert_tree_equals(result, (symbol.test, (token.NAME, 'x'), (token.NAME, 'y')))
-    result = _do_substitute((symbol.test, (token.NAME, '.a'), (token.NAME, '.b')),
-                            {'a': 'x', 'b': 'y'})
-    assert_tree_equals(result, (symbol.test, (token.NAME, 'x'), (token.NAME, 'y')))
-    result = _do_substitute((symbol.test, '*a'),
-                            {'a': ((token.NAME, 'x'), (token.NAME, 'y')) })
-    assert_tree_equals(result, (symbol.test, (token.NAME, 'x'), (token.NAME, 'y')))
-
-    #
-    # Test _create_funccall_expr_stmt
-    #
-
-    def test_funccall(args):
-        t = create_file_input(_create_funccall_expr_stmt('set_test_args',
-                                                         map(lambda c: create_constant_test(c), args)))
-        test_args = [ 'UNSET' ]
-        def set_test_args(*args): test_args[:] = args
-        scope = { 'set_test_args': set_test_args }
-        
-        exec parser.sequence2ast(t).compile() in scope
-        assert tuple(test_args) == args
-
-    test_funccall(())
-    test_funccall((1,))
-    test_funccall((1,2))
 
     #
     # Test that our intercepting of bare expressions to save the output works
@@ -1261,8 +638,9 @@ a.a = A()
 
     # These don't actually work properly since we don't know to copy a.a
     # So we just check the descriptions and not the execution
-    test_mutated('a.get_a().b = 2', ('a',))
-    test_mutated('a.get_a().a.b = 2', ('a', 'a.get_a(...).a'))
+    #
+    test_mutated('a.get_a().b = 2', ('a.get_a(...)',))
+    test_mutated('a.get_a().a.b = 2', ('a.get_a(...).a',))
 
     #
     # Test handling of encoding
@@ -1291,7 +669,9 @@ a.a = A()
     #
 
     def get_imports(code):
-        return Rewriter(code).get_imports()
+        rewriter = Rewriter(code)
+        rewriter.rewrite_and_compile()
+        return rewriter.get_imports()
 
     def test_imports(code, referenced):
         imports = get_imports(code)
@@ -1309,7 +689,6 @@ a.a = A()
     test_imports('from re import match as m', ['re'])
     test_imports('from re import match as m, sub as s', ['re'])
     test_imports('from re import (match as m, sub as s)', ['re'])
-    test_imports('from ..re import match', ['..re'])
     test_imports('from re import *', ['re'])
 
     assert_equals(get_imports('from __future__ import division').get_future_features(), set(['division']))
