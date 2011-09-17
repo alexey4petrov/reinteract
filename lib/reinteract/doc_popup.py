@@ -345,6 +345,12 @@ class DocPopup(Popup):
                                 'screen_height': window.get_screen().get_height(),
                                 'screen_width': window.get_screen().get_width()}
 
+        # If we're already allocated at the right size (same docstring previously
+        # popped up), we still need to run the  positioning logic; there's no easy
+        # way to see if we're queued for a resize, so just force an request/allocate
+        # cycle to always happen.
+        self.queue_resize()
+
     def position_next_to_window(self, *args, **kw):
         # Not necessary right now, but to be safe we turn off the positioning code
         self.__position_info = None
