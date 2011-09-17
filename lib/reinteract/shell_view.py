@@ -132,7 +132,7 @@ class ShellView(gtk.TextView):
         self.__watch_window.destroy()
         self.__watch_window = None
         if self.__scroll_idle is not None:
-            glib.idle_remove(self.__scroll_idle)
+            glib.source_remove(self.__scroll_idle)
         gtk.TextView.do_unrealize(self)
 
     def do_size_allocate(self, allocation):
@@ -661,7 +661,7 @@ class ShellView(gtk.TextView):
     def on_chunk_deleted(self, worksheet, chunk):
         if self.__cursor_chunk == chunk:
             self.__cursor_chunk = None
-            glib.idle_remove(self.__scroll_idle)
+            glib.source_remove(self.__scroll_idle)
             self.__scroll_idle = None
 
     def on_notify_state(self, worksheet, param_spec):
