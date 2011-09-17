@@ -261,7 +261,7 @@ class DocPopup(Popup):
         # to be, and queue a resize at that size. Then we go ahead and
         # show the window.
         self.__view.size_request()
-        self.__view.size_allocate(gtk.gdk.Rectangle(0, 0, 10000, 1000))
+        self.__view.size_allocate(gtk.gdk.Rectangle(0, 0, 10000, 10000))
         self.__view.queue_resize()
 
     def __show(self, focus):
