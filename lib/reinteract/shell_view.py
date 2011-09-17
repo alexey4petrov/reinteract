@@ -596,11 +596,20 @@ class ShellView(gtk.TextView):
         if isinstance(current_chunk, StatementChunk) or isinstance(current_chunk, BlankChunk):
             line_text = buf.worksheet.get_line(line)[0:offset]
 
-            if re.match(r"^[\t ]+$", line_text):
+            if re.match(r"^[\t ]+$", line_text) and not (line > 0 and self.is_continued(line - 1)):
                 self.__reindent_selection(outdent=True)
                 return
                        
         return gtk.TextView.do_backspace(self)
+
+    def is_continued(self, line):
+        """Determine if line causes a continuation."""
+        buf = self.get_buffer()
+        chunk = buf.worksheet.get_chunk(line)
+        while not isinstance(chunk, StatementChunk) and line > 0:
+            line -= 1
+            chunk = buf.worksheet.get_chunk(line)
+        return isinstance(chunk, StatementChunk) and chunk.tokenized.is_continued(line - chunk.start)
 
     def __invalidate_status(self, chunk):
         buf = self.get_buffer()

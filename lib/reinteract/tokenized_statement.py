@@ -275,11 +275,16 @@ class TokenizedStatement(object):
             prev_line = base_line - 1
             if prev_line < 0:
                 break
-            if (len(self.stacks[prev_line]) == 0 and
-                (len(self.tokens[prev_line]) == 0 or self.tokens[prev_line][-1][0] != TOKEN_CONTINUATION)):
+            if not self.is_continued(prev_line):
                 break
 
             base_line = prev_line
+
+        # If this line is part of a continuation, and it doesn't end the continuation,
+        # then we should just copy its indent for the next line.
+        if line != base_line and self.is_continued(line):
+            indent_text = re.match(r"^[\t ]*", self.lines[line]).group(0)
+            return indent_text
 
         indent_text = re.match(r"^[\t ]*", self.lines[base_line]).group(0)
         extra_indent = 0
@@ -298,6 +303,10 @@ class TokenizedStatement(object):
             indent_text += " " * extra_indent
             
         return indent_text
+
+    def is_continued(self, line):
+        """Determine if line causes a continuation, either with a backslash or an open grouping symbol."""
+        return len(self.stacks[line]) > 0 or (self.tokens[line] and self.tokens[line][-1][0] == TOKEN_CONTINUATION)
 
     def __statement_is_import(self):
         iter = self._get_start_iter()
@@ -732,14 +741,15 @@ if __name__ == '__main__':
               ('if (True): # a true statement',  4),
               ('    pass',                       4),
               ('if (a >',                        4),
-              ('    1 +',                        4),
-              ('    5):',                        4),
+              ('     1 +',                       5),
+              ('     5):',                       4),
               ('    pass',                       4),
               ('"""A string',                    4),
               ('    more string',                4),
               ('    string finish"""',           0),
               ('a = \\',                         4),
-              ('    1',                          0),
+              ('     1 + \\',                    5),
+              ('     1',                         0)
               ])
 
     ts.set_lines([text for text, _ in lines])
