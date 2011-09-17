@@ -466,7 +466,6 @@ class Rewriter:
 if __name__ == '__main__':
     import copy
     import re
-    from dump_ast import dump_ast
     from test_utils import assert_equals
 
     def rewrite_and_compile(code, output_func_name=None, future_features=None, print_func_name=None, encoding="utf8"):
