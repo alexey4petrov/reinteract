@@ -256,7 +256,7 @@ class ShellView(gtk.TextView):
             chunk = buf.worksheet.get_chunk(line)
             if isinstance(chunk, StatementChunk):
                 return chunk.tokenized.get_next_line_indent(line - chunk.start)
-            elif isinstance(chunk, CommentChunk):
+            elif isinstance(chunk, CommentChunk) or isinstance(chunk, BlankChunk):
                 return " " * self.__count_indent(buf.worksheet.get_line(line))
 
         return ""
