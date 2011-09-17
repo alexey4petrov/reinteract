@@ -61,6 +61,16 @@ class MiniWindow(BaseNotebookWindow):
       <toolitem action="calculate"/>
       <toolitem action="break"/>
    </toolbar>
+   <accelerator action="switch-tab-1"/>
+   <accelerator action="switch-tab-2"/>
+   <accelerator action="switch-tab-3"/>
+   <accelerator action="switch-tab-4"/>
+   <accelerator action="switch-tab-5"/>
+   <accelerator action="switch-tab-6"/>
+   <accelerator action="switch-tab-7"/>
+   <accelerator action="switch-tab-8"/>
+   <accelerator action="switch-tab-9"/>
+   <accelerator action="switch-tab-10"/>
 </ui>
 """
     def __init__(self, notebook):

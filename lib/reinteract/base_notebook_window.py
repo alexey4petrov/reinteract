@@ -129,6 +129,16 @@ class BaseNotebookWindow(BaseWindow):
             ('new-worksheet',       gtk.STOCK_NEW,        "_New Worksheet",       "<control>n", None, self.on_new_worksheet),
             ('new-library',         gtk.STOCK_NEW,        "New _Library",         "",           None, self.on_new_library),
             ('calculate-all',       gtk.STOCK_REFRESH,    "Calculate _All",       "<control><alt>Return",  None, self.on_calculate_all),
+            ('switch-tab-1',        None,                 None,                   "<alt>1",     None, self.on_switch_tab),
+            ('switch-tab-2',        None,                 None,                   "<alt>2",     None, self.on_switch_tab),
+            ('switch-tab-3',        None,                 None,                   "<alt>3",     None, self.on_switch_tab),
+            ('switch-tab-4',        None,                 None,                   "<alt>4",     None, self.on_switch_tab),
+            ('switch-tab-5',        None,                 None,                   "<alt>5",     None, self.on_switch_tab),
+            ('switch-tab-6',        None,                 None,                   "<alt>6",     None, self.on_switch_tab),
+            ('switch-tab-7',        None,                 None,                   "<alt>7",     None, self.on_switch_tab),
+            ('switch-tab-8',        None,                 None,                   "<alt>8",     None, self.on_switch_tab),
+            ('switch-tab-9',        None,                 None,                   "<alt>9",     None, self.on_switch_tab),
+            ('switch-tab-10',       None,                 None,                   "<alt>0",     None, self.on_switch_tab)
         ])
 
     def _close_current(self):
@@ -235,6 +245,11 @@ class BaseNotebookWindow(BaseWindow):
         for editor in self.editors:
             if editor.needs_calculate:
                 editor.calculate()
+
+    def on_switch_tab(self, action):
+        name = action.get_name()
+        which = int(name[len("switch-tab-"):])
+        widget = self.nb_widget.set_current_page(which - 1)
 
     def on_page_switched(self, notebook, _, page_num):
         widget = self.nb_widget.get_nth_page(page_num)
