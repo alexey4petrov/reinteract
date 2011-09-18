@@ -106,7 +106,7 @@ class ThreadExecutor(gobject.GObject):
 
         self.last_signalled = last_complete
 
-        if self.complete:
+        if complete:
             self.emit('complete')
         elif last_complete < len(self.statements) - 1:
             self.emit('statement-executing', self.statements[last_complete + 1])
