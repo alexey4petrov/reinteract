@@ -90,7 +90,7 @@ class EditorWindow(BaseWindow):
 
         # Prevent visual artifacts by hiding first
         self.window.hide()
-        self.current_editor.close()
+        self.current_editor.destroy()
 
         BaseWindow._close_window(self, confirm_discard, wait_for_execution)
 

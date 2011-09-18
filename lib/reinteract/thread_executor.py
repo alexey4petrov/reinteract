@@ -14,6 +14,7 @@ import signal
 import sys
 import thread
 
+from destroyable import Destroyable
 from statement import Statement
 
 #
@@ -59,8 +60,14 @@ if _pthread_kill is not None:
 
     signal.signal(signal.SIGUSR1, _ignore_handler)
 
-class ThreadExecutor(gobject.GObject):
+class ThreadExecutor(Destroyable, gobject.GObject):
     """Class to execute Python statements asynchronously in a thread
+
+    Note that while ThreadExecutor inherits the Destroyable mixin, destroying a ThreadExecutor
+    does not automatically interrupt the executor - it removes signal connections and lets
+    the executor continue in the background. This is because interruption is somewhat
+    unreliable and is better handled at a higher lever, which might prompt the user or wait.
+    If the process is going to exit anyways, there's no point in interrupting the thread.
 
     Signals
     =======

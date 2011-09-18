@@ -14,13 +14,14 @@ import gtk
 import pango
 
 from application import application
+from destroyable import Destroyable
 from format_escaped import format_escaped
 from notebook import NotebookFile
 from shell_buffer import ShellBuffer
 from shell_view import ShellView
 from save_file import SaveFileBuilder
 
-class Editor(gobject.GObject):
+class Editor(Destroyable, gobject.GObject):
     __gsignals__ = {
         'filename-changed': (gobject.SIGNAL_RUN_LAST, gobject.TYPE_NONE, ())
     }
@@ -30,6 +31,15 @@ class Editor(gobject.GObject):
 
         self.notebook = notebook
         self._unsaved_index = application.allocate_unsaved_index()
+
+    def do_destroy(self):
+        if self._unsaved_index is not None:
+            application.free_unsaved_index(self._unsaved_index)
+            self._unsaved_index = None
+
+        self.widget.destroy()
+
+        Destroyable.do_destroy(self)
 
     #######################################################
     # Utility
@@ -97,13 +107,6 @@ class Editor(gobject.GObject):
     #######################################################
     # Public API
     #######################################################
-
-    def close(self):
-        if self._unsaved_index is not None:
-            application.free_unsaved_index(self._unsaved_index)
-            self._unsaved_index = None
-
-        self.widget.destroy()
 
     def confirm_discard(self, before_quit=False):
         if not self.modified:

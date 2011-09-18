@@ -47,6 +47,10 @@ class LibraryEditor(Editor):
         self.buf.worksheet.connect('notify::file', lambda *args: self._update_file())
         self.buf.worksheet.connect('notify::code-modified', lambda *args: self._update_modified())
 
+    def do_destroy(self):
+        self.buf.destroy()
+        Editor.do_destroy(self)
+
     #######################################################
     # Callbacks
     #######################################################
@@ -110,10 +114,6 @@ class LibraryEditor(Editor):
     #######################################################
     # Public API
     #######################################################
-
-    def close(self):
-        Editor.close(self)
-        self.buf.close()
 
     def load(self, filename, escape=False):
         self.buf.worksheet.load(filename, escape=escape)

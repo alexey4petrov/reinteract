@@ -109,7 +109,7 @@ class BaseNotebookWindow(BaseWindow):
 
         self.editors.remove(editor)
         editor.widget._notebook_window_editor = None
-        editor.close()
+        editor.destroy()
         self.__update_title()
         self._update_open_files()
         self.update_sensitivity()
@@ -167,7 +167,7 @@ class BaseNotebookWindow(BaseWindow):
         self.window.hide()
         for editor in self.editors:
             editor.widget._notebook_window_editor = None
-            editor.close()
+            editor.destroy()
 
         BaseWindow._close_window(self, confirm_discard, wait_for_execution)
 

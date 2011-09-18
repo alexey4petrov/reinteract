@@ -17,6 +17,7 @@ from StringIO import StringIO
 
 from change_range import ChangeRange
 from chunks import *
+from destroyable import Destroyable
 from notebook import Notebook, NotebookFile
 import reunicode
 from statement import Statement
@@ -67,7 +68,7 @@ def order_positions(start_line, start_offset, end_line, end_offset):
 
     return start_line, start_offset, end_line, end_offset
 
-class Worksheet(gobject.GObject):
+class Worksheet(Destroyable, gobject.GObject):
     __gsignals__ = {
         # text-* are emitted before we fix up our internal state, so what can be done
         # in them are limited. They are meant for keeping a UI in sync with the internal
@@ -129,8 +130,26 @@ class Worksheet(gobject.GObject):
         self.__user_action_count = 0
 
         self.__undo_stack = UndoStack(self)
+        self.__executor = None
 
         notebook._add_worksheet(self)
+
+    def do_destroy(self):
+        if self.__executor:
+            # Interruption is handled at a higher level
+            self.__executor.destroy()
+
+        if self.__file:
+            self.__file.worksheet = None
+            self.__file.modified = False
+            self.__file.state = NotebookFile.NONE
+            self.__file.active = False
+
+        self.notebook._remove_worksheet(self)
+
+        Destroyable.do_destroy(self)
+
+    #######################################################
 
     def do_import(self, name, globals, locals, fromlist, level):
         __import__(self, name, globals, locals, fromlist, level)
@@ -644,6 +663,7 @@ class Worksheet(gobject.GObject):
                     self.__chunk_changed(statement.chunk)
 
             def on_complete(executor):
+                self.__executor.destroy()
                 self.__executor = None
                 if self.__executor_error:
                     self.__set_state(NotebookFile.ERROR)
@@ -970,15 +990,6 @@ class Worksheet(gobject.GObject):
                     os.remove(tmpname)
                 except:
                     pass
-
-    def close(self):
-        if self.__file:
-            self.__file.worksheet = None
-            self.__file.modified = False
-            self.__file.state = NotebookFile.NONE
-            self.__file.active = False
-
-        self.notebook._remove_worksheet(self)
 
 ######################################################################
 

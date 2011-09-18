@@ -15,6 +15,7 @@ import pango
 
 from custom_result import CustomResult
 from chunks import StatementChunk,CommentChunk
+from destroyable import Destroyable
 import doc_format
 from notebook import HelpResult
 import reunicode
@@ -74,7 +75,7 @@ def _backward_line(iter):
 
 ####################################################################
 
-class ShellBuffer(gtk.TextBuffer):
+class ShellBuffer(Destroyable, gtk.TextBuffer):
     __gsignals__ = {
         'add-custom-result':  (gobject.SIGNAL_RUN_LAST, gobject.TYPE_NONE, (gobject.TYPE_PYOBJECT, gobject.TYPE_PYOBJECT)),
         'pair-location-changed': (gobject.SIGNAL_RUN_LAST, gobject.TYPE_NONE, (gobject.TYPE_PYOBJECT, gobject.TYPE_PYOBJECT))
@@ -123,6 +124,15 @@ class ShellBuffer(gtk.TextBuffer):
 
         self.__have_pair = False
         self.__pair_mark = self.create_mark(None, self.get_start_iter(), True)
+
+    def do_destroy(self):
+        for chunk in self.worksheet.iterate_chunks():
+            self.__delete_results_marks(chunk)
+
+        self.worksheet.destroy()
+        self.worksheet = None
+
+        Destroyable.do_destroy(self)
 
     #######################################################
     # Utility
@@ -671,13 +681,6 @@ class ShellBuffer(gtk.TextBuffer):
 
         return self.__in_modification_count > 0
 
-
-    def close(self):
-        for chunk in self.worksheet.iterate_chunks():
-            self.__delete_results_marks(chunk)
-
-        self.worksheet.close()
-        self.worksheet = None
 
 ######################################################################
 # The tests we include here are tests of the interaction of editing

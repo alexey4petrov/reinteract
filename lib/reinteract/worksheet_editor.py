@@ -45,6 +45,10 @@ class WorksheetEditor(Editor):
         self.buf.worksheet.connect('notify::code-modified', lambda *args: self._update_modified())
         self.buf.worksheet.connect('notify::state', lambda *args: self._update_state())
 
+    def do_destroy(self):
+        self.buf.destroy()
+        Editor.do_destroy(self)
+
     #######################################################
     # Callbacks
     #######################################################
@@ -91,10 +95,6 @@ class WorksheetEditor(Editor):
     #######################################################
     # Public API
     #######################################################
-
-    def close(self):
-        Editor.close(self)
-        self.buf.close()
 
     def load(self, filename, escape=False):
         self.buf.worksheet.load(filename, escape=escape)
