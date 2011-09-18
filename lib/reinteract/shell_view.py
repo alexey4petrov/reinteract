@@ -69,6 +69,7 @@ class ShellView(gtk.TextView):
         buf.connect('mark-set', self.on_mark_set)
 
         self.__cursor_chunk = None
+        self.__scroll_to_result = False
         self.__scroll_to = buf.create_mark(None, buf.get_start_iter(), True)
         self.__scroll_idle = None
 
@@ -660,8 +661,9 @@ class ShellView(gtk.TextView):
         else:
             iter.backward_line() # Move to line before start of next chunk
 
-        buf.move_mark(self.__scroll_to, iter)
-        self.scroll_mark_onscreen(self.__scroll_to)
+        if self.__scroll_to_result:
+            buf.move_mark(self.__scroll_to, iter)
+            self.scroll_mark_onscreen(self.__scroll_to)
         self.scroll_mark_onscreen(buf.get_insert())
 
         self.__cursor_chunk = None
@@ -671,7 +673,8 @@ class ShellView(gtk.TextView):
     def on_chunk_deleted(self, worksheet, chunk):
         if self.__cursor_chunk == chunk:
             self.__cursor_chunk = None
-            glib.source_remove(self.__scroll_idle)
+            if self.__scroll_idle is not None:
+                glib.source_remove(self.__scroll_idle)
             self.__scroll_idle = None
 
     def on_notify_state(self, worksheet, param_spec):
@@ -742,8 +745,24 @@ class ShellView(gtk.TextView):
             end_line = None
 
         buf.worksheet.calculate(end_line=end_line)
-        
-        self.__cursor_chunk = buf.worksheet.get_chunk(line)
+
+        # If the cursor is in a StatementChunk or we are executing up to
+        # the cursor, we will scroll the result into view.  Otherwise,
+        # we will just scroll the cursor into view.  If there is no
+        # StatementChunk between the cursor and the beginning of the
+        # worksheet, or if the StatementChunk has already been executed,
+        # there is no need to scroll at all.
+        statement_line = line
+        in_statement = True
+        while line >= 0:
+            chunk = buf.worksheet.get_chunk(statement_line)
+            if isinstance(chunk, StatementChunk):
+                if chunk.needs_compile or chunk.needs_execute:
+                    self.__cursor_chunk = chunk
+                    self.__scroll_to_result = end_at_insert or in_statement
+                return
+            statement_line -= 1
+            in_statement = False
 
     def copy_as_doctests(self):
         buf = self.get_buffer()
