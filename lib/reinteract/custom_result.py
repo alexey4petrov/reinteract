@@ -39,27 +39,28 @@ class ResultWidget(gtk.DrawingArea):
         self.parent_style_set_id = 0
         self.notify_resolution_id = 0
 
-    def do_screen_changed(self, previous_screen):
-        if self.notify_resolution_id > 0:
-            previous_screen.handler_disconnect(self.notify_resolution_id)
-            self.notify_resolution_id = 0
-
-        screen = self.get_screen()
-        if screen:
-            self.notify_resolution_id = \
-                screen.connect("notify::resolution", self._on_notify_resolution)
-            self.sync_dpi(screen.get_resolution())
-
     def do_parent_set(self, previous_parent):
+        # Multiple independent screens is unlikely to ever come up, and assuming
+        # this is much easier to get right than tracking the current screen
+        screen = gtk.gdk.screen_get_default()
+
         # We follow the parent GtkTextView text size.
         if self.parent_style_set_id > 0:
             previous_parent.handler_disconnect(self.parent_style_set_id)
             self.parent_style_set_id = 0
 
+        if self.notify_resolution_id > 0:
+            screen.handler_disconnect(self.notify_resolution_id)
+            self.notify_resolution_id = 0
+
         if self.parent:
             self.parent_style_set_id = \
                 self.parent.connect("style-set", self._on_parent_style_set)
             self.sync_style(self.parent.style)
+
+            self.notify_resolution_id = \
+                screen.connect("notify::resolution", self._on_notify_resolution)
+            self.sync_dpi(screen.get_resolution())
 
     def _on_notify_resolution(self, screen, param_spec):
         self.sync_dpi(screen.get_resolution())
