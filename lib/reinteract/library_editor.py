@@ -113,7 +113,7 @@ class LibraryEditor(Editor):
 
     def close(self):
         Editor.close(self)
-        self.buf.worksheet.close()
+        self.buf.close()
 
     def load(self, filename, escape=False):
         self.buf.worksheet.load(filename, escape=escape)

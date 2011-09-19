@@ -671,6 +671,14 @@ class ShellBuffer(gtk.TextBuffer):
 
         return self.__in_modification_count > 0
 
+
+    def close(self):
+        for chunk in self.worksheet.iterate_chunks():
+            self.__delete_results_marks(chunk)
+
+        self.worksheet.close()
+        self.worksheet = None
+
 ######################################################################
 # The tests we include here are tests of the interaction of editing
 # with results. Results don't appear inline in a Worksheet, so these
