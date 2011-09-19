@@ -241,6 +241,7 @@ class FileList(gtk.TreeView):
             item = self.__model.get_value(iter, 0)
             self.__disconnect_item(item)
             iter = _next_row_depthfirst(self.__model, iter)
+        self.__model.clear()
 
         self.notebook.disconnect(self.__files_changed_handler)
 
