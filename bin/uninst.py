@@ -44,3 +44,27 @@ global_settings.version = version
 
 import reinteract.main
 reinteract.main.main()
+
+################################################################################
+# We're done with the real work, but for debugging purposes, close all windows
+# and check that everything gets freed
+
+from reinteract.application import application
+application.close_all_windows(confirm_discard=False)
+application = None
+
+from reinteract.gc_utils import gc_idle_flush
+
+gc_idle_flush()
+import gc
+import gobject
+
+found_live = False
+
+objs = gc.get_objects()
+for o in objs:
+    if isinstance(o, gobject.GObject) and o is not global_settings:
+        if not found_live:
+            print >>sys.stderr, "Live GObjects found at shutdown:"
+            found_live = True
+        print >>sys.stderr, "   ", o

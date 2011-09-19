@@ -171,9 +171,15 @@ class Application():
         self.state.flush()
         gtk.main_quit()
 
+    def close_all_windows(self, confirm_discard=True):
+        windows = list(self.windows)
+        for window in windows:
+            window.close(confirm_discard)
+        assert len(self.windows) == 0
+
     def window_closed(self, window):
         self.windows.remove(window)
-        if not global_settings.main_menu_mode and len(self.windows) == 0:
+        if not global_settings.main_menu_mode and len(self.windows) == 0 and gtk.main_level() > 0:
             self.quit()
 
     def allocate_unsaved_index(self):

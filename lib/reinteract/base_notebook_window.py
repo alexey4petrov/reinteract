@@ -148,8 +148,8 @@ class BaseNotebookWindow(BaseWindow):
         if self.current_editor:
             self._close_editor(self.current_editor)
 
-    def _close_window(self):
-        if not self._confirm_discard():
+    def _close_window(self, confirm_discard):
+        if confirm_discard and not self._confirm_discard():
             return
 
         # Prevent visual artifacts by hiding first
@@ -157,7 +157,7 @@ class BaseNotebookWindow(BaseWindow):
         for editor in self.editors:
             editor.close()
 
-        BaseWindow._close_window(self)
+        BaseWindow._close_window(self, confirm_discard)
 
     #######################################################
     # Utility

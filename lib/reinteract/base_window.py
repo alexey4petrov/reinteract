@@ -108,7 +108,7 @@ class BaseWindow:
     def _close_current(self):
         raise NotImplementedError()
 
-    def _close_window(self):
+    def _close_window(self, confirm_discard):
         if global_settings.main_menu_mode and self.window.is_active():
             main_menu.window_deactivated(self)
 
@@ -310,7 +310,7 @@ class BaseWindow:
         return False
 
     def on_delete_event(self, window, event):
-        self._close_window()
+        self.close()
         return True
 
     def on_notify_is_active(self, window, paramspec):
@@ -323,6 +323,9 @@ class BaseWindow:
     #######################################################
     # Public API
     #######################################################
+
+    def close(self, confirm_discard=True):
+        self._close_window(confirm_discard)
 
     def show(self):
         self.window.show()
