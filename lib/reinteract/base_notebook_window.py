@@ -155,6 +155,7 @@ class BaseNotebookWindow(BaseWindow):
         # Prevent visual artifacts by hiding first
         self.window.hide()
         for editor in self.editors:
+            editor.widget._notebook_window_editor = None
             editor.close()
 
         BaseWindow._close_window(self, confirm_discard)
