@@ -14,6 +14,7 @@ import gtk
 
 from application import application
 from base_window import BaseWindow
+from gc_utils import gc_at_idle
 from library_editor import LibraryEditor
 from notebook import LibraryFile, NotebookFile, WorksheetFile
 from window_builder import WindowBuilder
@@ -109,6 +110,8 @@ class BaseNotebookWindow(BaseWindow):
         self.__update_title()
         self._update_open_files()
         self.update_sensitivity()
+
+        gc_at_idle()
 
     def _update_editor_state(self, editor):
         self.update_sensitivity()

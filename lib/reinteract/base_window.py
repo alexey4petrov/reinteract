@@ -17,6 +17,7 @@ import glib
 from application import application
 from file_list import FileList
 from format_escaped import format_escaped
+from gc_utils import gc_at_idle
 from global_settings import global_settings
 from library_editor import LibraryEditor
 from notebook import Notebook, NotebookFile
@@ -113,6 +114,8 @@ class BaseWindow:
 
         application.window_closed(self)
         self.window.destroy()
+
+        gc_at_idle()
 
     #######################################################
     # Utility
