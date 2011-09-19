@@ -152,6 +152,11 @@ class BaseNotebookWindow(BaseWindow):
         if not self._confirm_discard():
             return
 
+        # Prevent visual artifacts by hiding first
+        self.window.hide()
+        for editor in self.editors:
+            editor.close()
+
         BaseWindow._close_window(self)
 
     #######################################################

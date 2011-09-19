@@ -81,6 +81,10 @@ class EditorWindow(BaseWindow):
         if not self.current_editor.confirm_discard():
             return True
 
+        # Prevent visual artifacts by hiding first
+        self.window.hide()
+        self.current_editor.close()
+
         BaseWindow._close_window(self)
 
     #######################################################
