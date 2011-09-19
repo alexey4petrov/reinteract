@@ -32,8 +32,8 @@ class LibraryEditor(Editor):
         self.buf = ShellBuffer(self.notebook, edit_only=True)
         self.view = ShellView(self.buf)
 
-        self.__font_is_custom_connection = global_settings.connect('notify::editor-font-is-custom', self.__update_font)
-        self.__font_name_connection = global_settings.connect('notify::editor-font-name', self.__update_font)
+        self.__font_is_custom_connection = global_settings.watch('editor-font-is-custom', self.__update_font)
+        self.__font_name_connection = global_settings.watch('editor-font-name', self.__update_font)
         self.__update_font()
 
         self.widget = gtk.ScrolledWindow()
@@ -51,7 +51,7 @@ class LibraryEditor(Editor):
     # Callbacks
     #######################################################
 
-    def __update_font(self, *arg):
+    def __update_font(self):
         font_name = "monospace"
         if global_settings.editor_font_is_custom:
             font_name = global_settings.editor_font_name
@@ -114,8 +114,6 @@ class LibraryEditor(Editor):
     def close(self):
         Editor.close(self)
         self.buf.worksheet.close()
-        global_settings.disconnect(self.__font_is_custom_connection)
-        global_settings.disconnect(self.__font_name_connection)
 
     def load(self, filename, escape=False):
         self.buf.worksheet.load(filename, escape=escape)

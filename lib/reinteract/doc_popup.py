@@ -64,8 +64,8 @@ class DocPopup(Popup):
         self.__view.show()
         self.__view.grab_focus()
 
-        self.__font_is_custom_connection = global_settings.connect('notify::doc-tooltip-font-is-custom', self.__update_font)
-        self.__font_name_connection = global_settings.connect('notify::doc-tooltip-font-name', self.__update_font)
+        global_settings.watch('doc-tooltip-font-is-custom', self.__update_font)
+        global_settings.watch('doc-tooltip-font-name', self.__update_font)
         self.__update_font()
 
         self.__scrollbar = gtk.VScrollbar()
@@ -86,7 +86,7 @@ class DocPopup(Popup):
         self.__target = None
         self.focused = False
 
-    def __update_font(self, *args):
+    def __update_font(self):
         if global_settings.doc_tooltip_font_is_custom:
             self.__font = pango.FontDescription(global_settings.doc_tooltip_font_name)
         else:
@@ -117,10 +117,6 @@ class DocPopup(Popup):
             buf.place_cursor(buf.get_start_iter())
 
         self.__scrollbar.get_adjustment().set_value(0.)
-
-    def do_destroy(self):
-        global_settings.disconnect(self.__font_is_custom_connection)
-        global_settings.disconnect(self.__font_name_connection)
 
     def do_size_request(self, request):
         view_width, view_height = self.__view.size_request()

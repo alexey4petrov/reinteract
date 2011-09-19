@@ -11,6 +11,7 @@
 import gobject
 import glib
 import os
+import weakref
 import sys
 
 from config_file import ConfigFile
@@ -43,6 +44,10 @@ def _unicode_property(name):
         self.__dict__[name] = value
 
     return property(getter, setter)
+
+def _watch_is_deleted(watch):
+    ref = watch[1]
+    return ref() is None
 
 class GlobalSettings(gobject.GObject):
     dialogs_dir = _unicode_property('dialogs_dir')
@@ -85,5 +90,23 @@ class GlobalSettings(gobject.GObject):
 
         config_location = os.path.join(self.config_dir, 'reinteract.conf')
         self.config = ConfigFile(config_location)
+        self.__watches = []
+
+        self.connect('notify', self.on_notify)
+
+    def on_notify(self, o, paramspec):
+        changed = paramspec.name
+        for prop, ref, func in self.__watches:
+            if prop == changed:
+                receiver = ref()
+                if receiver:
+                    func(receiver)
+
+    def watch(self, prop, bound_method):
+        # Remove watches for deleted objects
+        if any((_watch_is_deleted(watch) for watch in self.__watches)):
+            watches = [watch for watch in self.__watches if not _watch_is_deleted(watch)]
+
+        self.__watches.append((prop, weakref.ref(bound_method.im_self), bound_method.im_func))
 
 global_settings = GlobalSettings()

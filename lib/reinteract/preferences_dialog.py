@@ -18,37 +18,37 @@ class PreferencesBuilder(WindowBuilder):
         self.dialog.connect('response', self.__on_response)
         self.dialog.connect('delete-event', self.__on_delete_event)
 
-        global_settings.connect('notify::editor-font-is-custom', self.__on_notify_editor_font_is_custom)
+        global_settings.watch('editor-font-is-custom', self.__on_notify_editor_font_is_custom)
         self.__on_notify_editor_font_is_custom()
 
         self.editor_font_custom_check_button.connect('toggled', self.__on_editor_font_custom_check_button_toggled)
         self.__on_editor_font_custom_check_button_toggled()
 
-        global_settings.connect('notify::editor-font-name', self.__on_notify_editor_font_name)
+        global_settings.watch('editor-font-name', self.__on_notify_editor_font_name)
         self.__on_notify_editor_font_name()
 
         self.editor_font_button.connect('font-set', self.__on_editor_font_set)
 
-        global_settings.connect('notify::doc-tooltip-font-is-custom', self.__on_notify_doc_tooltip_font_is_custom)
+        global_settings.watch('doc-tooltip-font-is-custom', self.__on_notify_doc_tooltip_font_is_custom)
         self.__on_notify_doc_tooltip_font_is_custom()
 
         self.doc_tooltip_font_custom_check_button.connect('toggled', self.__on_doc_tooltip_font_custom_check_button_toggled)
         self.__on_doc_tooltip_font_custom_check_button_toggled()
 
-        global_settings.connect('notify::doc-tooltip-font-name', self.__on_notify_doc_tooltip_font_name)
+        global_settings.watch('doc-tooltip-font-name', self.__on_notify_doc_tooltip_font_name)
         self.__on_notify_doc_tooltip_font_name()
 
         self.doc_tooltip_font_button.connect('font-set', self.__on_doc_tooltip_font_set)
 
-        global_settings.connect('notify::autocomplete', self.__on_notify_autocomplete)
+        global_settings.watch('autocomplete', self.__on_notify_autocomplete)
         self.__on_notify_autocomplete()
 
         self.autocomplete_check_button.connect('toggled', self.__on_autocomplete_check_button_toggled)
 
-    def __on_notify_editor_font_is_custom(self, *args):
+    def __on_notify_editor_font_is_custom(self):
         self.editor_font_custom_check_button.set_active(global_settings.editor_font_is_custom)
 
-    def __on_notify_editor_font_name(self, *args):
+    def __on_notify_editor_font_name(self):
         self.editor_font_button.set_font_name(global_settings.editor_font_name)
 
     def __on_editor_font_custom_check_button_toggled(self, *args):
@@ -62,10 +62,10 @@ class PreferencesBuilder(WindowBuilder):
         if font_name != global_settings.editor_font_name:
             global_settings.editor_font_name = font_name
 
-    def __on_notify_doc_tooltip_font_is_custom(self, *args):
+    def __on_notify_doc_tooltip_font_is_custom(self):
         self.doc_tooltip_font_custom_check_button.set_active(global_settings.doc_tooltip_font_is_custom)
 
-    def __on_notify_doc_tooltip_font_name(self, *args):
+    def __on_notify_doc_tooltip_font_name(self):
         self.doc_tooltip_font_button.set_font_name(global_settings.doc_tooltip_font_name)
 
     def __on_doc_tooltip_font_custom_check_button_toggled(self, *args):
@@ -79,7 +79,7 @@ class PreferencesBuilder(WindowBuilder):
         if font_name != global_settings.doc_tooltip_font_name:
             global_settings.doc_tooltip_font_name = font_name
 
-    def __on_notify_autocomplete(self, *args):
+    def __on_notify_autocomplete(self):
         self.autocomplete_check_button.set_active(global_settings.autocomplete)
 
     def __on_autocomplete_check_button_toggled(self, *args):
