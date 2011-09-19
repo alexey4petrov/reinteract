@@ -72,6 +72,8 @@ class ShellView(gtk.TextView):
         self.__scroll_to = buf.create_mark(None, buf.get_start_iter(), True)
         self.__scroll_idle = None
 
+        self.connect('destroy', self.on_destroy)
+
     def __get_worksheet_line_yrange(self, line):
         buffer_line = self.get_buffer().pos_to_iter(line)
         return self.get_line_yrange(buffer_line)
@@ -127,12 +129,20 @@ class ShellView(gtk.TextView):
             self.__watch_window.show()
             self.__watch_window.raise_()
 
+    def on_destroy(self, obj):
+        self.__completion_popup.destroy()
+        self.__completion_popup = None
+        self.__doc_popup.destroy()
+        self.__doc_popup = None
+
+        if self.__scroll_idle is not None:
+            glib.source_remove(self.__scroll_idle)
+
     def do_unrealize(self):
         self.__watch_window.set_user_data(None)
         self.__watch_window.destroy()
         self.__watch_window = None
-        if self.__scroll_idle is not None:
-            glib.source_remove(self.__scroll_idle)
+
         gtk.TextView.do_unrealize(self)
 
     def do_size_allocate(self, allocation):

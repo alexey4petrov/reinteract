@@ -86,6 +86,8 @@ class DocPopup(Popup):
         self.__target = None
         self.focused = False
 
+        self.connect('destroy', self.on_destroy)
+
     def __update_font(self):
         if global_settings.doc_tooltip_font_is_custom:
             self.__font = pango.FontDescription(global_settings.doc_tooltip_font_name)
@@ -199,10 +201,16 @@ class DocPopup(Popup):
             cr.move_to(self.allocation.width - width - 5, self.allocation.height - height)
             cr.show_layout(layout)
 
-    def do_forall(self, include_internals, func, data):
-        if include_internals:
-            func(self.__view, data)
-            func(self.__scrollbar, data)
+# gtk_window_destroy() chains to gtk_container_destroy() which calls forall(),
+# Since gtk_window_destroy() can be called a second time during finalization
+# once the Python object is gone, implementing a forall() virtual function
+# causes badness (a new proxy is constructed and then leaked). So, we have
+# to do without this, though it's theoretically right.
+#
+#    def do_forall(self, include_internals, func, data):
+#        if include_internals:
+#            func(self.__view, data)
+#            func(self.__scrollbar, data)
 
     def do_map(self):
         Popup.do_map(self)
@@ -210,6 +218,16 @@ class DocPopup(Popup):
         self.__view.map()
         if self.focused and self.__vscrolled:
             self.__scrollbar.map()
+
+    def do_remove(self, child):
+        if child == self.__view:
+            self.__view = None
+            child.unparent()
+        elif child == self.__scrollbar:
+            self.__scrollbar = None
+            child.unparent
+        else:
+            Popup.do_remove(child)
 
     def do_style_set(self, old_style):
         # Calling update_font() from the ::style-set handler on the view would
@@ -279,6 +297,10 @@ class DocPopup(Popup):
         Popup.focus(self)
         if self.showing:
             self.queue_resize()
+
+    def on_destroy(self, obj):
+        self.__view.destroy()
+        self.__scrollbar.destroy()
 
     def on_key_press_event(self, event):
         """Do key press handling while the popup is focused.

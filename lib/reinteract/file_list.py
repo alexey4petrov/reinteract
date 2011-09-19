@@ -211,6 +211,8 @@ class FileList(gtk.TreeView):
 
         self.__rescan()
 
+        self.connect('destroy', self.on_destroy)
+
     def do_button_press_event(self, event):
         # We hard-code support for the Mac-style control-click here because the
         # rename/delete functionality is only available in the popup menu, so
@@ -233,7 +235,7 @@ class FileList(gtk.TreeView):
         else:
             return gtk.TreeView.do_button_press_event(self, event)
 
-    def do_destroy(self):
+    def on_destroy(self, obj):
         iter = self.__model.get_iter_first()
         while iter:
             item = self.__model.get_value(iter, 0)

@@ -49,7 +49,7 @@ class CompletionPopup(Popup):
         self.__tree_model = gtk.ListStore(str, str, object)
         self.__tree = gtk.TreeView(self.__tree_model)
         self.__tree.set_headers_visible(False)
-        
+
         self.__tree.get_selection().connect('changed', self.__on_selection_changed)
         self.__tree.connect('row-activated', self.__on_row_activated)
 
@@ -72,6 +72,8 @@ class CompletionPopup(Popup):
         self._in_change = False
         self.spontaneous = False
         self.showing = False
+
+        self.connect('destroy', self.on_destroy)
 
     def __update_completions(self, spontaneous=False):
         buf = self.__view.get_buffer()
@@ -226,6 +228,10 @@ class CompletionPopup(Popup):
             self.__doc_popup.popdown()
         
         self.hide()
+
+    def on_destroy(self, obj):
+        self.__doc_popup.destroy()
+        self.__doc_popup = None
 
     def on_key_press_event(self, event):
         """Do key press handling while the popup is active.
