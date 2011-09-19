@@ -115,6 +115,10 @@ class BaseWindow:
         application.window_closed(self)
         self.window.destroy()
 
+        # Need to break the circular references back through the actions
+        self.action_group = None
+        self.ui_manager = None
+
         gc_at_idle()
 
     #######################################################
