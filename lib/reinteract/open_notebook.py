@@ -146,6 +146,12 @@ class OpenNotebookBuilder(WindowBuilder):
         else:
             return None
 
+    def destroy(self):
+        # Break a cycle where the sort funcs reference the OpenNotebookBuilder object
+        self.model = None
+
+        self.dialog.destroy()
+
 def run(parent=None):
     builder = OpenNotebookBuilder()
     builder.dialog.set_transient_for(parent)
@@ -176,5 +182,6 @@ def run(parent=None):
 
         break
 
-    builder.dialog.destroy()
+    builder.destroy()
+
     return result_window

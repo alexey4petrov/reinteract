@@ -53,6 +53,9 @@ from reinteract.application import application
 application.close_all_windows(confirm_discard=False)
 application = None
 
+import reinteract.preferences_dialog
+reinteract.preferences_dialog.cleanup()
+
 from reinteract.gc_utils import gc_idle_flush
 
 gc_idle_flush()

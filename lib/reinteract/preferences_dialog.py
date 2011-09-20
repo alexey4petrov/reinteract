@@ -107,3 +107,10 @@ def show_preferences(parent=None):
         _builder.dialog.show()
     else:
         _builder.dialog.present_with_time(gtk.get_current_event_time())
+
+def cleanup():
+    global _builder
+
+    if _builder:
+        _builder.dialog.destroy()
+        _builder = None
