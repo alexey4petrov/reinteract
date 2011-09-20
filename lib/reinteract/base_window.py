@@ -119,6 +119,8 @@ class BaseWindow:
         self.action_group = None
         self.ui_manager = None
 
+        self.notebook.close()
+
         gc_at_idle()
 
     #######################################################

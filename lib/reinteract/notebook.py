@@ -543,6 +543,10 @@ class Notebook(gobject.GObject):
 
     def save(self):
         pass
+
+    def close(self):
+        self.__monitors = None
+        self.__reset_all_modules()
     
 if __name__ == '__main__':
     import copy
