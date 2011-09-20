@@ -225,9 +225,10 @@ class ThreadExecutor(gobject.GObject):
         self.lock.acquire()
         if not self.complete and not self.interrupted:
             self.interrupted = True
-            _PyThreadState_SetAsyncExc(self.tid, ctypes.py_object(KeyboardInterrupt))
+            _PyThreadState_SetAsyncExc(ctypes.c_ulong(self.tid), ctypes.py_object(KeyboardInterrupt))
             if _pthread_kill is not None:
-                _pthread_kill(self.tid, signal.SIGUSR1)
+                # We assume that sizeof(pthread_t) == sizeof(long); this is true for GNU libc anyways
+                _pthread_kill(ctypes.c_long(self.tid), ctypes.c_int(signal.SIGUSR1))
         self.lock.release()
 
 ######################################################################
