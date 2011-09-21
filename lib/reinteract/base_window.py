@@ -108,7 +108,7 @@ class BaseWindow:
     def _close_current(self):
         raise NotImplementedError()
 
-    def _close_window(self, confirm_discard):
+    def _close_window(self, confirm_discard, wait_for_execution):
         if global_settings.main_menu_mode and self.window.is_active():
             main_menu.window_deactivated(self)
 
@@ -278,7 +278,7 @@ class BaseWindow:
 
     def on_break(self, action):
         if self.current_editor:
-            self.current_editor.buf.worksheet.interrupt()
+            self.current_editor.interrupt()
 
     def on_preferences(self, action):
         show_preferences(parent=self.window)
@@ -312,7 +312,10 @@ class BaseWindow:
         return False
 
     def on_delete_event(self, window, event):
-        self.close()
+        if len(application.windows) == 1:
+            application.quit(from_window_close=True)
+        else:
+            self.close()
         return True
 
     def on_notify_is_active(self, window, paramspec):
@@ -326,8 +329,8 @@ class BaseWindow:
     # Public API
     #######################################################
 
-    def close(self, confirm_discard=True):
-        self._close_window(confirm_discard)
+    def close(self, confirm_discard=True, wait_for_execution=True):
+        self._close_window(confirm_discard, wait_for_execution)
 
     def show(self):
         self.window.show()

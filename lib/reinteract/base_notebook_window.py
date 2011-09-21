@@ -97,6 +97,9 @@ class BaseNotebookWindow(BaseWindow):
         if not editor.confirm_discard():
             return
 
+        if not editor.wait_for_execution():
+            return
+
         if editor == self.current_editor:
             # Either we'll switch page and a new editor will be set, or we have no pages left
             self.current_editor = None
@@ -148,9 +151,17 @@ class BaseNotebookWindow(BaseWindow):
         if self.current_editor:
             self._close_editor(self.current_editor)
 
-    def _close_window(self, confirm_discard):
+    def _close_window(self, confirm_discard, wait_for_execution):
         if confirm_discard and not self._confirm_discard():
             return
+
+        if wait_for_execution:
+            if not self._wait_for_execution():
+                return
+        else:
+            for editor in self.editors:
+                if editor.state == NotebookFile.EXECUTING:
+                    return
 
         # Prevent visual artifacts by hiding first
         self.window.hide()
@@ -158,7 +169,7 @@ class BaseNotebookWindow(BaseWindow):
             editor.widget._notebook_window_editor = None
             editor.close()
 
-        BaseWindow._close_window(self, confirm_discard)
+        BaseWindow._close_window(self, confirm_discard, wait_for_execution)
 
     #######################################################
     # Utility
@@ -202,6 +213,13 @@ class BaseNotebookWindow(BaseWindow):
                 self._make_editor_current(editor)
                 if not editor.confirm_discard(before_quit=before_quit):
                     return False
+
+        return True
+
+    def _wait_for_execution(self):
+        for editor in self.editors:
+            if not editor.wait_for_execution():
+                return False
 
         return True
 
@@ -295,8 +313,8 @@ class BaseNotebookWindow(BaseWindow):
     # Public API
     #######################################################
 
-    def confirm_discard(self):
-        if not self._confirm_discard(before_quit=True):
+    def confirm_discard(self, before_quit=True):
+        if not self._confirm_discard(before_quit=before_quit):
             return False
 
         return True

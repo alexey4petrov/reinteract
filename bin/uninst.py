@@ -50,7 +50,12 @@ reinteract.main.main()
 # and check that everything gets freed
 
 from reinteract.application import application
-application.close_all_windows(confirm_discard=False)
+application.close_all_windows(confirm_discard=False, wait_for_execution=False)
+
+if len(application.windows) > 0:
+    print "Some worksheets still executing, skipping leak checks."
+    sys.exit(0)
+
 application = None
 
 import reinteract.preferences_dialog

@@ -8,6 +8,7 @@
 
 import os
 
+import glib
 import gobject
 import gtk
 import pango
@@ -145,6 +146,43 @@ class Editor(gobject.GObject):
         else:
             return False
 
+    def wait_for_execution(self):
+        if self.state != NotebookFile.EXECUTING:
+            return True
+
+        message = format_escaped('<b>Waiting for "%s" to finish executing...</b>"', self._get_display_name());
+
+        dialog = gtk.MessageDialog(parent=self.widget.get_toplevel(), buttons=gtk.BUTTONS_NONE,
+                                   type=gtk.MESSAGE_INFO)
+        dialog.set_markup(message)
+
+        dialog.add_buttons("_Interrupt", 1,
+                           gtk.STOCK_CANCEL, gtk.RESPONSE_CANCEL)
+        dialog.set_default_response(gtk.RESPONSE_CANCEL)
+
+        loop = glib.MainLoop()
+
+        def on_response(dialog, response):
+            if response == 1:
+                self.interrupt()
+            else:
+                loop.quit()
+        dialog.connect("response", on_response)
+
+        def on_state_changed(self, paramspec):
+            if self.state != NotebookFile.EXECUTING:
+                loop.quit()
+        state_changed_id = self.connect("notify::state", on_state_changed)
+
+        dialog.set_modal(True)
+        dialog.show()
+        loop.run()
+        dialog.destroy()
+
+        self.disconnect(state_changed_id)
+
+        return self.state != NotebookFile.EXECUTING
+
     def load(self, filename, escape=False):
         """Load a file from disk into the editor. Can raise IOError if the
         file cannot be read, and reunicode.ConversionError if the file contains
@@ -204,6 +242,9 @@ class Editor(gobject.GObject):
                 self.state != NotebookFile.EXECUTING)
 
     def calculate(self, end_at_insert=False):
+        pass
+
+    def interrupt(self):
         pass
 
     def print_contents(self):

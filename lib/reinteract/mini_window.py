@@ -206,12 +206,18 @@ class MiniWindow(BaseNotebookWindow):
         if not self._confirm_discard():
             return
 
+        if not self._wait_for_execution():
+            return
+
         new_window = application.create_notebook_dialog(parent=self.window)
         if new_window:
             self.close(confirm_discard=False)
 
     def on_open_notebook(self, action):
         if not self._confirm_discard():
+            return
+
+        if not self._wait_for_execution():
             return
 
         new_window = application.open_notebook_dialog(parent=self.window)

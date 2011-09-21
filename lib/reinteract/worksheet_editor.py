@@ -103,6 +103,9 @@ class WorksheetEditor(Editor):
     def calculate(self, end_at_insert=False):
         self.view.calculate(end_at_insert)
 
+    def interrupt(self):
+        self.buf.worksheet.interrupt()
+
     def print_contents(self):
         print_op = WorksheetPrintOperation(self.buf.worksheet)
         print_op.run(gtk.PRINT_OPERATION_ACTION_PRINT_DIALOG, self.widget.get_toplevel())

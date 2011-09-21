@@ -15,7 +15,7 @@ import sys
 from application import application
 from base_window import BaseWindow
 from global_settings import global_settings
-from notebook import Notebook
+from notebook import Notebook, NotebookFile
 
 class EditorWindow(BaseWindow):
     UI_STRING="""
@@ -77,15 +77,22 @@ class EditorWindow(BaseWindow):
     def _close_current(self):
         self.close()
 
-    def _close_window(self, confirm_discard):
+    def _close_window(self, confirm_discard, wait_for_execution):
         if confirm_discard and not self.current_editor.confirm_discard():
-            return True
+            return
+
+        if wait_for_execution:
+            if not self.current_editor.wait_for_execution():
+                return
+        else:
+            if self.current_editor.state == NotebookFile.EXECUTING:
+                return
 
         # Prevent visual artifacts by hiding first
         self.window.hide()
         self.current_editor.close()
 
-        BaseWindow._close_window(self, confirm_discard)
+        BaseWindow._close_window(self, confirm_discard, wait_for_execution)
 
     #######################################################
     # Utility
@@ -128,8 +135,8 @@ class EditorWindow(BaseWindow):
     # Public API
     #######################################################
 
-    def confirm_discard(self):
-        if self.current_editor and not self.current_editor.confirm_discard():
+    def confirm_discard(self, before_quit=True):
+        if self.current_editor and not self.current_editor.confirm_discard(before_quit=before_quit):
             return False
 
         return True

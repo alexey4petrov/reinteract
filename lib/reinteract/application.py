@@ -163,19 +163,18 @@ class Application():
         self.__about_dialog.set_transient_for(parent)
         self.__about_dialog.present()
 
-    def quit(self):
+    def quit(self, from_window_close=False):
         for window in self.windows:
-            if not window.confirm_discard():
+            if not window.confirm_discard(before_quit=not from_window_close):
                 return
 
         self.state.flush()
         gtk.main_quit()
 
-    def close_all_windows(self, confirm_discard=True):
+    def close_all_windows(self, confirm_discard=True, wait_for_execution=True):
         windows = list(self.windows)
         for window in windows:
-            window.close(confirm_discard)
-        assert len(self.windows) == 0
+            window.close(confirm_discard=confirm_discard, wait_for_execution=wait_for_execution)
 
     def window_closed(self, window):
         self.windows.remove(window)
