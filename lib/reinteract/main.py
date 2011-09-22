@@ -8,6 +8,8 @@
 ########################################################################
 
 import glib
+glib.set_prgname("reinteract")
+
 import gobject
 import gtk
 import logging
