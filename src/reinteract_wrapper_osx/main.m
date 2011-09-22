@@ -77,7 +77,7 @@ fileExists(NSString *path)
 static PyObject *
 string_to_unicode(NSString *string)
 {
-    NSUInteger length = [string length];
+    unsigned length = [string length];
     Py_UNICODE *buffer = malloc(length * sizeof(Py_UNICODE));
     PyObject *result;
     if (!buffer)
