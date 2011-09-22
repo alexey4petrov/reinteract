@@ -55,7 +55,7 @@ DEP_LIBRARY_FILES = [
     'lib/libpangocairo-1.0.*.dylib',
     'lib/libpixman-1.*.dylib',
     'lib/libpng12.*.dylib',
-    'lib/libpyglib-2.0.*.dylib',
+    'lib/libpyglib-2.0-python.*.dylib',
     'lib/libtiff.3.dylib',
     'lib/pango/1.6.0/modules/pango-*.so',
     'lib/gtk-2.0/2.10.0/*/*.so', # engines, immodules, and pixbuf loaders
@@ -189,7 +189,7 @@ class BundleBuilder(Builder):
         gtkrcfile = join(self.tempdir, "gtkrc")
         f = open(gtkrcfile, "w")
 
-        self.rewrite_modules_file('etc/gtk-2.0/gdk-pixbuf.loaders')
+        self.rewrite_modules_file('lib/gdk-pixbuf-2.0/2.10.0/loaders.cache')
         self.rewrite_modules_file('etc/gtk-2.0/gtk.immodules')
         self.rewrite_modules_file('etc/pango/pango.modules')
 
