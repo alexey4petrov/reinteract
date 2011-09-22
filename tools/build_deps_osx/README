@@ -1,18 +1,15 @@
 This directory contains scripts and other files used to build the
 dependencies required for Reinteract on OS X. It builds on top of
-the excellent gtk-osx-build work done by Imendio.
+the gtk-osx project:
 
-  http://developer.imendio.com/projects/gtk-macosx/build-instructions
+  http://gtk-osx.sourceforge.net/
 
-Differences here:
-
- - All modules are changed to build from tarballs; this allows creating
-   an installer and putting up the corresponding source for download.
+Differences from the gtk-osx -stable moduleset:
 
  - Select patches not yet in version control (or not yet in tarballs)
    are added.
 
- - Python is upgraded from 2.4 to 2.5
+ - Python is downgraded to 2.5 for compatibility
 
  - Extra modules (numpy and matplotlib) are added.
 
@@ -25,7 +22,7 @@ Usage
 
  - Run gtk-osx-build-setup.sh as described in the first step on:
 
-     http://developer.imendio.com/projects/gtk-macosx/build-instructions
+     http://sourceforge.net/apps/trac/gtk-osx/wiki/Build
 
    You *don't* need to do anything else on that page.
 

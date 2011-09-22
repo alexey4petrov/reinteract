@@ -5,9 +5,9 @@
   <repository type="tarball" name="python" href="http://www.python.org/ftp/python/"/>
 
   <!-- Start with the standard bootstrap modules -->
-  <include href="http://svn.gnome.org/svn/jhbuild/trunk/modulesets/bootstrap.modules"/>
+  <include href="http://git.gnome.org/browse/jhbuild/plain/modulesets/bootstrap.modules"/>
 
-  <!-- But update to a python-2.5 tarball -->
+  <!-- But downgrade to a python-2.5 tarball to try and be compatible with Leopard system python -->
   <autotools id="python" autogenargs="--enable-shared" autogen-sh="configure">
     <branch repo="python"
             module="2.5.2/Python-2.5.2.tar.bz2" version="2.5.2"

@@ -7,7 +7,7 @@
   <repository type="tarball" name="sourceforge" href="http://dfn.dl.sourceforge.net/sourceforge/"/>
 
   <!-- Start with the gtk-osx moduleset -->
-  <include href="http://github.com/rhult/gtk-osx-build/raw/master/modulesets/gtk-osx.modules"/>
+  <include href="http://github.com/jralls/gtk-osx-build/raw/master/modulesets-stable/gtk-osx.modules"/>
 
   <metamodule id="meta-reinteract-deps">
     <dependencies>
@@ -21,105 +21,59 @@
     </after>
   </metamodule>
 
-  <!-- We force a version of 1.11, since after that a dependency on xml2po, which
-       in turns depends on the Python bindings for libxml2, which we don't build -->
-  <autotools id="gtk-doc" autogenargs="--disable-scrollkeepeer --with-xml-catalog=$JHBUILD_PREFIX/etc/xml/catalog">
-    <branch repo="gnomeftp"
-            module="gtk-doc/1.11/gtk-doc-1.11.tar.bz2" version="1.11"
-            size="453459" md5sum="b5e268c71fa90aad890cf53715664d0a"/>
-    <dependencies>
-      <dep package="libxslt"/>
-      <dep package="docbook-setup"/>
-      <dep package="gnome-doc-utils-fake"/>
-    </dependencies>
-  </autotools>
-
-  <autotools id="glib">
-    <branch repo="gnomeftp"
-            module="glib/2.18/glib-2.18.4.tar.bz2" version="2.18.4"
-            size="4809051" md5sum="ec25ed261534d870141000ab73f1a2bf"/>
+  <!-- upgraded from a random devel snapshot -->
+  <autotools id="glib" autogen-sh="configure">
+    <branch repo="gnomeftp" module="sources/glib/2.28/glib-2.28.8.tar.bz2"  version="2.28.8"
+            hash="sha256:222f3055d6c413417b50901008c654865e5a311c73f0ae918b0a9978d1f9466f">
+      <patch file="glib-2.28.8-zlib-macosx.patch" strip="1"/>
+    </branch>
     <after>
       <dep package="meta-gtk-osx-bootstrap"/>
-      <dep package="gtk-doc"/> <!-- FIXME: http://bugs.gnome.org/546640 -->
+      <dep package="gtk-doc"/>
     </after>
   </autotools>
 
-  <autotools id="pango" autogenargs="--without-x --with-included-modules=basic-atsui"
+  <!-- Adding pango-relocate.patch, remove fontconfig, freetype as dependencies
+      since we don't want pangoft2 -->
+  <autotools id="pango"  autogen-sh="configure"
+             autogenargs="--without-x --with-included-modules=basic-atsui"
              makeargs="-k -C modules; make">
-    <branch repo="gnomeftp"
-            module="pango/1.22/pango-1.22.4.tar.bz2" version="1.22.4"
-            size="1496168" md5sum="7c3f3748052799746d73c6d3a0cc1205">
-      <patch file="pango-relocate.patch" strip="0" />
+    <!-- The last version that will build on Tiger is 1.24.5 -->
+    <branch version="1.28.3" repo="gnomeftp" module="sources/pango/1.28/pango-1.28.3.tar.bz2"
+            hash="sha256:5e278bc9430cc7bb00270f183360d262c5006b51248e8b537ea904573f200632">
+<!--    <branch version="1.24.5" module="pango/1.24/pango-1.24.5.tar.bz2"
+            hash="sha256:0f733d1ec3e8dafcae152d7ac58f1090bee1fd856176c8fee0e81b0e42392f4e">-->
+  <patch file="https://raw.github.com/jralls/gtk-osx-build/master/patches/pangoatsui-fontname.patch" strip="1"/>
+  <patch file="pango-relocate.patch" strip="0"/>
     </branch>
     <dependencies>
       <dep package="glib"/>
       <dep package="cairo"/>
+<!--      <dep package="gobject-introspection"/> -->
+<!--      <dep package="fontconfig"/> -->N
+<!--      <dep package="freetype"/> -->
     </dependencies>
     <after>
       <dep package="meta-gtk-osx-bootstrap"/>
-      <dep package="fontconfig"/>
-      <dep package="freetype"/>
-      <dep package="cairo-lipo"/>
     </after>
   </autotools>
 
- <autotools id="atk">
-    <branch repo="gnomeftp"
-            module="atk/1.24/atk-1.24.0.tar.bz2" version="1.24.0"
-            size="701798" md5sum="fb0ee9c7f18b15b490a0168b13740a4d"/>
-    <dependencies>
-      <dep package="glib"/>
-    </dependencies>
-    <after>
-      <dep package="meta-gtk-osx-bootstrap"/>
-    </after>
-  </autotools>
- 
-  <autotools id="gtk+" autogenargs="--with-gdktarget=quartz --without-libjasper">
-    <branch repo="gnomeftp"
-            module="gtk+/2.14/gtk+-2.14.7.tar.bz2" version="2.14.7"
-            size="17475873" md5sum="fb1614d4b2adba7b078e2e799b5db604">
-      <patch file="gdk-quartz-eventloop-rework-20080905.patch" strip="1" />
-      <patch file="gdk-window-process-updates-hook.patch" strip="0" />
-      <patch file="gtk-dont-steal-update-region.patch" strip="0" />
+  <!-- pycairo dep instead of pycairo2.6 -->
+  <!-- The patch addresses bug 640738. -->
+  <autotools id="pygtk" autogen-sh="configure" 
+	     autogenargs="--disable-introspection">
+    <branch version="2.22.0" repo="gnomeftp" module="sources/pygtk/2.22/pygtk-2.22.0.tar.bz2"
+            hash="sha256:4acf0ef2bde8574913c40ee4a43d9c4f43bb77b577b67147271b534501a54cc8">
+      <patch file="https://raw.github.com/jralls/gtk-osx-build/master/patches/pygtk-signal-watch.patch" strip="1"/>
     </branch>
-    <dependencies>
-      <dep package="pango"/>
-      <dep package="atk"/>
-    </dependencies>
-    <after>
-      <dep package="meta-gtk-osx-bootstrap"/>
-    </after>
-  </autotools>
-  
-  <autotools id="pycairo" autogen-sh="configure">
-    <branch module="pycairo-1.8.2.tar.gz" version="1.8.2"
-            repo="cairo"
-            md5sum="bbfc0c2fef08dfb0c5b8baa5f0b67a87" size="519064">
-    </branch>
-    <dependencies>
-      <dep package="cairo"/>
-    </dependencies>
-  </autotools>
-
-  <autotools id="pygobject">
-    <branch repo="gnomeftp"
-            module="pygobject/2.16/pygobject-2.16.1.tar.bz2" version="2.16.1"
-            size="522347" md5sum="8e26f2572e6b72dbd2591677055f8d30"/>
-    <dependencies>
-      <dep package="glib"/>
-    </dependencies>
-  </autotools>
-  
-  <autotools id="pygtk">
-    <branch repo="gnomeftp"
-            module="pygtk/2.14/pygtk-2.14.0.tar.bz2" version="2.14.0"
-            size="2161185" md5sum="b5fec3a9493a394d0ba2b8d2b337c4c5"/>
     <dependencies>
       <dep package="pygobject"/>
-      <dep package="gtk+"/>
+      <dep package="meta-gtk-osx-core"/>
       <dep package="pycairo"/>
     </dependencies>
+    <after>
+      <dep package="libglade"/>
+    </after>
   </autotools>
 
   <distutils id="numpy">
@@ -136,12 +90,4 @@
       <dep package="pygtk"/>
     </dependencies>
   </distutils>
-
-  <tarball id="gtk-quartz-engine">
-    <source href="gtk-quartz-engine-0.1.svn20090301.tar.bz2"
-            size="236460" md5sum="bf63c383a13a74297869d3e05ec94274"/>
-    <dependencies>
-      <dep package="gtk+"/>
-    </dependencies>
-  </tarball>
 </moduleset>

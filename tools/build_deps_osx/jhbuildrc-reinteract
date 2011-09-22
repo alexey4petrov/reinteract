@@ -25,9 +25,9 @@ prefix = "/opt/reinteract/" + _variant + "/install"
 modules = [ 'meta-reinteract-deps' ]
 
 if "ppc" in _variant:
-    os.environ['CC'] = 'gcc -arch ppc'
-    os.environ['CXX'] = 'g++ -arch ppc'
-    os.environ['LDFLAGS'] = '-arch ppc'
+    _architectures=["ppc"]
+else:
+    _architectures=["i386"]
 
 _cflags = '-std=gnu89'
 if "devel" in _variant:
@@ -35,19 +35,28 @@ if "devel" in _variant:
 else:
     _optimize = '-O2'
 
-# Python splits CFLAGS up this way
-os.environ['BASECFLAGS'] = _cflags
-os.environ['OPT'] = _optimize
-# For autoconf, they are unified
-os.environ['CFLAGS'] = _cflags + ' ' + _optimize
-os.environ['OBJCFLAGS'] = _cflags + ' ' + _optimize
-os.environ['CXXFLAGS'] = _optimize
-
 # Always build against the 10.4 SDK even in devel mode; this will help
 # keep us introducing problems that show up at release time
-_sdkdir = setup_sdk_10_4()
+_sdkdir = setup_sdk("10.4", "10.4u", _architectures)
 environ_append("BASECFLAGS", "-isysroot " + _sdkdir)
 environ_append("OBJCFLAGS", "-isysroot " + _sdkdir)
+
+# Python splits CFLAGS up this way
+os.environ['BASECFLAGS'] = os.environ['CFLAGS']
+os.environ['OPT'] = _optimize
+
+# For autoconf, they are unified
+environ_append('CFLAGS', _optimize)
+environ_append('OBJCFLAGS', _optimize)
+environ_append('CXXFLAGS', _optimize)
+
+# distutils needs a bit more convincing
+if "ppc" in _variant:
+    environ_append('CC', '-arch ppc')
+    environ_append('CXX', '-arch ppc')
+else:
+    environ_append('CC', '-arch i386')
+    environ_append('CXX', '-arch i386')
 
 # Needed to get the various sublibraries to find and use the same symbols.
 # (Copied from jhbuildrc-cfw-10.4, not 100% sure it's needed here)
@@ -70,6 +79,8 @@ append_autogenargs("python", "--enable-framework=" + prefix + "/Library/Framewor
 
 # This is used by the Reinteract native app to locate the Python framework to use
 os.environ['PYTHON_FRAMEWORK_DIR'] = prefix + "/Library/Frameworks/Python.framework"
+
+environ_append('PYTHONPATH', ':' + os.path.join(prefix, 'lib/python2.5/site-packages/gtk-2.0'))
 
 # For unknown reasons, iconv is not picked up correctly without this
 # (possibly due to using -flat_namespace....).
