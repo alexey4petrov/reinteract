@@ -24,6 +24,10 @@ case $JHB_VARIANT in
     ;;
 esac
 
+# We need to run JHBuild with Python2.5 so that it creates the right
+# $PYTHONPATH environment variable for the Python2.5 we build within it.
+JHBUILD="python2.5 `which jhbuild`"
+
 export JHB=reinteract
 
 if test -e $HOME/.jhbuildrc-reinteract ; then : ; else
@@ -42,7 +46,7 @@ if test -e /opt/reinteract/$JHB_VARIANT/source/pkgs ; then : ; else
     ln -s /opt/reinteract/packages /opt/reinteract/$JHB_VARIANT/source/pkgs
 fi
 
-jhbuild -m $basedir/reinteract-bootstrap.modules build meta-bootstrap
+$JHBUILD -m $basedir/reinteract-bootstrap.modules build meta-bootstrap
 
-jhbuild build meta-gtk-osx-bootstrap
-jhbuild build
+$JHBUILD build meta-gtk-osx-bootstrap
+$JHBUILD build
