@@ -56,6 +56,7 @@ struct {
     PyObject * (*thunk_PyType_GenericNew)(PyTypeObject *, PyObject *, PyObject *);
     int (*thunk_PyType_IsSubtype)(PyTypeObject *, PyTypeObject *);
     int (*thunk_PyType_Ready)(PyTypeObject *);
+    PyObject* (*thunk_PyUnicodeUCS2_FromUnicode)(const Py_UNICODE *u, Py_ssize_t size);
     PyObject * (*thunk_Py_BuildValue)(const char *, ...);
     PyObject * (*thunk_Py_InitModule4)(const char *name, PyMethodDef *methods,
                                        const char *doc, PyObject *self,
@@ -91,6 +92,7 @@ struct {
 #define PyType_GenericNew (python_thunks.thunk_PyType_GenericNew)
 #define PyType_IsSubtype (python_thunks.thunk_PyType_IsSubtype)
 #define PyType_Ready (python_thunks.thunk_PyType_Ready)
+#define PyUnicodeUCS2_FromUnicode (python_thunks.thunk_PyUnicodeUCS2_FromUnicode)
 #define Py_BuildValue (python_thunks.thunk_Py_BuildValue)
 #define Py_InitModule4 (python_thunks.thunk_Py_InitModule4)
 #define Py_Initialize (python_thunks.thunk_Py_Initialize)

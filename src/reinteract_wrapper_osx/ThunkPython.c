@@ -119,6 +119,7 @@ init_thunk_python()
     LOOKUP_SYMBOL(PyType_GenericNew);
     LOOKUP_SYMBOL(PyType_IsSubtype);
     LOOKUP_SYMBOL(PyType_Ready);
+    LOOKUP_SYMBOL(PyUnicodeUCS2_FromUnicode);
     LOOKUP_SYMBOL(Py_BuildValue);
     LOOKUP_SYMBOL(Py_InitModule4);
     LOOKUP_SYMBOL(Py_Initialize);
