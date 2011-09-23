@@ -223,7 +223,7 @@ class Axes(RecordedObject, custom_result.CustomResult):
 
     def print_result(self, print_context, render=True):
         figure = Figure(facecolor='white', figsize=(6,4.5))
-        figure.set_dpi(print_context.get_dpi_x())
+        figure.set_dpi(72)
         # Don't draw the frame, please.
         figure.set_frameon(False)
 
