@@ -23,7 +23,7 @@ To make this work, you'll need:
 
    http://www.mingw.org/
 
-* To build against Python-2.6, Visual Studio 2008 or 
+* To build against Python-2.6 or Python-2.7, Visual Studio 2008 or 
   Visual C++ 20008 Express Edition (a free download) installed.
   
 Then simply run 'python build_msi.py' from this directory, and:

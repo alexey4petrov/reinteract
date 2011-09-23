@@ -54,7 +54,6 @@ COMPONENT_NAMESPACE = uuid.UUID('6579e040-85ff-4a20-a709-c9335c70296c')
 # are relative to the root of the GTK+ install tree
 GTK_FILES = [
     'bin/intl.dll',
-    'bin/jpeg62.dll',
     'bin/libatk-1.0-0.dll',
     'bin/libcairo-2.dll',
     'bin/freetype6.dll',
@@ -69,13 +68,10 @@ GTK_FILES = [
     'bin/libpango-1.0-0.dll',
     'bin/libpangocairo-1.0-0.dll',
     'bin/libpangowin32-1.0-0.dll',
-    'bin/libpng12-0.dll',
-    'bin/libtiff3.dll',
     'bin/zlib1.dll',
-    'etc/gtk-2.0/gdk-pixbuf.loaders',
     'etc/gtk-2.0/gtk.immodules',
     'etc/pango/pango.modules',
-    'lib/gtk-2.0/2.10.0', # engines, immodules, and pixbuf loaders
+    'lib/gtk-2.0/2.10.0/engines/libwimp.dll',
     'share/themes',
     'share/doc/cairo-1*',
     'share/doc/glib-2*',
@@ -92,11 +88,11 @@ TEMPLATE = \
                Comments='Reinteract Installer for Windows'
                Manufacturer='Owen Taylor' InstallerVersion='200' Compressed='yes' />
 
-      <!-- We allow "upgrading" over the same version to support moving between
-           the Python-2.5 and Python-2.6 versions; this triggers a validation
-           warning but I'm not sure a better way to handle it -->
+      <!-- We used to allow "upgrading" over the same version to support moving
+           between the Python-2.5 and Python-2.6 versions; that triggers a validation
+           warning, and we're only supporting Python-2.7 at the moment -->
       <Upgrade Id='%(upgrade_code)s'>
-          <UpgradeVersion Maximum='%(version)s' IncludeMaximum='yes' MigrateFeatures='yes' Property='PREVIOUSVERSIONS'/>
+          <UpgradeVersion Maximum='%(version)s' IncludeMaximum='no' MigrateFeatures='yes' Property='PREVIOUSVERSIONS'/>
       </Upgrade>
 
       <InstallExecuteSequence>
