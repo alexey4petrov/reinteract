@@ -23,8 +23,9 @@ icon_file = os.path.join(topdir, 'data', 'Reinteract.ico')
 try:
     # Get the git description of the current commit, e.g.
     # REINTERACT_0_4_8-3-gac3e15d
+    gitdir = os.path.join(topdir, ".git").encode("UTF-8")
     version = subprocess.Popen(["git", "describe"],
-                               env={'GIT_DIR': os.path.join(topdir, ".git")},
+                               env={'GIT_DIR': gitdir},
                                stdout=subprocess.PIPE).communicate()[0]
     # Transform REINTERACT_0_4_8 into 0.4.8
     version = re.sub("^REINTERACT_", "", version)
