@@ -60,15 +60,20 @@ class ResultWidget(gtk.DrawingArea):
 
             self.notify_resolution_id = \
                 screen.connect("notify::resolution", self._on_notify_resolution)
-            self.sync_dpi(screen.get_resolution())
+            self._sync_dpi(screen.get_resolution())
 
     def _on_notify_resolution(self, screen, param_spec):
-        self.sync_dpi(screen.get_resolution())
+        self._sync_dpi(screen.get_resolution())
 
     def _on_parent_style_set(self, widget, previous_style):
         self.sync_style(self.parent.style)
 
         self.queue_resize()
+
+    def _sync_dpi(self, dpi):
+        if dpi <= 0: # Happens on Windows
+            dpi = 96
+        self.sync_dpi(dpi)
 
     def sync_dpi(self, dpi):
         pass
