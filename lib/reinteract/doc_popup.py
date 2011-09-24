@@ -72,6 +72,7 @@ class DocPopup(Popup):
         self.__scrollbar.set_parent(self)
         self.__scrollbar.show()
         self.__view.emit('set-scroll-adjustments', None, self.__scrollbar.get_adjustment())
+        self.__view.connect('scroll-event', self.on_scroll_event)
 
         self.__vscrolled = False
 
@@ -222,6 +223,9 @@ class DocPopup(Popup):
         self.__view.map()
         if self.focused and self.__vscrolled:
             self.__scrollbar.map()
+        else:
+            # the scrollbar needs to be realized to accept the scroll events we forward it
+            self.__scrollbar.realize()
 
     def do_remove(self, child):
         if child == self.__view:
@@ -318,6 +322,9 @@ class DocPopup(Popup):
             return True
         else:
             return self.event(event)
+
+    def on_scroll_event(self, widget, event):
+        return self.__scrollbar.do_scroll_event(self.__scrollbar, event)
 
 if __name__ == "__main__": # INTERACTIVE
     import re
