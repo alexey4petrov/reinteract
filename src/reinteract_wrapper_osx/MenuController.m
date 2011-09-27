@@ -189,6 +189,11 @@ selectorToActionName(SEL selector)
     [self activateAction:sender];
 }
 
+-(void)print:(id)sender
+{
+    [self activateAction:sender];
+}
+
 -(void)quit:(id)sender
 {
     [self activateAction:sender];

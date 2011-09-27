@@ -18,6 +18,14 @@
 			<string>NSResponder</string>
 		</dict>
 		<dict>
+			<key>CLASS</key>
+			<string>NSMenuItem</string>
+			<key>LANGUAGE</key>
+			<string>ObjC</string>
+			<key>SUPERCLASS</key>
+			<string>NSObject</string>
+		</dict>
+		<dict>
 			<key>ACTIONS</key>
 			<dict>
 				<key>about</key>
@@ -53,6 +61,8 @@
 				<key>paste</key>
 				<string>id</string>
 				<key>preferences</key>
+				<string>id</string>
+				<key>print</key>
 				<string>id</string>
 				<key>quit</key>
 				<string>id</string>
