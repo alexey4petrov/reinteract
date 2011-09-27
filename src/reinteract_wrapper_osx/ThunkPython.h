@@ -104,7 +104,7 @@ struct {
 #define PyExc_RuntimeError (*python_thunks.thunk_PyExc_RuntimeError)
 #define PyExc_TypeError (*python_thunks.thunk_PyExc_TypeError)
 
-int init_thunk_python();
+int init_thunk_python(const char *framework_dir);
 
 #endif USE_PYTHON_THUNKS
 

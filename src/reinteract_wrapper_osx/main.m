@@ -104,8 +104,36 @@ int main(int argc, char *argv[])
 #ifdef USE_PYTHON_THUNKS
     /* Find the right version of Python and fill the vtable of "thunks"
      * to that library */
-    if (!init_thunk_python())
+    const char *frameworkDir = getenv("PYTHON_FRAMEWORK_DIR");
+    if (!frameworkDir) {
+        CFStringRef pythonFrameworkDirKey = CFSTR("pythonFrameworkDir");
+        NSString *prefsDir;
+
+        prefsDir = (NSString *)CFPreferencesCopyAppValue(pythonFrameworkDirKey,
+                                                         kCFPreferencesCurrentApplication);
+        [prefsDir autorelease];
+
+        frameworkDir = [prefsDir UTF8String];
+    }
+
+    if (!init_thunk_python(frameworkDir)) {
+        NSString *message;
+
+        if (frameworkDir) {
+            message = [NSString stringWithFormat: @"Specified location: %s", frameworkDir];
+        } else {
+            message = @"Please download the latest Python 2 from python.org.";
+        }
+
+        NSAlert *alert = [NSAlert alertWithMessageText:@"Can't find Python 2, " MIN_PYTHON_VERSION " or newer"
+                                  defaultButton:nil
+                                  alternateButton:nil
+                                  otherButton:nil
+                                  informativeTextWithFormat:@"%@", message];
+        [alert runModal];
+
         exit(1);
+    }
 #endif
 
     /* Normal Python initialization */
