@@ -165,7 +165,11 @@ class BaseNotebookWindow(BaseWindow):
 
         # Prevent visual artifacts by hiding first
         self.window.hide()
-        for editor in self.editors:
+
+        # Prevent reentrancy problems from having destroyed editors in self.editors
+        editors = self.editors
+        self.editors = []
+        for editor in editors:
             editor.widget._notebook_window_editor = None
             editor.destroy()
 
