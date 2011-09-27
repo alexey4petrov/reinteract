@@ -23,8 +23,9 @@ from global_settings import global_settings
 from application import application
 
 def main():
-    if sys.version_info < (2, 5, 0):
-        message = "Reinteract requires Python 2.5 or newer"
+    # When changing this, make sure to update configure.ac as well
+    if sys.version_info < (2, 6, 1):
+        message = "Reinteract requires Python 2.6.1 or newer"
         print >>sys.stderr, message
         try:
             dialog = gtk.MessageDialog(buttons=gtk.BUTTONS_OK,

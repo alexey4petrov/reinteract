@@ -4,12 +4,18 @@ AC_CONFIG_AUX_DIR(config)
 
 AM_INIT_AUTOMAKE([dist-bzip2 no-dist-gzip])
 AM_MAINTAINER_MODE
-AM_PATH_PYTHON(2.4)
+
+dnl When changing this, make sure to update main.py as well
+m4_define([min_python_version], [2.6.1])
+AM_PATH_PYTHON(min_python_version)
 
 AC_CONFIG_HEADERS(config.h)
 
 AC_PROG_CC
 AC_PROG_OBJC
+
+AC_DEFINE(MIN_PYTHON_VERSION, ["min_python_version"],
+          [Minimum version of Python we require])
 
 changequote(,)dnl
 if test "x$GCC" = "xyes"; then
