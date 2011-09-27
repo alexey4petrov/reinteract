@@ -62,18 +62,8 @@ application = None
 import reinteract.preferences_dialog
 reinteract.preferences_dialog.cleanup()
 
-from reinteract.gc_utils import gc_idle_flush
+from reinteract.gc_utils import gc_idle_flush, dump_live_gobjects
 
 gc_idle_flush()
-import gc
-import gobject
+dump_live_gobjects()
 
-found_live = False
-
-objs = gc.get_objects()
-for o in objs:
-    if isinstance(o, gobject.GObject) and o is not global_settings:
-        if not found_live:
-            print >>sys.stderr, "Live GObjects found at shutdown:"
-            found_live = True
-        print >>sys.stderr, "   ", o
