@@ -21,12 +21,14 @@ reinteractpkg_PYTHON =                                                        \
                     lib/reinteract/config_file.py                             \
                     lib/reinteract/custom_result.py                           \
                     lib/reinteract/data_format.py                             \
+                    lib/reinteract/destroyable.py                             \
                     lib/reinteract/doc_format.py                              \
                     lib/reinteract/doc_popup.py                               \
                     lib/reinteract/editor.py                                  \
                     lib/reinteract/editor_window.py                           \
                     lib/reinteract/file_list.py                               \
                     lib/reinteract/format_escaped.py                          \
+                    lib/reinteract/gc_utils.py                                \
                     lib/reinteract/global_settings.py                         \
                     lib/reinteract/iter_copy_from.py                          \
                     lib/reinteract/library_editor.py                          \
@@ -70,6 +72,7 @@ replot_PYTHON = lib/replot.py
 examplesdir = $(pkgdatadir)/examples
 examples_DATA =					\
              examples/basics.rws		\
+             examples/build.rws			\
              examples/imshow.rws		\
              examples/index.rnb			\
              examples/play.rws			\
@@ -114,18 +117,15 @@ BUNDLE_EXTRA =							\
 	tools/build_bundle/reinteract.dsstore
 
 BUILD_DEPS_OSX_EXTRA =							\
-	tools/build_deps_osx/Python-2.5.2-framework-arch-only.patch	\
-	tools/build_deps_osx/Python-2.5.2-framework-arch.patch		\
+	tools/build_deps_osx/Python-2.6.7-build-fixes.patch		\
+	tools/build_deps_osx/Python-2.6.7-framework-arch.patch		\
 	tools/build_deps_osx/README					\
 	tools/build_deps_osx/build.sh					\
-	tools/build_deps_osx/gdk-quartz-eventloop-rework-20080905.patch	\
-	tools/build_deps_osx/gdk-window-process-updates-hook.patch	\
-	tools/build_deps_osx/gtk-dont-steal-update-region.patch		\
 	tools/build_deps_osx/i386.cache					\
 	tools/build_deps_osx/jhbuildrc-reinteract			\
+	tools/build_deps_osx/glib-2.28.8-zlib-macosx.patch		\
 	tools/build_deps_osx/pango-relocate.patch			\
 	tools/build_deps_osx/ppc.cache					\
-	tools/build_deps_osx/pycairo-unknown-surface-types.patch	\
 	tools/build_deps_osx/reinteract-bootstrap.modules		\
 	tools/build_deps_osx/reinteract.modules
 
