@@ -58,6 +58,37 @@
     </after>
   </autotools>
 
+  <!-- Add two patches fixing a crash when printing -->
+  <autotools id="gtk+" autogen-sh="configure"
+             autogenargs="--with-gdktarget=quartz"
+             autogen-template="autoreconf -fis &amp;&amp; %(srcdir)s/%(autogen-sh)s --prefix %(prefix)s --libdir %(libdir)s %(autogenargs)s">
+    <branch repo="gnomeftp" module="gtk+/2.24/gtk+-2.24.0.tar.bz2" version="2.24.0"
+            hash="sha256:cbed1a7b8cd1e471388a00f22557dd061334698a0c1aece11b7ed6541d115606">
+      <patch file="https://raw.github.com/jralls/gtk-osx-build/master/patches/gtkselection.patch" strip="1"/>
+      <patch file="https://raw.github.com/jralls/gtk-osx-build/master/patches/gtk-introspection.patch" strip="1"/>
+      <patch file="https://raw.github.com/jralls/gtk-osx-build/master/patches/gtk-keyhash.patch" strip="1"/>
+      <patch file="https://raw.github.com/jralls/gtk-osx-build/master/patches/gtk-relocation.patch" strip="1"/>
+      <patch file="https://raw.github.com/jralls/gtk-osx-build/master/patches/gdk-deadkeys.patch" strip="1"/>
+      <patch file="https://raw.github.com/jralls/gtk-osx-build/master/patches/gdkeventloop.patch" strip="1"/>
+      <patch file="https://raw.github.com/jralls/gtk-osx-build/master/patches/gtkdndmemory.patch" strip="1"/>
+      <patch file="https://raw.github.com/jralls/gtk-osx-build/master/patches/gtkselection_deref.patch" strip="1"/>
+      <patch file="https://raw.github.com/jralls/gtk-osx-build/master/patches/gtk-borderless.patch" strip="1"/>
+      <patch file="https://raw.github.com/jralls/gtk-osx-build/master/patches/gtk2-lion-resize.patch" strip="1"/>
+      <patch file="https://raw.github.com/jralls/gtk-osx-build/master/patches/gdk-quartz-version.patch" strip="1"/>
+      <patch file="https://raw.github.com/jralls/gtk-osx-build/master/patches/gdk-quartz-norects.patch" strip="1"/>
+      <patch file="gtk+-2.24.0-poll-error.patch" strip="1"/>
+      <patch file="gtk+-2.24.0-print-polling.patch" strip="1"/>
+    </branch>
+    <dependencies>
+      <dep package="pango"/>
+      <dep package="atk"/>
+      <dep package="gdk-pixbuf"/>
+    </dependencies>
+    <after>
+      <dep package="meta-gtk-osx-bootstrap"/>
+    </after>
+  </autotools>
+
   <!-- pycairo dep instead of pycairo2.6 -->
   <!-- The patch addresses bug 640738. -->
   <autotools id="pygtk" autogen-sh="configure" 

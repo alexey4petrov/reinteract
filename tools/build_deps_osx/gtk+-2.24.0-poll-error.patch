@@ -1,0 +1,62 @@
+From 838d3205dc45ad842a399209a61e5cbe4a3365cb Mon Sep 17 00:00:00 2001
+From: Owen W. Taylor <otaylor@fishsoup.net>
+Date: Tue, 27 Sep 2011 15:24:37 -0400
+Subject: [PATCH] gdkeventloop-quartz: don't die with an assertion if poll() fails
+
+If the GLib poll function returns -1, that means that an error
+occurred; confusing that with the -1 return from
+select_thread_start_poll() was causing us to die with an assertion
+failure when we tried to collect the results of the poll.
+
+https://bugzilla.gnome.org/show_bug.cgi?id=660306---
+ gdk/quartz/gdkeventloop-quartz.c |   14 ++++++++++++++
+ 1 files changed, 14 insertions(+), 0 deletions(-)
+
+diff --git a/gdk/quartz/gdkeventloop-quartz.c b/gdk/quartz/gdkeventloop-quartz.c
+index 32ea8a4..8b80644 100644
+--- a/gdk/quartz/gdkeventloop-quartz.c
++++ b/gdk/quartz/gdkeventloop-quartz.c
+@@ -1,5 +1,6 @@
+ #include "config.h"
+ 
++#include <errno.h>
+ #include <glib.h>
+ #include <pthread.h>
+ #include <sys/types.h>
+@@ -420,6 +421,9 @@ select_thread_start_poll (GPollFD *ufds,
+    * check is sufficient and we never need to do the asynchronous poll.
+    */
+   n_ready = old_poll_func (ufds, nfds, 0);
++  if (n_ready < 0)
++    return -2;
++
+   if (n_ready > 0 || timeout == 0)
+     {
+ #ifdef G_ENABLE_DEBUG
+@@ -700,6 +704,9 @@ poll_func (GPollFD *ufds,
+   gint n_ready;
+ 
+   n_ready = select_thread_start_poll (ufds, nfds, timeout_);
++  if (n_ready == -2) /* poll() failed */
++    return -1;
++
+   if (n_ready > 0)
+     timeout_ = 0;
+ 
+@@ -866,6 +873,13 @@ run_loop_before_waiting (void)
+   run_loop_n_pollfds = query_main_context (context, run_loop_max_priority, &timeout);
+ 
+   n_ready = select_thread_start_poll (run_loop_pollfds, run_loop_n_pollfds, timeout);
++  if (n_ready == -2) /* poll() failed */
++    {
++      if (errno != EINTR)
++	g_warning ("poll(2) failed due to: %s.", g_strerror (errno));
++
++      return;
++    }
+ 
+   if (n_ready > 0 || timeout == 0)
+     {
+-- 
+1.6.0.2
+
