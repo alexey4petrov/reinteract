@@ -1,0 +1,143 @@
+--- configure.in.framework-arch	2010-05-24 22:27:03.000000000 -0400
++++ configure.in	2011-09-23 01:06:14.000000000 -0400
+@@ -1619,6 +1619,22 @@
+     ;;
+ esac
+ 
++# This handles the case when someone specifies CC="gcc -arch ppc"
++# to do a cross-arch build. It's probably better to use the autoconf
++# build-system variables, but this is easier to figure out for
++# a quick hack.
++#
++case "$CC" in
++     *ppc*)
++         darwin_arch=ppc
++	 ;;
++     *i386*)
++         darwin_arch=i386
++	 ;;
++     *)
++	 darwin_arch=`/usr/bin/arch`
++	 ;;
++esac
+ 
+ ARCH_RUN_32BIT=""
+ AC_SUBST(LIBTOOL_CRUFT)
+@@ -1628,7 +1644,7 @@
+     if test "${enable_universalsdk}"; then
+ 	    :
+     else
+-        LIBTOOL_CRUFT="${LIBTOOL_CRUFT} -arch_only `/usr/bin/arch`"
++        LIBTOOL_CRUFT="${LIBTOOL_CRUFT} -arch_only $darwin_arch"
+     fi
+     LIBTOOL_CRUFT=$LIBTOOL_CRUFT' -install_name $(PYTHONFRAMEWORKINSTALLDIR)/Versions/$(VERSION)/$(PYTHONFRAMEWORK)'
+     LIBTOOL_CRUFT=$LIBTOOL_CRUFT' -compatibility_version $(VERSION) -current_version $(VERSION)';;
+@@ -1655,7 +1671,7 @@
+        ac_osx_32bit=yes)
+     
+     if test "${ac_osx_32bit}" = "yes"; then
+-    	case `/usr/bin/arch` in
++    	case $darwin_arch in
+     	i386) 
+     		MACOSX_DEFAULT_ARCH="i386" 
+     		;;
+@@ -1667,7 +1683,7 @@
+     		;;
+     	esac
+     else
+-    	case `/usr/bin/arch` in
++    	case $darwin_arch in
+     	i386) 
+     		MACOSX_DEFAULT_ARCH="x86_64" 
+     		;;
+--- configure.framework-arch	2010-05-24 22:27:03.000000000 -0400
++++ configure	2011-09-23 01:05:06.000000000 -0400
+@@ -7154,13 +7154,30 @@
+ 
+ ARCH_RUN_32BIT=""
+ 
++# This handles the case when someone specifies CC="gcc -arch ppc"
++# to do a cross-arch build. It's probably better to use the autoconf
++# build-system variables, but this is easier to figure out for
++# a quick hack.
++#
++case "$CC" in
++     *ppc*)
++         darwin_arch=ppc
++	 ;;
++     *i386*)
++         darwin_arch=i386
++	 ;;
++     *)
++	 darwin_arch=`/usr/bin/arch`
++	 ;;
++esac
++ 
+ case $ac_sys_system/$ac_sys_release in
+   Darwin/[01567]\..*)
+     LIBTOOL_CRUFT="-framework System -lcc_dynamic"
+     if test "${enable_universalsdk}"; then
+ 	    :
+     else
+-        LIBTOOL_CRUFT="${LIBTOOL_CRUFT} -arch_only `/usr/bin/arch`"
++        LIBTOOL_CRUFT="${LIBTOOL_CRUFT} -arch_only $darwin_arch"
+     fi
+     LIBTOOL_CRUFT=$LIBTOOL_CRUFT' -install_name $(PYTHONFRAMEWORKINSTALLDIR)/Versions/$(VERSION)/$(PYTHONFRAMEWORK)'
+     LIBTOOL_CRUFT=$LIBTOOL_CRUFT' -compatibility_version $(VERSION) -current_version $(VERSION)';;
+@@ -7200,7 +7217,7 @@
+ 
+ 
+     if test "${ac_osx_32bit}" = "yes"; then
+-    	case `/usr/bin/arch` in
++    	case $darwin_arch in
+     	i386)
+     		MACOSX_DEFAULT_ARCH="i386"
+     		;;
+@@ -7212,7 +7229,7 @@
+     		;;
+     	esac
+     else
+-    	case `/usr/bin/arch` in
++    	case $darwin_arch in
+     	i386)
+     		MACOSX_DEFAULT_ARCH="x86_64"
+     		;;
+@@ -11331,6 +11348,22 @@
+ 
+ fi
+ 
++# This handles the case when someone specifies CC="gcc -arch ppc"
++# to do a cross-arch build. It's probably better to use the autoconf
++# build-system variables, but this is easier to figure out for
++# a quick hack.
++#
++case "$CC" in
++     *ppc*)
++         darwin_arch=ppc
++	 ;;
++     *i386*)
++         darwin_arch=i386
++	 ;;
++     *)
++	 darwin_arch=`arch`
++	 ;;
++esac
+ 
+ # On FreeBSD 6.2, it appears that tanh(-0.) returns 0. instead of
+ # -0. on some architectures.
+--- Makefile.pre.in.framework-arch	2010-08-01 18:05:31.000000000 -0400
++++ Makefile.pre.in	2011-09-23 01:00:01.000000000 -0400
+@@ -441,8 +441,11 @@
+ 			-compatibility_version $(VERSION) \
+ 			-current_version $(VERSION); \
+         else \
+-		/usr/bin/libtool -o $(LDLIBRARY) -dynamic $(OTHER_LIBTOOL_OPT) $(LIBRARY) \
+-			@LIBTOOL_CRUFT@ ;\
++		$(CC) -o $(LDLIBRARY) -dynamiclib \
++			-all_load $(LIBRARY) -Wl,-single_module \
++			-install_name $(DESTDIR)$(PYTHONFRAMEWORKINSTALLDIR)/Versions/$(VERSION)/Python \
++			-compatibility_version $(VERSION) \
++			-current_version $(VERSION); \
+ 	fi
+ 	$(INSTALL) -d -m $(DIRMODE)  \
+ 		$(PYTHONFRAMEWORKDIR)/Versions/$(VERSION)/Resources/English.lproj

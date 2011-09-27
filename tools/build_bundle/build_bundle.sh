@@ -11,10 +11,6 @@
 # Script to build a universal binary of Reinteract to use in the bundle
 # and then build the binary
 
-# We need to run JHBuild with Python2.5 so that it creates the right
-# $PYTHONPATH environment variable for the Python2.5 we build within it.
-JHBUILD="python2.5 `which jhbuild`"
-
 if [ -n "$JHBUILD_PREFIX" ] ; then
     echo 1>&2 "JHBuild is already running"
     exit 1
@@ -36,6 +32,10 @@ for i in png jpeg tiff ; do
 done
 
 export JHB=reinteract JHB_VARIANT=release-i386
+
+# Run jhbuild with our built Python it so it sets $PYTHONPATH
+#  more accurately.
+JHBUILD="/opt/reinteract/$JHB_VARIANT/install/bin/python `which jhbuild`"
 
 $JHBUILD run env										\
        OBJC='gcc -arch i386 -arch ppc'							\

@@ -7,16 +7,13 @@
   <!-- Start with the standard bootstrap modules -->
   <include href="http://git.gnome.org/browse/jhbuild/plain/modulesets/bootstrap.modules"/>
 
-  <!-- But downgrade to a python-2.5 tarball to try and be compatible with Leopard system python -->
+  <!-- We add a couple of patches to Python to fix up our multi-arch build -->
   <autotools id="python" autogenargs="--enable-shared" autogen-sh="configure">
     <branch repo="python"
-            module="2.5.2/Python-2.5.2.tar.bz2" version="2.5.2"
-            size="9807597" md5sum="afb5451049eda91fbde10bd5a4b7fadc">
-      <patch file="Python-2.5.2-framework-arch.patch" strip="0" />
-       <!-- I'm not sure if this has been folded into 2.5, but it's irrelevant
-            for our purposes anyways:
-      <patch file="python-2.4.5-lib64.patch" strip="1" />
-       -->
+            module="2.6.7/Python-2.6.7.tar.bz2" version="2.6.7"
+            size="11084667" md5sum="d40ef58ed88438a870bbeb0ac5d4217b">
+      <patch file="Python-2.6.7-framework-arch.patch" strip="0" />
+      <patch file="Python-2.6.7-build-fixes.patch" strip="0" />
     </branch>
   </autotools>
 </moduleset>

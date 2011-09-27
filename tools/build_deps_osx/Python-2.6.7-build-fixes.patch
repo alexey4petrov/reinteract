@@ -1,0 +1,39 @@
+--- Makefile.pre.in.missingdir	2011-09-23 10:42:00.000000000 -0400
++++ Makefile.pre.in	2011-09-23 10:42:02.000000000 -0400
+@@ -1053,29 +1053,30 @@
+ # Install a number of symlinks to keep software that expects a normal unix
+ # install (which includes python-config) happy.
+ frameworkinstallmaclib:
++	mkdir -p "$(DESTDIR)$(prefix)/lib/python$(VERSION)/config"
+ 	ln -fs "../../../$(PYTHONFRAMEWORK)" "$(DESTDIR)$(prefix)/lib/python$(VERSION)/config/libpython$(VERSION).a"
+ 	ln -fs "../../../$(PYTHONFRAMEWORK)" "$(DESTDIR)$(prefix)/lib/python$(VERSION)/config/libpython$(VERSION).dylib"
+ 	cd Mac && $(MAKE) installmacsubtree DESTDIR="$(DESTDIR)"
+ 
+ # This installs the IDE, the Launcher and other apps into /Applications
+ frameworkinstallapps:
+-	cd Mac && $(MAKE) installapps DESTDIR="$(DESTDIR)"
++#	cd Mac && $(MAKE) installapps DESTDIR="$(DESTDIR)"
+ 
+ frameworkinstallapps4way:
+-	cd Mac && $(MAKE) installapps4way DESTDIR="$(DESTDIR)"
++#	cd Mac && $(MAKE) installapps4way DESTDIR="$(DESTDIR)"
+ 
+ # This install the unix python and pythonw tools in /usr/local/bin
+ frameworkinstallunixtools:
+-	cd Mac && $(MAKE) installunixtools DESTDIR="$(DESTDIR)"
++	cd Mac && $(MAKE) installunixtools DESTDIR="$(DESTDIR)"
+ 
+ frameworkinstallunixtools4way:
+-	cd Mac && $(MAKE) installunixtools4way DESTDIR="$(DESTDIR)"
++	cd Mac && $(MAKE) installunixtools4way DESTDIR="$(DESTDIR)"
+ 
+ frameworkaltinstallunixtools:
+-	cd Mac && $(MAKE) altinstallunixtools DESTDIR="$(DESTDIR)"
++	cd Mac && $(MAKE) altinstallunixtools DESTDIR="$(DESTDIR)"
+ 
+ frameworkaltinstallunixtools4way:
+-	cd Mac && $(MAKE) altinstallunixtools4way DESTDIR="$(DESTDIR)"
++	cd Mac && $(MAKE) altinstallunixtools4way DESTDIR="$(DESTDIR)"
+ 
+ # This installs the Demos and Tools into the applications directory.
+ # It is not part of a normal frameworkinstall
