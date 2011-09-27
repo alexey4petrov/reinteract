@@ -32,6 +32,7 @@ else:
 _cflags = '-std=gnu89'
 if "devel" in _variant:
     _optimize = '-gstabs+3 -O1'
+    append_autogenargs("gtk+", "--enable-debug")
 else:
     _optimize = '-O2'
 
