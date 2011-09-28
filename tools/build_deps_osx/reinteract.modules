@@ -89,7 +89,19 @@
     </after>
   </autotools>
 
-  <!-- pycairo dep instead of pycairo2.6 -->
+  <!-- Upgrade to the latest stable release; 2.27 is leaky -->
+  <autotools id="pygobject" autogen-sh="configure"
+                  autogenargs="--disable-introspection">
+    <branch version="2.28.6" repo="gnomeftp" module="sources/pygobject/2.28/pygobject-2.28.6.tar.bz2"
+            hash="sha256:e4bfe017fa845940184c82a4d8949db3414cb29dfc84815fb763697dc85bdcee"/>
+    <dependencies>
+      <dep package="meta-gtk-osx-core"/>
+    </dependencies>
+    <after>
+      <dep package="python"/>
+    </after>
+  </autotools>
+  
   <!-- The patch addresses bug 640738. -->
   <autotools id="pygtk" autogen-sh="configure" 
 	     autogenargs="--disable-introspection">
@@ -100,7 +112,7 @@
     <dependencies>
       <dep package="pygobject"/>
       <dep package="meta-gtk-osx-core"/>
-      <dep package="pycairo"/>
+      <dep package="pycairo-python2.6"/>
     </dependencies>
     <after>
       <dep package="libglade"/>
