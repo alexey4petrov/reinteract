@@ -191,6 +191,10 @@ class DocPopup(Popup):
 
     def do_expose_event(self, event):
         Popup.do_expose_event(self, event)
+
+        # needed because we can't implement forall, see below
+        self.propagate_expose(self.__scrollbar, event)
+
         if self.__can_focus and not self.focused and self.__vscrolled:
             layout = self.__create_f2_layout()
             width, height = layout.get_pixel_size()
