@@ -32,7 +32,7 @@ class Chunk(object):
             self.changes.insert(0, self.start - start)
             self.start = start
         if end > self.end:
-            self.changes.insert(self.end -self.start, self.start - start)
+            self.changes.insert(self.end - self.start, end - self.end)
             self.end = end
         if start > self.start:
             self.changes.delete_range(0, start - self.start)

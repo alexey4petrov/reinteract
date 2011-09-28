@@ -1307,6 +1307,14 @@ if __name__ == '__main__': #pragma: no cover
     expect([B(0,1),S(1,2)])
     expect_log([CD(), CI(0,1), CSC(1,2)])
 
+    # change a statement into a comment
+    clear()
+    insert(0, 0, "# a\nb")
+    clear_log()
+    insert(1, 0, "#")
+    expect([C(0,2)])
+    expect_log([CD(), CC(0,2,[1])])
+
     # Turning a statement into a continuation line
     clear()
     insert(0, 0, "1 \\\n+ 2\n")
