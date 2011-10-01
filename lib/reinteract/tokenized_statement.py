@@ -38,7 +38,7 @@ def get_prefixes(items):
 # it would still be annoying for common keywords
 KEYWORD_PREFIXES = get_prefixes([
         'and', 'as', 'assert', 'break', 'build', 'class', 'continue', 'def', 'del',
-        'elif', 'else', 'except', 'exec', 'finally', 'for', 'from'
+        'elif', 'else', 'except', 'exec', 'finally', 'for', 'from',
         'if', 'import', 'in', 'is', 'global', 'lambda', 'not', 'or',
         'pass', 'print', 'raise', 'return', 'try', 'with', 'while', 'yield'
 ])
