@@ -95,9 +95,9 @@ case $host in
 	    CFLAGS="$CFLAGS $PYTHON_INCLUDES"
 	    save_LIBS="$LIBS"
 	    LIBS="$LIBS $PYTHON_LIBS"
-            AC_LINK_IFELSE(AC_LANG_PROGRAM([#include <Python.h>], [Py_Initialize();]),
+            AC_LINK_IFELSE([AC_LANG_PROGRAM([[#include <Python.h>]], [[Py_Initialize();]])],
 	                   :,
-		  	   AC_MSG_ERROR([Linking against Python didn't work; see config.log for details]))
+			   [AC_MSG_ERROR([Linking against Python didn't work; see config.log for details])])
 	    CFLAGS="$save_CFLAGS"
 	    LIBS="$save_LIBS"
 	fi
