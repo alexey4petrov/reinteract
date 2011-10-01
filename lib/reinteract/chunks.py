@@ -6,10 +6,8 @@
 #
 ########################################################################
 
-import traceback
-
 from change_range import ChangeRange
-from statement import Statement, WarningResult
+from statement import Statement
 from tokenized_statement import TokenizedStatement;
 
 class Chunk(object):
