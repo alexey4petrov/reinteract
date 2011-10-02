@@ -6,8 +6,6 @@
 #
 ########################################################################
 
-import sys
-
 import glib
 import gobject
 import logging
@@ -994,6 +992,8 @@ class Worksheet(Destroyable, gobject.GObject):
 ######################################################################
 
 if __name__ == '__main__': #pragma: no cover
+    import sys
+
     if "-d" in sys.argv:
         logging.basicConfig(level=logging.DEBUG, format="DEBUG: %(message)s")
 
