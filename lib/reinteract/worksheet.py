@@ -625,8 +625,6 @@ class Worksheet(Destroyable, gobject.GObject):
 
         for chunk in self.iterate_chunks(end_line=end_line):
             if isinstance(chunk, StatementChunk):
-                changed = False
-
                 if chunk.needs_compile or chunk.needs_execute:
                     if not executor:
                         executor = ThreadExecutor(parent)
