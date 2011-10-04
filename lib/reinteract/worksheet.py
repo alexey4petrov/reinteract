@@ -363,6 +363,9 @@ class Worksheet(Destroyable, gobject.GObject):
         self.__changes.clear()
         self.__scan_adjacent = False
 
+        if rescan_start == rescan_end:
+            return;
+
         if self.__chunks[rescan_start] is not None:
             rescan_start = self.__chunks[rescan_start].start;
         if self.__chunks[rescan_end - 1] is not None:
