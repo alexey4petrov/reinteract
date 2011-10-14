@@ -159,9 +159,8 @@ class _Transformer(ast.NodeTransformer):
 
             node.optional_vars = optional_vars
             node.body = [self.visit(n) for n in node.body]
-            node.body.append(self.visit(output_stmt))
 
-            return node
+            return node, self.visit(output_stmt)
         else:
             return self.generic_visit(node)
 
