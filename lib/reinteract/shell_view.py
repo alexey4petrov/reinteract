@@ -170,7 +170,7 @@ class ShellView(gtk.TextView):
                 elif chunk.needs_compile:
                     self.paint_chunk(cr, event.area, chunk, (1, 1, 0), (0.5, 0.5, 0))
                 elif chunk.needs_execute:
-                    self.paint_chunk(cr, event.area, chunk, (1, 0, 1), (0.5, 0.5, 0))
+                    self.paint_chunk(cr, event.area, chunk, (1, 0, 1), (0.5, 0, 0.5))
                 else:
                     self.paint_chunk(cr, event.area, chunk, (0, 0, 1), (0, 0, 0.5))
 
