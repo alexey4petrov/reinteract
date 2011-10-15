@@ -173,6 +173,8 @@ class BaseNotebookWindow(BaseWindow):
             editor.widget._notebook_window_editor = None
             editor.destroy()
 
+        self.current_editor = None
+
         BaseWindow._close_window(self, confirm_discard, wait_for_execution)
 
     #######################################################
