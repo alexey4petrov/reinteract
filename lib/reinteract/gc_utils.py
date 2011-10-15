@@ -115,7 +115,12 @@ def dump_live_gobjects():
         short_desc, descend = get_short_desc(o, referrers)
         new_short = add_to_printed(o, short_desc)
 
-        print indent, new_short + dict_suffix
+        have_referrers = any(not (id(r) in ignored_objects or  "'frame'" in str(type(r))) for r in referrers)
+
+        if not have_referrers:
+            print indent, '***', new_short + dict_suffix
+        else:
+            print indent, new_short + dict_suffix
 
         # 60 here is arbitrary - just a safety check in case we
         # get an infinite loop in some unexpected way
