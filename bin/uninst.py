@@ -57,6 +57,14 @@ if len(application.windows) > 0:
     print "Some worksheets still executing, skipping leak checks."
     sys.exit(0)
 
+# If an exception occurs and is printed with PyErr_Print() and ignored
+# (say it occurs inside a signal handler), Python saves information about
+# it in global variables, that will confuse our leak detection.
+
+sys.last_type = None
+sys.last_value = None
+sys.last_traceback = None
+
 application = None
 
 import reinteract.preferences_dialog
