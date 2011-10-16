@@ -204,19 +204,9 @@ class _Transformer(ast.NodeTransformer, _ScopeMixin):
 
         return self.generic_visit(node)
 
-    def visit_body(self, node, skip_docs=False):
-        if (skip_docs and
-            len(node.body) > 0 and
-            isinstance(node.body[0], ast.Expr) and
-            isinstance(node.body[0].value, ast.Str)):
-
-            body = [node.body[0]]
-            start = 1
-        else:
-            body = []
-            start = 0
-
-        for i in xrange(start, len(node.body)):
+    def visit_body(self, node):
+        body = []
+        for i in xrange(0, len(node.body)):
             child = self.visit(node.body[i])
             if isinstance(child, ast.AST):
                 body.append(child)
@@ -230,7 +220,7 @@ class _Transformer(ast.NodeTransformer, _ScopeMixin):
         node.bases = [self.visit(n) for n in node.bases]
 
         self.push_scope(node)
-        self.visit_body(node, skip_docs=True)
+        self.visit_body(node)
         self.pop_scope()
 
         return node
@@ -242,7 +232,7 @@ class _Transformer(ast.NodeTransformer, _ScopeMixin):
                 if _GETTER_RE.match(func.attr) is None:
                     self.add_mutated(func.value)
 
-        if self.output_func_name is not None:
+        if self.scope is None and self.output_func_name is not None:
             output_value = self.visit(node.value)
 
             call = node.value = ast.Call()
@@ -268,7 +258,7 @@ class _Transformer(ast.NodeTransformer, _ScopeMixin):
         node.decorator_list = [self.visit(n) for n in node.decorator_list]
 
         self.push_scope(node)
-        self.visit_body(node, skip_docs=True)
+        self.visit_body(node)
         self.pop_scope()
 
         return node
@@ -306,7 +296,8 @@ class _Transformer(ast.NodeTransformer, _ScopeMixin):
             return self.generic_visit(node)
 
     def visit_With(self, node):
-        if (isinstance(node.context_expr, ast.Call) and
+        if (self.scope is None and
+            isinstance(node.context_expr, ast.Call) and
             isinstance(node.context_expr.func, ast.Name) and
             node.context_expr.func.id == '__reinteract_builder'):
 
@@ -688,14 +679,8 @@ if __name__ == '__main__':
     test_output('1,2', (1,2))
     test_output('1;2', (2,))
     test_output('a=3; a', (3,))
-    test_output('def x():\n    1\ny = x()', (1,))
-
-    #
-    # Test that we don't intercept docstrings, even though they look like bare expressions
-    #
-    test_output('def x():\n    "x"\n    return 1\ny = x()', ())
-    test_output('def x():\n    """"x\n"""\n    return 1\ny = x()', ())
-    test_output('def x(): "x"\ny = x()', ())
+    test_output('def x():\n    1\ny = x()', ())
+    test_output('class X():\n    1\n    pass\nx = X()', ())
 
     #
     # Test our build "keyword"
