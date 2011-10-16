@@ -27,6 +27,130 @@ class UnsupportedSyntaxError(Exception):
     def __str__(self):
         return repr(self.value)
 
+NAME_NONLOCAL=0
+NAME_LOCAL=1
+NAME_GLOBAL=2
+
+# Code shared between _ScopeBindingVisitor and _Transfomer to handle tracking the
+# set of currently active lexical scopes.
+class _ScopeMixin(object):
+    def __init__(self):
+        super(_ScopeMixin, self).__init__()
+        self.scopes = []
+        self.function_count = 0
+
+    @property
+    def scope(self):
+        if len(self.scopes) > 0:
+            return self.scopes[-1]
+        else:
+            return None
+
+    @property
+    def in_function(self):
+        return self.function_count > 0
+
+    def push_scope(self, scope):
+        self.scopes.append(scope)
+        if not isinstance(scope, ast.ClassDef):
+            self.function_count += 1
+        if not hasattr(scope, '_bindings'):
+            scope._bindings = {}
+
+    def pop_scope(self):
+        scope = self.scopes.pop()
+        if isinstance(scope, ast.FunctionDef):
+            self.function_count -= 1
+
+    def resolve_name(self, name):
+        i = len(self.scopes) - 1
+        while i >= 0:
+            scope = self.scopes[i]
+            if name in scope._bindings:
+                binding = scope._bindings[name]
+                if binding == NAME_GLOBAL:
+                    return NAME_GLOBAL
+                elif i == len(self.scopes) - 1:
+                    return NAME_LOCAL
+                else:
+                    return NAME_NONLOCAL
+            i -= 1
+
+        return NAME_GLOBAL
+
+# This visitor is used to determine bindings of variables inside
+# functions according to Python's rules. There is one pecularity that
+# we don't handle here. While the Python language reference says: "The
+# following are blocks: a module, a function body, and a class
+# definition. [...]  If a name binding operation occurs anywhere
+# within a code block, all uses of the name within the block are
+# treated as references to the current block. This can lead to errors
+# when a name is used within a block before it is bound.", the following
+# code:
+#
+# a = 1
+# class X:
+#     a += 2
+#
+# isn't an error, and instead results in a == 1 and X.a == 2. We don't
+# handle this case, and say that a is purely a local variable inside
+# the class definition.  This doesn't cause any practical problems at
+# the moment.
+
+class _ScopeBindingVisitor(ast.NodeVisitor, _ScopeMixin):
+    def bind_name(self, name, binding):
+        if self.scope:
+            if not (name in self.scope._bindings and self.scope._bindings[name] == NAME_GLOBAL):
+                self.scope._bindings[name] = binding
+
+    def bind_args(self, args):
+        for arg in args.args:
+            self.bind_name(arg.id, NAME_LOCAL)
+        if args.vararg is not None:
+            self.bind_name(args.vararg, NAME_LOCAL)
+        if args.kwarg is not None:
+            self.bind_name(args.kwarg, NAME_LOCAL)
+
+    def visit_ClassDef(self, node):
+        self.bind_name(node.name, NAME_LOCAL)
+        for expr in node.decorator_list:
+            self.visit(expr)
+        for expr in node.bases:
+            self.visit(expr)
+        self.push_scope(node)
+        for stmt in node.body:
+            self.visit(stmt)
+        self.pop_scope()
+
+    def visit_FunctionDef(self, node):
+        self.bind_name(node.name, NAME_LOCAL)
+        for expr in node.decorator_list:
+            self.visit(expr)
+        self.push_scope(node)
+        self.bind_args(node.args)
+        for stmt in node.body:
+            self.visit(stmt)
+        self.pop_scope()
+
+    def visit_GeneratorExp(self, node):
+        self.push_scope(node)
+        self.generic_visit(node)
+        self.pop_scope()
+
+    def visit_Global(self, node):
+        for name in node.names:
+            self.bind_name(name, NAME_GLOBAL)
+
+    def visit_Lambda(self, node):
+        self.push_scope(node)
+        self.bind_args(node.args)
+        self.generic_visit(node)
+        self.pop_scope()
+
+    def visit_Name(self, node):
+        if isinstance(node.ctx, ast.Store):
+            self.bind_name(node.id, NAME_LOCAL)
+
 # Method names that are considered not to be getters. The Python
 # standard library contains methods called isfoo() and getfoo()
 # (though not hasfoo()) so we don't for a word boundary. It could
@@ -36,8 +160,10 @@ _GETTER_RE = re.compile("get|is|has")
 # This visitor class does the main work of rewriting - it walks over
 # the tree, inserts print and output functions, and collects imports
 # and mutated objects.
-class _Transformer(ast.NodeTransformer):
+class _Transformer(ast.NodeTransformer, _ScopeMixin):
     def __init__(self, output_func_name=None, print_func_name=None, copy_func_name=None, future_features=None):
+        super(_Transformer, self).__init__()
+
         self.build_variable_count = 0
         self.imports = None
         self.mutated = None
@@ -49,7 +175,7 @@ class _Transformer(ast.NodeTransformer):
     def add_mutated(self, node):
         if self.mutated is None:
             self.mutated = _MutationCollector(self.copy_func_name)
-        self.mutated.process(node)
+        self.mutated.process(node, self)
 
     def handle_assign_targets(self, targets):
         for target in targets:
@@ -59,6 +185,12 @@ class _Transformer(ast.NodeTransformer):
                 self.add_mutated(target.value)
             elif isinstance(target, ast.List) or isinstance(target, ast.Tuple):
                 self.handle_assign_targets(target.elts)
+            elif isinstance(target, ast.Name):
+                binding = self.resolve_name(target.id)
+                # We forbid assignments of global variables inside functions, though that's
+                # only actually bad if the function is used again at a later point.
+                if binding == NAME_GLOBAL and self.in_function:
+                    raise UnsupportedSyntaxError("Assigning to a global variable inside a function is not supported")
 
     def visit_Assign(self, node):
         self.handle_assign_targets(node.targets)
@@ -69,6 +201,37 @@ class _Transformer(ast.NodeTransformer):
         self.add_mutated(node.target)
 
         return self.generic_visit(node)
+
+    def visit_body(self, node, skip_docs=False):
+        if (skip_docs and
+            len(node.body) > 0 and
+            isinstance(node.body[0], ast.Expr) and
+            isinstance(node.body[0].value, ast.Str)):
+
+            body = [node.body[0]]
+            start = 1
+        else:
+            body = []
+            start = 0
+
+        for i in xrange(start, len(node.body)):
+            child = self.visit(node.body[i])
+            if isinstance(child, ast.AST):
+                body.append(child)
+            else:
+                body.extend(child)
+
+        node.body = body
+
+    def visit_ClassDef(self, node):
+        node.decorator_list = [self.visit(n) for n in node.decorator_list]
+        node.bases = [self.visit(n) for n in node.bases]
+
+        self.push_scope(node)
+        self.visit_body(node, skip_docs=True)
+        self.pop_scope()
+
+        return node
 
     def visit_Expr(self, node):
         if isinstance(node.value, ast.Call):
@@ -100,24 +263,27 @@ class _Transformer(ast.NodeTransformer):
             return self.generic_visit(node)
 
     def visit_FunctionDef(self, node):
-        if (len(node.body) > 0 and
-            isinstance(node.body[0], ast.Expr) and
-            isinstance(node.body[0].value, ast.Str)):
-
-            old_body = node.body
-
-            node.body = [node.body[0]]
-            for i in xrange(1, len(node.body)):
-                node.body.append(self.visit(node.body[i]))
-        else:
-            node.body = [self.visit(n) for n in node.body]
-
         node.decorator_list = [self.visit(n) for n in node.decorator_list]
+
+        self.push_scope(node)
+        self.visit_body(node, skip_docs=True)
+        self.pop_scope()
 
         return node
 
-    def visit_Global(self, node):
-        raise UnsupportedSyntaxError("The global statement is not supported")
+    def visit_GeneratorExp(self, node):
+        self.push_scope(node)
+        self.generic_visit(node)
+        self.pop_scope()
+
+        return node
+
+    def visit_Lambda(self, node):
+        self.push_scope(node)
+        self.generic_visit(node)
+        self.pop_scope()
+
+        return node
 
     def visit_Print(self, node):
         if self.print_func_name != None and node.dest is None:
@@ -158,7 +324,7 @@ class _Transformer(ast.NodeTransformer):
             output_stmt.value.ctx = ast.Load()
 
             node.optional_vars = optional_vars
-            node.body = [self.visit(n) for n in node.body]
+            self.visit_body(node)
 
             return node, self.visit(output_stmt)
         else:
@@ -279,10 +445,12 @@ class _MutationCollector(ast.NodeVisitor):
         self.root = None
         self.adding_mutations = True
 
-    def process(self, node):
+    def process(self, node, transformer):
         self.adding_mutations = True
         self.root = None
+        self.transformer = transformer
         description = self.visit(node)
+        self.transformer = None
 
         if not self.adding_mutations:
             self._add_mutation(description, node, False)
@@ -358,6 +526,19 @@ class _MutationCollector(ast.NodeVisitor):
         return '[...]', False
 
     def visit_Name(self, node):
+        binding = self.transformer.resolve_name(node.id)
+
+        if binding != NAME_GLOBAL:
+            # Mutating local variables doesn't require a copy; mutating "non-local" but
+            # not global variables indicates something tricky is going on which might
+            # or might-not be OK, we allow it for now.
+            return
+
+        # We forbid mutations of global variables inside functions, though that's
+        # only actually bad if the function is used again at a later point.
+        if self.transformer.in_function:
+            raise UnsupportedSyntaxError("Mutating a global variable inside a function is not supported")
+
         self.root = node.id
         return node.id, True
 
@@ -440,6 +621,9 @@ class Rewriter:
 
         @returns: a tuple of the compiled code followed by a list of mutations
         """
+
+        _ScopeBindingVisitor().visit(self.nodes)
+
         transformer = _Transformer(output_func_name=output_func_name,
                                    print_func_name=print_func_name,
                                    copy_func_name=copy_func_name,
@@ -639,6 +823,34 @@ a.a = A()
     #
     test_mutated('a.get_a().b = 2', ('a.get_a(...)',))
     test_mutated('a.get_a().a.b = 2', ('a.get_a(...).a',))
+
+    # Tests of skipping mutations when the mutations are actually of
+    # local variables
+    test_mutated('def f(x):\n    x[1] = 2\n', ())
+    test_mutated('def f(y):\n    x = [1]\n    x[1] = 2\n', ())
+    test_mutated('class X:\n    x = [1]\n    x[1] = 2\n', ())
+
+    # But these are global mutations
+    test_mutated('class X:\n    x[1] = 2\n', ('x'))
+    test_mutated('class X:\n    global x\n    x = [1]\n    x[1] = 2\n', ('x'))
+
+    # Trying to mutate a global variable inside a function is an error
+
+    def test_unsupported_syntax(code):
+        caught_exception = False
+        try:
+            rewrite_and_compile(code)
+        except UnsupportedSyntaxError, e:
+            caught_exception = True
+        assert_equals(caught_exception, True)
+
+    test_unsupported_syntax('def f(x):\n    y[1] = 2\n')
+
+    # This binds y locally
+    test_mutated('def f(x):\n    [y for y in (1,2,3)]\n    y[1] = 2\n', ())
+    # But here the assignments to y are in nested scopes
+    test_unsupported_syntax('def f(x):\n    (y for y in (1,2,3))\n    y[1] = 2\n')
+    test_unsupported_syntax('def f(x):\n    lambda x: [y for y in (1,2,3)]\n    y[1] = 2\n')
 
     #
     # Test handling of encoding
