@@ -172,30 +172,78 @@ class _Transformer(ast.NodeTransformer, _ScopeMixin):
         self.print_func_name = print_func_name
         self.copy_func_name = copy_func_name
         self.future_features = future_features
+        self.overwrite_stack = []
+
+    def process(self, node):
+        self.push_overwrites()
+        result = self.visit(node)
+        self.pop_overwrites()
+
+        return result
+
+    # The overwrite stack is used to keep track of global variables that are
+    # assigned within the statement before being mutated, and thus don't
+    # need our general mutation handler. The canonical case of this is:
+    #
+    # build Plot() as p:
+    #     p.draw_point(x, y)
+    #
+    # But we also cover things like:
+    #
+    # try:
+    #     p = Plot()
+    #     p.draw_point()
+    # except ...
+    #
+    # The reason we have a stack is that in the second case, and a lot of
+    # other cases, the overwrite of p is local to the block of statements,
+    # and after the block the overwrite isn't guaranteed to have happened,
+    # so we need to push_overwrites() for the block, and then pop and discard
+    # the overwrites afterwards.
+
+    def push_overwrites(self):
+        self.overwrite_stack.append(set())
+
+    def pop_overwrites(self):
+        return self.overwrite_stack.pop()
+
+    def was_overwritten(self, name):
+        for s in self.overwrite_stack:
+            if name in s:
+                return True
+
+        return False
+
+    def handle_assign_to_name(self, name, location):
+        binding = self.resolve_name(name)
+        if binding == NAME_GLOBAL:
+            if self.in_function:
+                # We forbid assignments of global variables inside functions, though that's
+                # only actually bad if the function is used again at a later point.
+                raise UnsupportedSyntaxError("Assigning to global variable '%s' inside a function is not supported" % name,
+                                             location.lineno)
+            else:
+                self.overwrite_stack[-1].add(name)
 
     def add_mutated(self, node):
         if self.mutated is None:
             self.mutated = _MutationCollector(self.copy_func_name)
         self.mutated.process(node, self)
 
-    def handle_assign_targets(self, targets):
-        for target in targets:
-            if isinstance(target, ast.Subscript):
-                self.add_mutated(target.value)
-            elif isinstance(target, ast.Attribute):
-                self.add_mutated(target.value)
-            elif isinstance(target, ast.List) or isinstance(target, ast.Tuple):
-                self.handle_assign_targets(target.elts)
-            elif isinstance(target, ast.Name):
-                binding = self.resolve_name(target.id)
-                # We forbid assignments of global variables inside functions, though that's
-                # only actually bad if the function is used again at a later point.
-                if binding == NAME_GLOBAL and self.in_function:
-                    raise UnsupportedSyntaxError("Assigning to global variable '%s' inside a function is not supported" % target.id,
-                                                 target.lineno)
+    def handle_assign_target(self, target):
+        if isinstance(target, ast.Subscript):
+            self.add_mutated(target.value)
+        elif isinstance(target, ast.Attribute):
+            self.add_mutated(target.value)
+        elif isinstance(target, ast.List) or isinstance(target, ast.Tuple):
+            for elt in target.elts:
+                self.handle_assign_target(elt)
+        elif isinstance(target, ast.Name):
+            self.handle_assign_to_name(target.id, target)
 
     def visit_Assign(self, node):
-        self.handle_assign_targets(node.targets)
+        for target in node.targets:
+            self.handle_assign_target(target)
 
         return self.generic_visit(node)
 
@@ -204,23 +252,28 @@ class _Transformer(ast.NodeTransformer, _ScopeMixin):
 
         return self.generic_visit(node)
 
-    def visit_body(self, node):
-        body = []
-        for i in xrange(0, len(node.body)):
-            child = self.visit(node.body[i])
-            if isinstance(child, ast.AST):
-                body.append(child)
-            else:
-                body.extend(child)
+    def visit_statements(self, stmts):
+        if len(stmts) == 0:
+            return stmts
 
-        node.body = body
+        result = []
+        for i in xrange(0, len(stmts)):
+            child = self.visit(stmts[i])
+            if isinstance(child, ast.AST):
+                result.append(child)
+            else:
+                result.extend(child)
+
+        return result
 
     def visit_ClassDef(self, node):
+        self.handle_assign_to_name(node.name, node)
+
         node.decorator_list = [self.visit(n) for n in node.decorator_list]
         node.bases = [self.visit(n) for n in node.bases]
 
         self.push_scope(node)
-        self.visit_body(node)
+        node.body = self.visit_statements(node.body)
         self.pop_scope()
 
         return node
@@ -254,11 +307,49 @@ class _Transformer(ast.NodeTransformer, _ScopeMixin):
         else:
             return self.generic_visit(node)
 
+    def visit_If(self, node):
+        # Here we handle the case where a variable is reliably overwritten
+        # in both branches of the if, so we merge the results of pop_overwrites()
+        # rather than discarding them.
+
+        self.push_overwrites()
+        node.body = self.visit_statements(node.body)
+        overwrites_if = self.pop_overwrites()
+
+        if len(node.orelse) > 0:
+            self.push_overwrites()
+            node.orelse = self.visit_statements(node.orelse)
+            overwrites_else = self.pop_overwrites()
+
+            for name in overwrites_if:
+                if name in overwrites_else:
+                    self.overwrite_stack[-1].add(name)
+
+        return node
+
+    def visit_For(self, node):
+        node.iter = self.visit(node.iter)
+
+        self.push_overwrites()
+        self.handle_assign_target(node.target)
+        node.body = self.visit_statements(node.body)
+        self.pop_overwrites()
+
+        self.push_overwrites()
+        node.orelse = self.visit_statements(node.orelse)
+        self.pop_overwrites()
+
+        return node
+
     def visit_FunctionDef(self, node):
+        self.handle_assign_to_name(node.name, node)
+
         node.decorator_list = [self.visit(n) for n in node.decorator_list]
 
         self.push_scope(node)
-        self.visit_body(node)
+        # We don't need to push_overwrites() here because assignment to global
+        # variables isn't allowed within a function definition
+        node.body = self.visit_statements(node.body)
         self.pop_scope()
 
         return node
@@ -295,6 +386,51 @@ class _Transformer(ast.NodeTransformer, _ScopeMixin):
         else:
             return self.generic_visit(node)
 
+    def visit_TryExcept(self, node):
+        self.push_overwrites()
+        node.body = self.visit_statements(node.body)
+        self.pop_overwrites()
+
+        for handler in node.handlers:
+            if handler.type is not None:
+                handler.type = self.visit(handler.type)
+
+            self.push_overwrites()
+            if handler.name is not None:
+                self.handle_assign_target(handler.name)
+                handler.name = self.visit(handler.name)
+
+            handler.body = self.visit_statements(handler.body)
+            self.pop_overwrites()
+
+        self.push_overwrites()
+        node.orelse = self.visit_statements(node.orelse)
+        self.pop_overwrites()
+
+        return node
+
+    def visit_TryFinally(self, node):
+        self.push_overwrites()
+        node.body = self.visit_statements(node.body)
+        self.pop_overwrites()
+
+        node.finalbody = self.visit_statements(node.finalbody)
+
+        return node
+
+    def visit_While(self, node):
+        node.test = self.visit(node.test)
+
+        self.push_overwrites()
+        node.body = self.visit_statements(node.body)
+        self.pop_overwrites()
+
+        self.push_overwrites()
+        node.orelse = self.visit_statements(node.orelse)
+        self.pop_overwrites()
+
+        return node
+
     def visit_With(self, node):
         if (self.scope is None and
             isinstance(node.context_expr, ast.Call) and
@@ -316,12 +452,24 @@ class _Transformer(ast.NodeTransformer, _ScopeMixin):
             output_stmt.value.id = var
             output_stmt.value.ctx = ast.Load()
 
-            node.optional_vars = optional_vars
-            self.visit_body(node)
+            node.context_expr = self.visit(node.context_expr)
+            node.optional_vars = self.visit(optional_vars)
+
+            if node.optional_vars:
+                self.handle_assign_to_name(node.optional_vars.id, node.optional_vars)
+
+            node.body = self.visit_statements(node.body)
 
             return node, self.visit(output_stmt)
         else:
-            return self.generic_visit(node)
+            node.context_expr = self.visit(node.context_expr)
+            node.optional_vars = self.visit(node.optional_vars)
+
+            if node.optional_vars:
+                self.handle_assign_to_name(node.optional_vars.id, node.optional_vars)
+
+            node.body = self.visit_statements(node.body)
+            return node
 
     def add_import(self, imp):
         if self.imports is None:
@@ -331,6 +479,14 @@ class _Transformer(ast.NodeTransformer, _ScopeMixin):
 
     def visit_Import(self, node):
         self.add_import(node)
+
+        for alias in node.names:
+            if alias.asname:
+                asname = alias.asname
+            else:
+                asname = alias.name
+
+            self.handle_assign_to_name(asname, alias)
 
         return self.generic_visit(node)
 
@@ -346,6 +502,14 @@ class _Transformer(ast.NodeTransformer, _ScopeMixin):
             raise UnsupportedSyntaxError("Relative imports are not supported", node.lineno)
 
         self.add_import(node)
+
+        for alias in node.names:
+            if alias.name == '*':
+                # This might overwrite a variable and make an apparent mutation not
+                # a mutation, but that's pretty weird, just ignore
+                continue
+
+            self.handle_assign_to_name(alias.name, alias)
 
         return self.generic_visit(node)
 
@@ -527,6 +691,11 @@ class _MutationCollector(ast.NodeVisitor):
             # or might-not be OK, we allow it for now.
             return
 
+        # If the global variable was reliably overwritten before being mutated,
+        # no copy is necessary
+        if self.transformer.was_overwritten(node.id):
+            return
+
         # We forbid mutations of global variables inside functions, though that's
         # only actually bad if the function is used again at a later point.
         if self.transformer.in_function:
@@ -623,7 +792,7 @@ class Rewriter:
                                    copy_func_name=copy_func_name,
                                    future_features=self.future_features)
 
-        rewritten = transformer.visit(self.nodes)
+        rewritten = transformer.process(self.nodes)
         ast.fix_missing_locations(rewritten)
 
         self.imports = transformer.imports
@@ -816,11 +985,13 @@ a.a = A()
     # local variables
     test_mutated('def f(x):\n    x[1] = 2\n', ())
     test_mutated('def f(y):\n    x = [1]\n    x[1] = 2\n', ())
+    test_mutated('def f(x):\n    def g(x):\n        pass', ())
     test_mutated('class X:\n    x = [1]\n    x[1] = 2\n', ())
+    test_mutated('def f(x):\n    class C:\n        pass', ())
 
     # But these are global mutations
     test_mutated('class X:\n    x[1] = 2\n', ('x'))
-    test_mutated('class X:\n    global x\n    x = [1]\n    x[1] = 2\n', ('x'))
+    test_mutated('class X:\n    global x\n    x[1] = 2\n    x = [1]\n', ('x'))
 
     # Trying to mutate a global variable inside a function is an error
 
@@ -833,12 +1004,49 @@ a.a = A()
         assert_equals(caught_exception, True)
 
     test_unsupported_syntax('def f(x):\n    y[1] = 2\n')
+    test_unsupported_syntax('def f(x):\n    global g\n    def g(x):\n        pass')
+    test_unsupported_syntax('def f(x):\n    global C\n    class C:\n        pass')
 
     # This binds y locally
     test_mutated('def f(x):\n    [y for y in (1,2,3)]\n    y[1] = 2\n', ())
     # But here the assignments to y are in nested scopes
     test_unsupported_syntax('def f(x):\n    (y for y in (1,2,3))\n    y[1] = 2\n')
     test_unsupported_syntax('def f(x):\n    lambda x: [y for y in (1,2,3)]\n    y[1] = 2\n')
+
+    # Tests of 'overwrites' - our tracking of when a variable is overwritten
+    # before it's mutated, so the pre-statement value doesn't require a copy.
+
+    # Different ways to overwrite the old value of a name
+    test_mutated('build [1] as a:\n    a[0] = 2', ())
+    test_mutated('try:\n     pass\nexcept ValueError, a:\n    a[0] = 2', ())
+    test_mutated('build:\n    def a(): pass\n    a.b = 2', ())
+    test_mutated('build:\n    class A: pass\n    A.b = 2', ())
+    test_mutated('for x in [[1]]:    x[0] = 2', ())
+    test_mutated('for x, y in [[1]]:    x[0] = 2', ())
+    test_mutated('build:\n    import sys\n    sys.b = 1', ())
+    test_mutated('build:\n    import sys as a\n    a.b = 1', ())
+    test_mutated('build:\n    from sys import a\n    a.b = 1', ())
+    test_mutated('build:\n    from sys import *\n    a.b = 1', ('a')) # pragmatic
+
+    # Different control flow expressions
+    test_mutated('build:\n    a = [1]\n    a[0] = 2', ())
+    test_mutated('build:\n    if foo():\n        a = [1]\n    a[0] = 2', ('a'))
+    test_mutated('build:\n    if foo():\n        a = [1]\n        a[0] = 2', ())
+    test_mutated('build:\n    if foo():\n        a = [1]\n    else:\n        a = [3]\n    a[0] = 2', ())
+    test_mutated('build:\n    while foo():\n        a = [1]\n    a[0] = 2', ('a'))
+    test_mutated('build:\n    while foo():\n        a = [1]\n        a[0] = 2', ())
+    test_mutated('build:\n    while foo():\n        a = [1]\n    else:\n        a[0] = 2', ('a'))
+    test_mutated('build:\n    for i in xrange(0, foo()):\n        a = [1]\n    a[0] = 2', ('a'))
+    test_mutated('build:\n    for i in xrange(0, foo()):\n        a = [1]\n        a[0] = 2', ())
+    test_mutated('build:\n    for i in xrange(0, foo()):\n        a = [1]\n    else:\n        a[0] = 2', ('a'))
+    test_mutated('build:\n    try:\n         a = [1]\n    except:        pass\n    a[0] = 2', ('a'))
+    test_mutated('build:\n    try:\n         a = [1]\n         a[0] = 2\n    except:        pass', ())
+    test_mutated('build:\n    try:\n         pass\n    except:\n        a = [1]\n    a[0] = 2', ('a'))
+    test_mutated('build:\n    try:\n         pass\n    except:\n        a = [1]\n        a[0] = 2', ())
+    test_mutated('build:\n    try:\n         a = [1]\n    finally:        pass\n    a[0] = 2', ('a'))
+    test_mutated('build:\n    try:\n         a = [1]\n         a[0] = 2\n    finally:        pass', ())
+    test_mutated('build:\n    try:\n         pass\n    finally:\n        a = [1]\n    a[0] = 2', ())
+    test_mutated('build:\n    try:\n         pass\n    finally:\n        a = [1]\n        a[0] = 2', ())
 
     #
     # Test handling of encoding
