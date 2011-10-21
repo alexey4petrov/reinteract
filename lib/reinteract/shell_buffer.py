@@ -98,6 +98,13 @@ class ShellBuffer(Destroyable, gtk.TextBuffer):
 
         style = DEFAULT_STYLE
 
+        # If the last line of the buffer is empty, then there's no way to set a
+        # paragraph style for it - this means that we can't reliably make
+        # chunk.set_pixels_below() work for the last line in the buffer.
+        # So, what we do is override pixels_below_lines for the whole buffer,
+        # enabling gtk.TextView.set_pixels_below_lines() to be used for this.
+        self.__whole_buffer_tag = self.create_tag(pixels_below_lines=0)
+
         self.__result_tag = style.get_tag(self, 'result')
         # Bit of a cheat - don't want to add these to StyleSpec, since they are editor specific.
         # If the spec was shared by an alias, this would do unexpected things.
@@ -299,6 +306,21 @@ class ShellBuffer(Destroyable, gtk.TextBuffer):
         pair_iter = self.pos_to_iter(chunk.start + pair_line, pair_start)
         self.__set_pair_location(pair_iter)
 
+    def __retag_chunk(self, chunk, changed_lines, tag):
+        iter = self.pos_to_iter(chunk.start)
+        i = 0
+        for l in changed_lines:
+            while i < l:
+                iter.forward_line()
+                i += 1
+            end = iter.copy()
+            end.forward_line()
+            self.remove_all_tags(iter, end)
+            self.apply_tag(self.__whole_buffer_tag, iter, end)
+
+            if tag:
+                self.apply_tag(tag, iter, end)
+
     def __fontify_statement_chunk(self, chunk, changed_lines):
         iter = self.pos_to_iter(chunk.start)
         i = 0
@@ -307,9 +329,9 @@ class ShellBuffer(Destroyable, gtk.TextBuffer):
                 iter.forward_line()
                 i += 1
             end = iter.copy()
-            if not end.ends_line():
-                end.forward_to_line_end()
+            end.forward_line()
             self.remove_all_tags(iter, end)
+            self.apply_tag(self.__whole_buffer_tag, iter, end)
 
             end = iter.copy()
             for token_type, start_index, end_index, _ in chunk.tokenized.get_tokens(l):
@@ -318,6 +340,25 @@ class ShellBuffer(Destroyable, gtk.TextBuffer):
                     iter.set_line_offset(start_index)
                     end.set_line_offset(end_index)
                     self.apply_tag(tag, iter, end)
+
+    def __reset_first_line_tag(self, chunk):
+        first_line_start = self.pos_to_iter(chunk.start)
+        first_line_end = first_line_start.copy()
+        first_line_end.forward_line()
+        last_line_end = self.pos_to_iter(chunk.end - 1)
+        last_line_end.forward_line()
+
+        self.remove_tag(chunk.__first_line_tag, first_line_start, last_line_end)
+        self.apply_tag(chunk.__first_line_tag, first_line_start, first_line_end)
+
+    def __reset_last_line_tag(self, chunk):
+        first_line_start = self.pos_to_iter(chunk.start)
+        last_line_start = self.pos_to_iter(chunk.end - 1)
+        last_line_end = last_line_start.copy()
+        last_line_end.forward_line()
+
+        self.remove_tag(chunk.__last_line_tag, first_line_start, last_line_end)
+        self.apply_tag(chunk.__last_line_tag, last_line_start, last_line_end)
 
     #######################################################
     # Overrides for GtkTextView behavior
@@ -514,6 +555,7 @@ class ShellBuffer(Destroyable, gtk.TextBuffer):
 
     def on_chunk_inserted(self, worksheet, chunk):
         _debug("...chunk %s inserted", chunk);
+        chunk.pixels_above = chunk.pixels_below = 0
         chunk.results_start_mark = None
         chunk.results_end_mark = None
         self.on_chunk_changed(worksheet, chunk, range(0, chunk.end - chunk.start))
@@ -522,8 +564,19 @@ class ShellBuffer(Destroyable, gtk.TextBuffer):
         _debug("...chunk %s deleted", chunk);
         self.__delete_results(chunk)
 
+        if chunk.pixels_above != 0:
+            self.get_tag_table().remove(chunk.__first_line_tag)
+            del chunk.__first_line_tag
+
+        if chunk.pixels_below != 0:
+            self.get_tag_table().remove(chunk.__last_line_tag)
+            del chunk.__last_line_tag
+
     def on_chunk_changed(self, worksheet, chunk, changed_lines):
         _debug("...chunk %s changed", chunk);
+
+        if len(changed_lines) == 0:
+            return
 
         if chunk.results_start_mark:
             # Check that the result is still immediately after the chunk, and if
@@ -539,11 +592,18 @@ class ShellBuffer(Destroyable, gtk.TextBuffer):
 
         if isinstance(chunk, StatementChunk):
             self.__fontify_statement_chunk(chunk, changed_lines)
-        elif isinstance(chunk, CommentChunk):
-            start = self.pos_to_iter(chunk.start)
-            end = self.pos_to_iter(chunk.end - 1, len(self.worksheet.get_line(chunk.end - 1)))
-            self.remove_all_tags(start, end)
-            self.apply_tag(self.__comment_tag, start, end)
+        else:
+            if isinstance(chunk, CommentChunk):
+                tag = self.__comment_tag
+            else:
+                tag = None
+            self.__retag_chunk(chunk, changed_lines, tag)
+
+        if chunk.pixels_above != 0 and changed_lines[0] == 0:
+            self.__reset_first_line_tag(chunk)
+
+        if chunk.pixels_below != 0 and changed_lines[-1] == chunk.end - chunk.start - 1:
+            self.__reset_last_line_tag(chunk)
 
     def on_chunk_status_changed(self, worksheet, chunk):
         _debug("...chunk %s status changed", chunk)
@@ -681,6 +741,58 @@ class ShellBuffer(Destroyable, gtk.TextBuffer):
 
         return self.__in_modification_count > 0
 
+    def set_pixels_above(self, chunk, pixels_above):
+        """Sets the number of pixels of padding above the chunk
+
+        Note that this doesn't work on single-line empty BlankChunk at the end
+        of the buffer.
+
+        """
+
+        if not hasattr(chunk, 'pixels_above'):
+            chunk.pixels_above = 0
+
+        if pixels_above == chunk.pixels_above:
+            return
+
+        if pixels_above != 0:
+            if chunk.pixels_above == 0:
+                chunk.__first_line_tag = self.create_tag()
+                self.__reset_first_line_tag(chunk)
+            chunk.__first_line_tag.set_property('pixels-above-lines', pixels_above)
+        else:
+            self.get_tag_table().remove(chunk.__first_line_tag)
+            del chunk.__first_line_tag
+
+        chunk.pixels_above = pixels_above
+
+    def set_pixels_below(self, chunk, pixels_below):
+        """Sets the number of pixels of padding below the chunk
+
+        Note that this doesn't work on single-line empty BlankChunk at the end
+        of the buffer; things have been set up so that gtk.TextView.set_pixels_below_lines()
+        has no effect except for that particular case, allowing this function can
+        be combined with gtk.TextView.set_pixels_below_lines() to reliably add
+        padding at the end of the buffer.
+
+        """
+
+        if not hasattr(chunk, 'pixels_below'):
+            chunk.pixels_below = 0
+
+        if pixels_below == chunk.pixels_below:
+            return
+
+        if pixels_below != 0:
+            if chunk.pixels_below == 0:
+                chunk.__last_line_tag = self.create_tag()
+                self.__reset_last_line_tag(chunk)
+            chunk.__last_line_tag.set_property('pixels-below-lines', pixels_below)
+        else:
+            self.get_tag_table().remove(chunk.__last_line_tag)
+            del chunk.__last_line_tag
+
+        chunk.pixels_below = pixels_below
 
 ######################################################################
 # The tests we include here are tests of the interaction of editing
