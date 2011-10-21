@@ -122,6 +122,7 @@ class Statement:
             return False
         except UnsupportedSyntaxError, e:
             self.error_message = e.value
+            self.error_line = e.lineno
             self.state = Statement.COMPILE_ERROR
             return False
 

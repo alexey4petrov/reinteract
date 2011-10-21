@@ -22,8 +22,9 @@ TEXT_TRANSFORMS = (
 
 class UnsupportedSyntaxError(Exception):
     """Exception thrown when some type of Python code that we can't support was used"""
-    def __init__(self, value):
+    def __init__(self, value, lineno=None):
         self.value = value
+        self.lineno = lineno
     def __str__(self):
         return repr(self.value)
 
@@ -190,7 +191,8 @@ class _Transformer(ast.NodeTransformer, _ScopeMixin):
                 # We forbid assignments of global variables inside functions, though that's
                 # only actually bad if the function is used again at a later point.
                 if binding == NAME_GLOBAL and self.in_function:
-                    raise UnsupportedSyntaxError("Assigning to a global variable inside a function is not supported")
+                    raise UnsupportedSyntaxError("Assigning to global variable '%s' inside a function is not supported" % target.id,
+                                                 target.lineno)
 
     def visit_Assign(self, node):
         self.handle_assign_targets(node.targets)
@@ -350,7 +352,7 @@ class _Transformer(ast.NodeTransformer, _ScopeMixin):
         # See https://bugzilla.gnome.org/show_bug.cgi?id=659328
         #
         if node.level > 0:
-            raise UnsupportedSyntaxError("Relative imports are not supported")
+            raise UnsupportedSyntaxError("Relative imports are not supported", node.lineno)
 
         self.add_import(node)
 
@@ -537,7 +539,8 @@ class _MutationCollector(ast.NodeVisitor):
         # We forbid mutations of global variables inside functions, though that's
         # only actually bad if the function is used again at a later point.
         if self.transformer.in_function:
-            raise UnsupportedSyntaxError("Mutating a global variable inside a function is not supported")
+            raise UnsupportedSyntaxError("Mutating global variable '%s' inside a function is not supported" % node.id,
+                                         node.lineno)
 
         self.root = node.id
         return node.id, True
