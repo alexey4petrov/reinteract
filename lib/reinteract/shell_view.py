@@ -82,6 +82,13 @@ class ShellView(gtk.TextView):
         buffer_line = self.get_buffer().pos_to_iter(line)
         return self.get_line_yrange(buffer_line)
 
+    def __get_chunk_yrange(self, chunk):
+        y, _ = self.__get_worksheet_line_yrange(chunk.start)
+        end_y, end_height = self.__get_worksheet_line_yrange(chunk.end - 1)
+        height = end_y + end_height - y
+
+        return y, height
+
     def __get_worksheet_line_at_y(self, y, adjust):
         buf = self.get_buffer()
         (buffer_line, _) = self.get_line_at_y(y)
@@ -89,17 +96,17 @@ class ShellView(gtk.TextView):
 
     def paint_chunk(self, cr, area, chunk, fill_color, outline_color):
         buf = self.get_buffer()
-        
-        (y, _) = self.__get_worksheet_line_yrange(chunk.start)
-        (end_y, end_height) = self.__get_worksheet_line_yrange(chunk.end - 1)
-        height = end_y + end_height - y
-        
-        (_, window_y) = self.buffer_to_window_coords(gtk.TEXT_WINDOW_LEFT, 0, y)
-        cr.rectangle(area.x, window_y, area.width, height)
+
+        chunk_y, chunk_height = self.__get_chunk_yrange(chunk)
+        chunk_y += chunk.pixels_above
+        chunk_height -= chunk.pixels_above + chunk.pixels_below
+
+        _, window_y = self.buffer_to_window_coords(gtk.TEXT_WINDOW_LEFT, 0, chunk_y)
+        cr.rectangle(area.x, window_y, area.width, chunk_height)
         cr.set_source_rgb(*fill_color)
         cr.fill()
-                
-        cr.rectangle(0.5, window_y + 0.5, LEFT_MARGIN_WIDTH - 1, height - 1)
+
+        cr.rectangle(0.5, window_y + 0.5, LEFT_MARGIN_WIDTH - 1, chunk_height - 1)
         cr.set_source_rgb(*outline_color)
         cr.set_line_width(1)
         cr.stroke()
@@ -643,14 +650,13 @@ class ShellView(gtk.TextView):
     def __invalidate_status(self, chunk):
         buf = self.get_buffer()
         
-        (start_y, start_height) = self.__get_worksheet_line_yrange(chunk.start)
-        (end_y, end_height) = self.__get_worksheet_line_yrange(chunk.end - 1)
+        chunk_y, chunk_height = self.__get_chunk_yrange(chunk)
 
-        (_, window_y) = self.buffer_to_window_coords(gtk.TEXT_WINDOW_LEFT, 0, start_y)
+        _, window_y = self.buffer_to_window_coords(gtk.TEXT_WINDOW_LEFT, 0, chunk_y)
 
         if self.window:
             left_margin_window = self.get_window(gtk.TEXT_WINDOW_LEFT)
-            left_margin_window.invalidate_rect((0, window_y, LEFT_MARGIN_WIDTH, end_y + end_height - start_y),
+            left_margin_window.invalidate_rect((0, window_y, LEFT_MARGIN_WIDTH, chunk_height),
                                                False)
 
     def on_chunk_inserted(self, worksheet, chunk):
@@ -760,6 +766,10 @@ class ShellView(gtk.TextView):
             self.__invalidate_char_position(old_position)
         if new_position:
             self.__invalidate_char_position(new_position)
+
+    #######################################################
+    # Public API
+    #######################################################
 
     def calculate(self, end_at_insert=False):
         buf = self.get_buffer()
