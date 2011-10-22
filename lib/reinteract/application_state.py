@@ -78,10 +78,23 @@ class NotebookState:
     def update_last_opened(self):
         self.app_state.set_float(self.section_name, 'last_opened', time.time())
 
+class WorksheetState:
+    def __init__(self, app_state, path):
+        self.path = path
+        self.app_state = app_state
+        self.section_name = _section_name(path.encode("UTF-8"))
+
+    def get_sidebar_width(self):
+        return self.app_state.get_int(self.section_name, 'sidebar_width', -1)
+
+    def set_sidebar_width(self, sidebar_width):
+        self.app_state.set_int(self.section_name, 'sidebar_width', sidebar_width)
+
 class ApplicationState(ConfigFile):
     def __init__(self, location):
         ConfigFile.__init__(self, location)
         self.notebook_states = {}
+        self.worksheet_states = {}
 
     def __get_recent_notebook_paths(self):
         return self.get_list('Reinteract', 'recent_notebooks', [])
@@ -111,6 +124,12 @@ class ApplicationState(ConfigFile):
             self.notebook_states[path] = NotebookState(self, path)
 
         return self.notebook_states[path]
+
+    def get_worksheet_state(self, path):
+        if not path in self.worksheet_states:
+            self.worksheet_states[path] = WorksheetState(self, path)
+
+        return self.worksheet_states[path]
 
 ######################################################################
 
