@@ -17,6 +17,7 @@ from global_settings import global_settings
 from shell_buffer import ShellBuffer
 from shell_view import ShellView
 import reunicode
+from view_sidebar_layout import ViewSidebarLayout
 from worksheet_print import WorksheetPrintOperation
 
 class WorksheetEditor(Editor):
@@ -29,14 +30,16 @@ class WorksheetEditor(Editor):
         self.buf = ShellBuffer(self.notebook)
         self.view = ShellView(self.buf)
 
+        self.view.connect('notify::sidebar-open', self.on_notify_sidebar_open)
+
         global_settings.watch('editor-font-is-custom', self.__update_font)
         global_settings.watch('editor-font-name', self.__update_font)
         self.__update_font()
 
-        self.widget = gtk.ScrolledWindow()
-        self.widget.set_policy(gtk.POLICY_AUTOMATIC, gtk.POLICY_AUTOMATIC)
-
-        self.widget.add(self.view)
+        self.widget = ViewSidebarLayout()
+        self.widget.set_view(self.view)
+        self.widget.set_sidebar(self.view.sidebar)
+        self.widget.set_sidebar_open(self.view.sidebar_open)
 
         self.widget.show_all()
 
@@ -59,6 +62,9 @@ class WorksheetEditor(Editor):
             font_name = global_settings.editor_font_name
 
         self.view.modify_font(pango.FontDescription(font_name))
+
+    def on_notify_sidebar_open(self, *args):
+        self.widget.set_sidebar_open(self.view.sidebar_open)
 
     #######################################################
     # Overrides

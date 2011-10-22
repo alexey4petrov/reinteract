@@ -37,7 +37,13 @@ class PlotWidget(custom_result.ResultWidget):
 
     def __init__(self, result):
         custom_result.ResultWidget.__init__(self)
-        self.figure = Figure(facecolor='white', figsize=(6,4.5))
+
+        if result.display == 'side':
+           figsize=(4.5,3.375)
+        else:
+           figsize=(6,4.5)
+
+        self.figure = Figure(facecolor='white', figsize=figsize)
         self.canvas = _PlotResultCanvas(self.figure)
 
         self.axes = self.figure.add_subplot(111)
@@ -213,6 +219,10 @@ def _validate_args(args):
             raise TypeError("Expected format string for argument %d" % (formati + 1))
 
 class Axes(RecordedObject, custom_result.CustomResult):
+    def __init__(self, display='inline'):
+        RecordedObject.__init__(self)
+        self.display = display
+
     def _check_plot(self, name, args, kwargs, spec):
         _validate_args(args)
 

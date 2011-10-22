@@ -1,4 +1,4 @@
-# Copyright 2007-2009 Owen Taylor
+# Copyright 2007-2011 Owen Taylor
 #
 # This file is part of Reinteract and distributed under the terms
 # of the BSD license. See the file COPYING in the Reinteract
@@ -7,6 +7,7 @@
 ########################################################################
 
 import glib
+import gobject
 import gtk
 import re
 from shell_buffer import ShellBuffer, ADJUST_NONE, ADJUST_BEFORE, ADJUST_AFTER
@@ -16,14 +17,26 @@ from doc_popup import DocPopup
 from global_settings import global_settings
 from notebook import NotebookFile
 import sanitize_textview_ipc
+from sidebar import Sidebar
 
 LEFT_MARGIN_WIDTH = 10
 
 ALL_WHITESPACE_RE = re.compile("^\s*$")
 
+# We depend on knowing what priorities GDK and GTK+ use to hook in and
+# do stuff at the right time in the update cycle
+
+PRIORITY_SIDEBAR_BEFORE_RESIZE = glib.PRIORITY_HIGH_IDLE + 9
+# GTK_PRIORITY_RESIZE = G_PRIORITY_HIGH_IDLE + 10
+# GDK_PRIORITY_REDRAW = G_PRIORITY_HIGH_IDLE + 20
+# GTK_TEXT_VIEW_PRIORITY_VALIDATE  = GDK_PRIORITY_REDRAW + 5
+PRIORITY_SIDEBAR_AFTER_VALIDATE = glib.PRIORITY_HIGH_IDLE + 26
+PRIORITY_SCROLL_RESULT_ONSCREEN = glib.PRIORITY_HIGH_IDLE + 27
+
 class ShellView(gtk.TextView):
-    __gsignals__ = {
-   }
+    __gsignals__ = {}
+
+    sidebar_open = gobject.property(type=bool, default=False)
 
     def __init__(self, buf):
         self.edit_only = buf.worksheet.edit_only
@@ -43,7 +56,14 @@ class ShellView(gtk.TextView):
             self.__inserted_in_user_action = False
             self.__deleted_in_user_action = False
 
+        if not self.edit_only:
+            self.sidebar = Sidebar()
+        else:
+            self.sidebar = None
+
         buf.connect('add-custom-result', self.on_add_custom_result)
+        buf.connect('add-sidebar-results', self.on_add_sidebar_results)
+        buf.connect('remove-sidebar-results', self.on_remove_sidebar_results)
         buf.connect('pair-location-changed', self.on_pair_location_changed)
             
         gtk.TextView.__init__(self, buf)
@@ -73,6 +93,7 @@ class ShellView(gtk.TextView):
         self.__scroll_to = buf.create_mark(None, buf.get_start_iter(), True)
         self.__scroll_idle = None
 
+        self.__update_sidebar_positions_idle = 0
         self.__pixels_below_buffer = 0
         self.__last_chunk = None
 
@@ -242,8 +263,132 @@ class ShellView(gtk.TextView):
         self.get_buffer().set_pixels_below(self.__last_chunk, pixels_below)
         self.__pixels_below_buffer = pixels_below
 
+    def __update_sidebar_positions(self):
+        # Each StatementChunk with sidebar widgets has already been added as a "slot"
+        # to the sidebar. For each of these slots we determine a vertical
+        # range which includes the StatementChunk, and any preceding CommentChunk.
+        #
+        # We also handle adding space before slots with sidebar widgets and at the end
+        # of the buffer so that previous sidebar widgets have enough room.
+        #
+        # Rather than trying to update things incrementally, we just run
+        # through the chunks in the buffer twice and compute the positions from
+        # scratch.
+
+        self.__update_sidebar_positions_idle = 0
+        buf = self.get_buffer()
+
+        set_chunks = set()
+        widget_end_y = None
+
+        slots = self.sidebar.slots
+        if len(slots) > 0:
+            self.sidebar.freeze_positions()
+
+            # Main position loop where we determine the slot positions
+            #
+            # The "slot_extra" here is the number of pixels inside the slot which were
+            # added as chunk_above/chunk_below in previous runs of this code and will
+            # be removed unless we add them again in this run.
+
+            slot_index = 0
+            for chunk in buf.worksheet.iterate_chunks(0, slots[-1].chunk.end):
+                if chunk == slots[slot_index].chunk:
+                    if slot_start_chunk is None:
+                        slot_start_chunk = chunk
+                        slot_extra = chunk.pixels_above + chunk.pixels_below
+                    else:
+                        slot_extra += chunk.pixels_above + chunk.pixels_below
+
+                    slot_start_y, _ = self.__get_chunk_yrange(slot_start_chunk)
+
+                    chunk_start_y, chunk_height =  self.__get_chunk_yrange(chunk)
+                    slot_height = chunk_start_y + chunk_height - slot_start_y - slot_extra
+
+                    if widget_end_y is not None and widget_end_y > slot_start_y:
+                        buf.set_pixels_above(slot_start_chunk, widget_end_y - slot_start_y)
+                        set_chunks.add(slot_start_chunk)
+                        slot_start_y = widget_end_y
+
+                    slots[slot_index].set_position(slot_start_y, slot_height)
+
+                    widget_end_y = slot_start_y + slots[slot_index].get_results_height()
+                    slot_index += 1
+                else:
+                    if isinstance(chunk, CommentChunk):
+                        slot_start_chunk = chunk
+                        slot_extra = chunk.pixels_above + chunk.pixels_below
+                    elif isinstance(chunk, StatementChunk):
+                        slot_start_chunk = None
+                    elif slot_start_chunk is not None:
+                        slot_extra += chunk.pixels_above + chunk.pixels_below
+
+            self.sidebar.thaw_positions()
+
+        # Any chunk we where didn't assign pixels_above needs to have pixels_above
+        # set back to zero - it might have been set for some previous pass
+        for chunk in buf.worksheet.iterate_chunks():
+            if chunk.pixels_above != 0 and not chunk in set_chunks:
+                buf.set_pixels_above(chunk, 0)
+
+        # Finally, add space at the end of the buffer, if necessary
+        last_chunk = buf.worksheet.get_chunk(buf.worksheet.get_line_count() - 1)
+        chunk_y, chunk_height = self.__get_chunk_yrange(last_chunk)
+        chunk_height -= self.__pixels_below_buffer
+
+        pixels_below = 0
+        if widget_end_y is not None and widget_end_y > chunk_y + chunk_height:
+            pixels_below = widget_end_y - (chunk_y + chunk_height)
+
+        self.__set_pixels_below_buffer(pixels_below)
+
+        return False
+
+    def __queue_update_sidebar_positions(self, before_resize=False):
+
+        # We want to position the sidebar results with respect to the buffer
+        # contents, so position has to be done after validation finishes, but there
+        # is no hook to figure that out for gtk.TextView(). So, what we do is
+        # that we figure that if anything _interesting_ gets repositioned there
+        # will be an expose event, and in the expose event, add an idle that
+        # is low enough priority to run after validation finishes.
+        #
+        # Now, in the positioning process, we actually _modify_ the buffer
+        # contents by adding space above chunks to give previoous sidebar
+        # results enough room. This produces a quasi-circular dependency
+        # and a loop - but since the addition of space modifies the layout
+        # in a predictable way, we can just subtract that back out. What we
+        # expect to happen is:
+        #
+        #  - Buffer modification
+        #  - Expose event
+        #  - Our idle runs, we compute positions, and add space
+        #  - Expose event
+        #  - Our idle runs, we compute positions, compensating for the added
+        #    space; the new computation is the same, and nothing further happens.
+        #
+        # (If there is a bug in the compensation code, an infinite loop will
+        # be triggered.)
+
+        if len(self.sidebar.slots) == 0 and self.__pixels_below_buffer == 0:
+            return
+
+        if before_resize and self.__update_sidebar_positions_idle != 0:
+            glib.source_remove(self.__update_sidebar_positions_idle)
+            self.__update_sidebar_positions_idle = 0
+
+        if self.__update_sidebar_positions_idle == 0:
+            if before_resize:
+                priority = PRIORITY_SIDEBAR_BEFORE_RESIZE
+            else:
+                priority = PRIORITY_SIDEBAR_AFTER_VALIDATE
+
+            self.__update_sidebar_positions_idle = glib.idle_add(self.__update_sidebar_positions,
+                                                                 priority=priority)
+
     def do_expose_event(self, event):
         if not self.edit_only and event.window == self.get_window(gtk.TEXT_WINDOW_LEFT):
+            self.__queue_update_sidebar_positions()
             self.__expose_window_left(event)
             return False
         
@@ -674,7 +819,8 @@ class ShellView(gtk.TextView):
         
         if self.__cursor_chunk == chunk and not chunk.executing:
             # This is the chunk with the cursor and it's done executing
-            self.__scroll_idle = glib.idle_add(self.scroll_result_onscreen)
+            self.__scroll_idle = glib.idle_add(self.scroll_result_onscreen,
+                                               priority=PRIORITY_SCROLL_RESULT_ONSCREEN)
 
     def scroll_result_onscreen(self):
         """Scroll so that both the insertion cursor and the following result
@@ -682,16 +828,24 @@ class ShellView(gtk.TextView):
         still getting the insertion cursor."""
 
         buf = self.get_buffer()
-        try:
-            iter = buf.pos_to_iter(self.__cursor_chunk.end) # Start of next chunk
-        except IndexError:
-            iter = buf.get_end_iter()
-        else:
-            iter.backward_line() # Move to line before start of next chunk
-
         if self.__scroll_to_result:
-            buf.move_mark(self.__scroll_to, iter)
-            self.scroll_mark_onscreen(self.__scroll_to)
+            if self.__cursor_chunk.sidebar_results:
+                # We assume that we don't have both sidebar and normal results
+                for slot in self.sidebar.slots:
+                    if slot.chunk == self.__cursor_chunk:
+                        self.sidebar.scroll_to_slot_results(slot)
+                        break
+            else:
+                try:
+                    iter = buf.pos_to_iter(self.__cursor_chunk.end) # Start of next chunk
+                except IndexError:
+                    iter = buf.get_end_iter()
+                else:
+                    iter.backward_line() # Move to line before start of next chunk
+
+                buf.move_mark(self.__scroll_to, iter)
+                self.scroll_mark_onscreen(self.__scroll_to)
+
         self.scroll_mark_onscreen(buf.get_insert())
 
         self.__cursor_chunk = None
@@ -742,6 +896,36 @@ class ShellView(gtk.TextView):
         widget = result.create_widget()
         widget.show()
         self.add_child_at_anchor(widget, anchor)
+        self.sidebar_open = True
+
+    def on_add_sidebar_results(self, buf, chunk):
+        if len(self.sidebar.slots) == 0:
+            self.sidebar_open = True
+
+        widgets = []
+        for result in chunk.sidebar_results:
+            widget = result.create_widget()
+            widget.show()
+            widgets.append(widget)
+
+        chunk_y, chunk_height = self.__get_chunk_yrange(chunk)
+        chunk_y += chunk.pixels_above
+        chunk_height -= chunk.pixels_below + chunk.pixels_above
+
+        self.sidebar.add_slot(chunk, widgets)
+
+        # The final sidebar position calculation aren't be done until
+        # we've finished revalidating the text view, but we need
+        # to get some approproximate guess done before we allocate
+        # the sidebar, or we'll get flashing
+        self.__queue_update_sidebar_positions(before_resize=True)
+
+    def on_remove_sidebar_results(self, buf, chunk):
+        if len(self.sidebar.slots) == 1:
+            self.__queue_update_sidebar_positions()
+            self.sidebar_open = False
+
+        self.sidebar.remove_slot(chunk)
 
     def on_mark_set(self, buffer, iter, mark):
         if self.__arg_highlight_start:

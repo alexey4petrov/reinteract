@@ -1,4 +1,4 @@
-# Copyright 2007-2009 Owen Taylor
+# Copyright 2007-2011 Owen Taylor
 #
 # This file is part of Reinteract and distributed under the terms
 # of the BSD license. See the file COPYING in the Reinteract
@@ -78,6 +78,8 @@ def _backward_line(iter):
 class ShellBuffer(Destroyable, gtk.TextBuffer):
     __gsignals__ = {
         'add-custom-result':  (gobject.SIGNAL_RUN_LAST, gobject.TYPE_NONE, (gobject.TYPE_PYOBJECT, gobject.TYPE_PYOBJECT)),
+        'add-sidebar-results':  (gobject.SIGNAL_RUN_LAST, gobject.TYPE_NONE, (gobject.TYPE_PYOBJECT,)),
+        'remove-sidebar-results':  (gobject.SIGNAL_RUN_LAST, gobject.TYPE_NONE, (gobject.TYPE_PYOBJECT,)),
         'pair-location-changed': (gobject.SIGNAL_RUN_LAST, gobject.TYPE_NONE, (gobject.TYPE_PYOBJECT, gobject.TYPE_PYOBJECT))
     }
 
@@ -155,10 +157,34 @@ class ShellBuffer(Destroyable, gtk.TextBuffer):
         if not isinstance(chunk, StatementChunk):
             return
 
-        if chunk.results_start_mark:
+        if chunk.results_start_mark or chunk.sidebar_results:
             raise RuntimeError("__insert_results called when we already have results")
 
         if (chunk.results is None or len(chunk.results) == 0) and chunk.error_message is None:
+            return
+
+        if chunk.error_message:
+            inline_results = [ chunk.error_message ]
+            sidebar_results = None
+        else:
+            inline_results = []
+            sidebar_results = []
+            for result in chunk.results:
+                if hasattr(result, 'display'):
+                    display = result.display
+                else:
+                    display = 'inline'
+
+                if display == 'side':
+                    sidebar_results.append(result)
+                else:
+                    inline_results.append(result)
+
+        if sidebar_results:
+            chunk.sidebar_results = sidebar_results
+            self.emit("add-sidebar-results", chunk)
+
+        if not inline_results:
             return
 
         self.__begin_modification()
@@ -179,13 +205,8 @@ class ShellBuffer(Destroyable, gtk.TextBuffer):
         chunk.results_start_mark = self.create_mark(None, location, True)
         chunk.results_start_mark.source = chunk
 
-        if chunk.error_message:
-            results = [ chunk.error_message ]
-        else:
-            results = chunk.results
-
         first = True
-        for result in results:
+        for result in inline_results:
             if not first:
                 self.insert(location, "\n")
             first = False
@@ -232,7 +253,7 @@ class ShellBuffer(Destroyable, gtk.TextBuffer):
         chunk.results_start_mark = None
         chunk.results_end_mark = None
 
-    def __delete_results(self, chunk):
+    def __delete_inline_results(self, chunk):
         if not (isinstance(chunk, StatementChunk) and chunk.results_start_mark):
             return
 
@@ -248,6 +269,20 @@ class ShellBuffer(Destroyable, gtk.TextBuffer):
         self.__delete_results_marks(chunk)
 
         self.__end_modification()
+
+    def __delete_sidebar_results(self, chunk):
+        if not (isinstance(chunk, StatementChunk) and chunk.sidebar_results):
+            return
+
+        chunk.sidebar_results = None
+        self.emit('remove-sidebar-results', chunk)
+
+    def __delete_results(self, chunk):
+        if not isinstance(chunk, StatementChunk):
+            return
+
+        self.__delete_inline_results(chunk)
+        self.__delete_sidebar_results(chunk)
 
     def __set_pair_location(self, location):
         changed = False
@@ -515,6 +550,7 @@ class ShellBuffer(Destroyable, gtk.TextBuffer):
         for chunk in worksheet.iterate_chunks(start_line, end_line):
             if chunk != worksheet.get_chunk(end_line):
                 self.__delete_results_marks(chunk)
+                self.__delete_sidebar_results(chunk)
 
         self.delete(start, end)
         self.__end_modification()
@@ -558,6 +594,7 @@ class ShellBuffer(Destroyable, gtk.TextBuffer):
         chunk.pixels_above = chunk.pixels_below = 0
         chunk.results_start_mark = None
         chunk.results_end_mark = None
+        chunk.sidebar_results = None
         self.on_chunk_changed(worksheet, chunk, range(0, chunk.end - chunk.start))
 
     def on_chunk_deleted(self, worksheet, chunk):
@@ -585,7 +622,7 @@ class ShellBuffer(Destroyable, gtk.TextBuffer):
             if (not _forward_line(iter) or not chunk.results_start_mark in iter.get_marks()):
                 self.__delete_results(chunk)
                 self.__insert_results(chunk)
-        else:
+        elif not chunk.sidebar_results:
             self.__insert_results(chunk)
 
         self.__adjust_status_tags(chunk)
