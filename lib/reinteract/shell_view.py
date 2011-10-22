@@ -182,18 +182,19 @@ class ShellView(gtk.TextView):
         if (self.flags() & gtk.REALIZED) != 0:
             self.__watch_window.resize(allocation.width, allocation.height)
 
-    def __expose_window_left(self, event):
-        (_, start_y) = self.window_to_buffer_coords(gtk.TEXT_WINDOW_LEFT, 0, event.area.y)
+    def __iterate_expose_chunks(self, event):
+        _, start_y = self.window_to_buffer_coords(gtk.TEXT_WINDOW_LEFT, 0, event.area.y)
         start_line = self.__get_worksheet_line_at_y(start_y, adjust=ADJUST_AFTER)
-        
-        (_, end_y) = self.window_to_buffer_coords(gtk.TEXT_WINDOW_LEFT, 0, event.area.y + event.area.height - 1)
+
+        _, end_y = self.window_to_buffer_coords(gtk.TEXT_WINDOW_LEFT, 0, event.area.y + event.area.height - 1)
         end_line = self.__get_worksheet_line_at_y(end_y, adjust=ADJUST_BEFORE)
 
-        buf = self.get_buffer()
+        return self.get_buffer().worksheet.iterate_chunks(start_line, end_line + 1)
 
+    def __expose_window_left(self, event):
         cr = event.window.cairo_create()
 
-        for chunk in buf.worksheet.iterate_chunks(start_line, end_line + 1):
+        for chunk in self.__iterate_expose_chunks(event):
             if isinstance(chunk, StatementChunk):
                 if chunk.executing:
                     self.paint_chunk(cr, event.area, chunk, (0, 1, 0), (0, 0.5, 0))
@@ -247,6 +248,57 @@ class ShellView(gtk.TextView):
         rect.x, rect.y = self.buffer_to_window_coords(gtk.TEXT_WINDOW_TEXT, rect.x, rect.y)
 
         self.__draw_rect_outline(event, rect)
+
+    def __line_boundary_in_selection(self, line):
+        buf = self.get_buffer()
+
+        try:
+            line_iter = buf.pos_to_iter(line)
+        except IndexError:
+            return
+
+        sel_start, sel_end = buf.get_selection_bounds()
+        return sel_start.compare(line_iter) < 0 and sel_end.compare(line_iter) >= 0
+
+    def __expose_padding_areas(self, event):
+        # This is a fixup for the padding areas we add to chunks when leaving
+        # space for sidebar widgets - gtk.TextView draws these areas as part
+        # of the chunk that is being padded (so partially selected when the
+        # line is partially selected.) This just looks wrong, so we paint over
+        # that so that padding areas are _between_ lines.
+
+        cr = event.window.cairo_create()
+
+        left_margin = self.get_property('left-margin')
+        right_margin = self.get_property('right-margin')
+        selection_left, _ = self.buffer_to_window_coords(gtk.TEXT_WINDOW_TEXT,
+                                                         left_margin, 0)
+        window_width, _ = event.window.get_size()
+        # 1 here is gtktextview.c:SPACE_FOR_CURSOR - padding on the right for the cursor
+        selection_width = window_width - left_margin - right_margin - 1
+
+        for chunk in self.__iterate_expose_chunks(event):
+            if chunk.pixels_above != 0 or chunk.pixels_below != 0:
+                chunk_y, chunk_height = self.__get_chunk_yrange(chunk)
+                _, window_y = self.buffer_to_window_coords(gtk.TEXT_WINDOW_TEXT, 0, chunk_y)
+
+                if chunk.pixels_above != 0:
+                    cr.rectangle(selection_left, window_y,
+                                 selection_width, chunk.pixels_above)
+                    if self.__line_boundary_in_selection(chunk.start):
+                        cr.set_source_color(self.style.base[gtk.STATE_SELECTED])
+                    else:
+                        cr.set_source_color(self.style.base[self.state])
+                    cr.fill()
+
+                if chunk.pixels_below != 0:
+                    cr.rectangle(selection_left, window_y + chunk_height - chunk.pixels_below,
+                                 selection_width, chunk.pixels_below)
+                    if self.__line_boundary_in_selection(chunk.end):
+                        cr.set_source_color(self.style.base[gtk.STATE_SELECTED])
+                    else:
+                        cr.set_source_color(self.style.base[self.state])
+                    cr.fill()
 
     def __update_last_chunk(self):
         buf = self.get_buffer()
@@ -388,11 +440,13 @@ class ShellView(gtk.TextView):
                                                                  priority=priority)
 
     def do_expose_event(self, event):
+        buf = self.get_buffer()
+
         if not self.edit_only and event.window == self.get_window(gtk.TEXT_WINDOW_LEFT):
             self.__queue_update_sidebar_positions()
             self.__expose_window_left(event)
             return False
-        
+
         gtk.TextView.do_expose_event(self, event)
 
         if event.window == self.get_window(gtk.TEXT_WINDOW_TEXT):
@@ -400,7 +454,9 @@ class ShellView(gtk.TextView):
                 self.__expose_arg_highlight(event)
             else:
                 self.__expose_pair_location(event)
-        
+            if buf.get_has_selection():
+                self.__expose_padding_areas(event)
+
         return False
 
     # This is likely overengineered, since we're going to try as hard as possible not to
