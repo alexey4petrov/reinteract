@@ -314,6 +314,7 @@ class ShellView(gtk.TextView):
 
                     widget_end_y = slot_start_y + slots[slot_index].get_results_height()
                     slot_index += 1
+                    slot_start_chunk = None
                 else:
                     if isinstance(chunk, CommentChunk):
                         slot_start_chunk = chunk

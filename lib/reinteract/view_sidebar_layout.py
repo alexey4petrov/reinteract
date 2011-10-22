@@ -118,7 +118,7 @@ class ViewSidebarLayout(gtk.VBox):
             self.__resize_window.show()
 
     def do_unmap(self):
-        gtk.VBox.do_map(self)
+        gtk.VBox.do_unmap(self)
         self.__resize_window.hide()
 
     def do_realize(self):
