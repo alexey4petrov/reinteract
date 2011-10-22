@@ -755,7 +755,7 @@ class Rewriter:
 
         return self.imports
 
-    def rewrite_and_compile(self, output_func_name=None, print_func_name=None, copy_func_name="__copy"):
+    def rewrite_and_compile(self, output_func_name=None, print_func_name=None, copy_func_name="__copy", statement_name="<statement>"):
         """
         Compiles the parse tree into code, while rewriting the parse tree according to the
         output_func_name and print_func_name arguments.
@@ -782,6 +782,9 @@ class Rewriter:
            Should have the same semantics as copy.copy (will normally be an import of copy.copy)
            Defaults to __copy.
 
+        @param statement_name: the __name of the Statment being compiled.
+            Defaults to "<statement>".
+
         @returns: a tuple of the compiled code followed by a list of mutations
         """
 
@@ -802,7 +805,7 @@ class Rewriter:
             for feature in self.future_features:
                 compile_flags |= getattr(__future__, feature).compiler_flag
 
-        compiled = compile(rewritten, '<statement>', 'exec', flags=compile_flags)
+        compiled = compile(rewritten, statement_name, 'exec', flags=compile_flags)
         mutated = transformer.mutated.mutated if transformer.mutated else ()
 
         return (compiled, mutated)

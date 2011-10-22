@@ -11,6 +11,7 @@ import pkgutil
 import threading
 import traceback
 import sys
+import re
 
 from custom_result import CustomResult
 import notebook
@@ -40,6 +41,10 @@ class Statement:
     INTERRUPTED = 6
 
     __local = threading.local()
+
+    __counter = 0
+
+    NAME_PATTERN = re.compile(r'<statement\d+>')
 
     def __init__(self, text, worksheet, parent=None):
         self.__text = text
@@ -72,6 +77,9 @@ class Statement:
 
         self.__stdout_buffer = None
         self.__capture = None
+
+        self.__name = '<statement%i>' % self.__class__.__counter
+        Statement.__counter += 1
 
     def set_parent(self, parent):
         """Set the parent statement for this statement.
@@ -108,7 +116,8 @@ class Statement:
         try:
             rewriter = Rewriter(self.__text, future_features=self.__parent_future_features)
             self.__compiled, self.__mutated = rewriter.rewrite_and_compile(output_func_name='reinteract_output',
-                                                                           copy_func_name="__reinteract_copy")
+                                                                           copy_func_name="__reinteract_copy",
+                                                                           statement_name=self.__name)
             self.imports = rewriter.get_imports()
         except SyntaxError, e:
             self.error_message = e.msg
@@ -246,7 +255,10 @@ class Statement:
         skip_filenames = [self.__get_module_filename(m) for m in (notebook, pkgutil)]
         extracted = filter(lambda x: x[0] not in skip_filenames, traceback.extract_tb(tb)[2:])
 
+        # Replace all statement names with a generic "<statement>", since the names are
+        # rather arbitrary from the user's perspective.
         formatted = "".join(traceback.format_list(extracted))
+        formatted = Statement.NAME_PATTERN.sub("<statement>", formatted)
         last_line = "".join(traceback.format_exception_only(error_type, value))
 
         return (formatted + last_line).rstrip()
@@ -284,7 +296,12 @@ class Statement:
             error_type, value, tb = sys.exc_info()
 
             self.error_message = self.__format_traceback(error_type, value, tb)
-            self.error_line = tb.tb_next.tb_lineno
+            self.error_line = None
+            # Get error_line from most recent frame refering to this Statement
+            while tb:
+                if tb.tb_frame.f_code.co_filename == self.__name:
+                    self.error_line = tb.tb_lineno
+                tb = tb.tb_next
             self.error_offset = None
 
             self.state = Statement.EXECUTE_ERROR
