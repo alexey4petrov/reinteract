@@ -73,6 +73,9 @@ class ShellView(gtk.TextView):
         self.__scroll_to = buf.create_mark(None, buf.get_start_iter(), True)
         self.__scroll_idle = None
 
+        self.__pixels_below_buffer = 0
+        self.__last_chunk = None
+
         self.connect('destroy', self.on_destroy)
 
     def __get_worksheet_line_yrange(self, line):
@@ -216,6 +219,21 @@ class ShellView(gtk.TextView):
         rect.x, rect.y = self.buffer_to_window_coords(gtk.TEXT_WINDOW_TEXT, rect.x, rect.y)
 
         self.__draw_rect_outline(event, rect)
+
+    def __update_last_chunk(self):
+        buf = self.get_buffer()
+
+        if self.__last_chunk and self.__pixels_below_buffer != 0:
+            buf.set_pixels_below(self.__last_chunk, 0)
+
+        self.__last_chunk = buf.worksheet.get_chunk(buf.worksheet.get_line_count() - 1)
+        if self.__pixels_below_buffer != 0:
+            buf.set_pixels_below(self.__last_chunk, self.__pixels_below_buffer)
+
+    def __set_pixels_below_buffer(self, pixels_below):
+        self.set_pixels_below_lines(pixels_below)
+        self.get_buffer().set_pixels_below(self.__last_chunk, pixels_below)
+        self.__pixels_below_buffer = pixels_below
 
     def do_expose_event(self, event):
         if not self.edit_only and event.window == self.get_window(gtk.TEXT_WINDOW_LEFT):
@@ -636,7 +654,11 @@ class ShellView(gtk.TextView):
                                                False)
 
     def on_chunk_inserted(self, worksheet, chunk):
+        buf = self.get_buffer()
+
         self.__invalidate_status(chunk)
+        if chunk.end == buf.worksheet.get_line_count():
+            self.__update_last_chunk()
 
     def on_chunk_changed(self, worksheet, chunk, changed_lines):
         self.__invalidate_status(chunk)
@@ -676,6 +698,10 @@ class ShellView(gtk.TextView):
             if self.__scroll_idle is not None:
                 glib.source_remove(self.__scroll_idle)
             self.__scroll_idle = None
+
+        if self.__last_chunk == chunk:
+            self.__last_chunk = None
+            self.__update_last_chunk()
 
     def on_notify_state(self, worksheet, param_spec):
         if (self.flags() & gtk.REALIZED) != 0:
