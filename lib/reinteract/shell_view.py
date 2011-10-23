@@ -508,6 +508,7 @@ class ShellView(gtk.TextView):
 
     def __reindent_line(self, iter, indent_text):
         buf = self.get_buffer()
+        insert_mark = buf.get_insert()
 
         line, pos = buf.iter_to_pos(iter, adjust=ADJUST_NONE)
         if line == None:
@@ -535,8 +536,7 @@ class ShellView(gtk.TextView):
         # inserting white-space there, then the whitespace should be *inside* the selection
         mark_to_start = None
         if common_len == 0 and buf.get_has_selection():
-            mark = buf.get_insert()
-            if buf.get_iter_at_mark(mark).compare(start) == 0:
+            if buf.get_iter_at_mark(insert_mark).compare(start) == 0:
                 mark_to_start = mark
                 
             mark = buf.get_selection_bound()
@@ -549,6 +549,15 @@ class ShellView(gtk.TextView):
         if mark_to_start is not None:
             end.set_line_offset(0)
             buf.move_mark(mark_to_start, end)
+
+        insert_iter = buf.get_iter_at_mark(insert_mark)
+        insert_line, _ = buf.iter_to_pos(insert_iter, adjust=ADJUST_NONE)
+        if insert_line == line:
+            # We shifted the insertion cursor around behind gtk.TextView's back,
+            # by inserting text on the same line; this will result in a wrong
+            # virtual cursor position. Calling buf.place_cursor() will cause
+            # the virtual cursor position to be reset to the proper value.
+            buf.place_cursor(insert_iter)
 
         return diff
 
