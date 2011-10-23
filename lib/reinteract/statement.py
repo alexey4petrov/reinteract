@@ -247,13 +247,13 @@ class Statement:
         else:
             return filename
 
-    def __format_traceback(self, error_type, value, tb):
+    def __format_traceback(self, error_type, value, tb, skip):
         # The top two frames are always statement.__do_execute and the compiled
         # statement, so we skip them as not useful. We additionally skip frames that
         # are inside the notebook and pkgutil modules because these are likely our
         # our custom import implementation
         skip_filenames = [self.__get_module_filename(m) for m in (notebook, pkgutil)]
-        extracted = filter(lambda x: x[0] not in skip_filenames, traceback.extract_tb(tb)[2:])
+        extracted = filter(lambda x: x[0] not in skip_filenames, traceback.extract_tb(tb)[skip:])
 
         # Replace all statement names with a generic "<statement>", since the names are
         # rather arbitrary from the user's perspective.
@@ -295,14 +295,34 @@ class Statement:
             self.result_scope = None
             error_type, value, tb = sys.exc_info()
 
-            self.error_message = self.__format_traceback(error_type, value, tb)
+            # Get error_line from most recent frame refering to this Statement; if
+            # tha most recent frame is the first frame referring to this Statement
+            # then we omit it from the traceback.
+
             self.error_line = None
-            # Get error_line from most recent frame refering to this Statement
-            while tb:
-                if tb.tb_frame.f_code.co_filename == self.__name:
-                    self.error_line = tb.tb_lineno
-                tb = tb.tb_next
             self.error_offset = None
+
+            index = 0
+            first_frame = -1
+            skip_first_frame = True
+
+            tmp = tb
+            while tmp:
+                if tmp.tb_frame.f_code.co_filename == self.__name:
+                    if first_frame < 0:
+                        first_frame = index
+                    else:
+                        skip_first_frame = False
+                    self.error_line = tmp.tb_lineno
+                tmp = tmp.tb_next
+                index += 1
+
+            if skip_first_frame:
+                skip = first_frame + 1
+            else:
+                skip = first_frame
+
+            self.error_message = self.__format_traceback(error_type, value, tb, skip)
 
             self.state = Statement.EXECUTE_ERROR
 
