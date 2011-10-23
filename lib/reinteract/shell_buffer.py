@@ -244,6 +244,9 @@ class ShellBuffer(Destroyable, gtk.TextBuffer):
 
         self.__end_modification()
 
+        if chunk.pixels_below != 0:
+            chunk.__reset_last_line_tag()
+
     def __delete_results_marks(self, chunk):
         if not (isinstance(chunk, StatementChunk) and chunk.results_start_mark):
             return
@@ -269,6 +272,9 @@ class ShellBuffer(Destroyable, gtk.TextBuffer):
         self.__delete_results_marks(chunk)
 
         self.__end_modification()
+
+        if chunk.pixels_below != 0:
+            chunk.__reset_last_line_tag()
 
     def __delete_sidebar_results(self, chunk):
         if not (isinstance(chunk, StatementChunk) and chunk.sidebar_results):
@@ -388,9 +394,15 @@ class ShellBuffer(Destroyable, gtk.TextBuffer):
 
     def __reset_last_line_tag(self, chunk):
         first_line_start = self.pos_to_iter(chunk.start)
-        last_line_start = self.pos_to_iter(chunk.end - 1)
-        last_line_end = last_line_start.copy()
-        last_line_end.forward_line()
+
+        if isinstance(chunk, StatementChunk) and chunk.results_end_mark is not None:
+            last_line_end = self.get_iter_at_mark(chunk.results_end_mark)
+            last_line_start = last_line_end.copy()
+            last_line_end.set_line_offset(0)
+        else:
+            last_line_start = self.pos_to_iter(chunk.end - 1)
+            last_line_end = last_line_start.copy()
+            last_line_end.forward_line()
 
         self.remove_tag(chunk.__last_line_tag, first_line_start, last_line_end)
         self.apply_tag(chunk.__last_line_tag, last_line_start, last_line_end)
