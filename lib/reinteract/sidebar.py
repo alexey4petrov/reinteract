@@ -347,7 +347,7 @@ class SidebarChild(object):
         self.window.set_user_data(self.sidebar)
         self.widget.set_parent_window(self.window)
 
-        if self.sidebar.get_mapped():
+        if self.sidebar.flags() & gtk.MAPPED:
             self.window.show()
 
     def destroy_window(self):
