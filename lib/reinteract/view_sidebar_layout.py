@@ -322,6 +322,36 @@ class ViewSidebarLayout(gtk.VBox):
 
         return False
 
+    def do_scroll_event(self, event):
+        if event.direction == gtk.gdk.SCROLL_UP or event.direction == gtk.gdk.SCROLL_DOWN:
+            scrollbar = self.__vscrollbar;
+        else:
+            window = event.window
+            scrollbar = None
+            while window and not scrollbar:
+                widget = window.get_user_data()
+                if widget == self:
+                    break
+                elif widget == self.view or widget == self.__main_hscrollbar:
+                    scrollbar = self.__main_hscrollbar
+                elif widget == self.sidebar or widget == self.__sidebar_hscrollbar:
+                    scrollbar = self.__sidebar_hscrollbar
+
+                window = window.get_parent()
+
+        if scrollbar and scrollbar.get_child_visible():
+            # Logic from _gtk_range_get_wheel_delta()
+            adjustment = scrollbar.get_adjustment()
+            delta = adjustment.page_size ** (2.0 / 3.0)
+
+            if event.direction == gtk.gdk.SCROLL_UP or event.direction == gtk.gdk.SCROLL_LEFT:
+                delta = -delta
+
+            value = adjustment.value + delta
+            value = max(value, adjustment.lower)
+            value = min(value, adjustment.upper - adjustment.page_size)
+            adjustment.set_value(value)
+
     #######################################################
     # Public API
     #######################################################
