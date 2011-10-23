@@ -486,7 +486,7 @@ class _Transformer(ast.NodeTransformer, _ScopeMixin):
             else:
                 asname = alias.name
 
-            self.handle_assign_to_name(asname, alias)
+            self.handle_assign_to_name(asname, node)
 
         return self.generic_visit(node)
 
@@ -509,7 +509,7 @@ class _Transformer(ast.NodeTransformer, _ScopeMixin):
                 # a mutation, but that's pretty weird, just ignore
                 continue
 
-            self.handle_assign_to_name(alias.name, alias)
+            self.handle_assign_to_name(alias.name, node)
 
         return self.generic_visit(node)
 
