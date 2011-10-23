@@ -953,7 +953,6 @@ class ShellView(gtk.TextView):
         widget = result.create_widget()
         widget.show()
         self.add_child_at_anchor(widget, anchor)
-        self.sidebar_open = True
 
     def on_add_sidebar_results(self, buf, chunk):
         if len(self.sidebar.slots) == 0:
