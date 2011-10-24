@@ -261,6 +261,8 @@ class ShellView(gtk.TextView):
         return sel_start.compare(line_iter) < 0 and sel_end.compare(line_iter) >= 0
 
     def __expose_padding_areas(self, event):
+        buf = self.get_buffer()
+
         # This is a fixup for the padding areas we add to chunks when leaving
         # space for sidebar widgets - gtk.TextView draws these areas as part
         # of the chunk that is being padded (so partially selected when the
@@ -292,6 +294,11 @@ class ShellView(gtk.TextView):
                     cr.fill()
 
                 if chunk.pixels_below != 0:
+                    if isinstance(chunk, StatementChunk) and chunk.results_end_mark is not None:
+                        end_iter = buf.get_iter_at_mark(chunk.results_end_mark)
+                        end_line_y, end_line_height = self.get_line_yrange(end_iter)
+                        chunk_height = end_line_y + end_line_height - chunk_y
+
                     cr.rectangle(selection_left, window_y + chunk_height - chunk.pixels_below,
                                  selection_width, chunk.pixels_below)
                     if self.__line_boundary_in_selection(chunk.end):
@@ -300,13 +307,13 @@ class ShellView(gtk.TextView):
                         cr.set_source_color(self.style.base[self.state])
                     cr.fill()
 
-    def __update_last_chunk(self):
+    def __update_last_chunk(self, new_last_chunk):
         buf = self.get_buffer()
 
         if self.__last_chunk and self.__pixels_below_buffer != 0:
             buf.set_pixels_below(self.__last_chunk, 0)
 
-        self.__last_chunk = buf.worksheet.get_chunk(buf.worksheet.get_line_count() - 1)
+        self.__last_chunk = new_last_chunk
         if self.__pixels_below_buffer != 0:
             buf.set_pixels_below(self.__last_chunk, self.__pixels_below_buffer)
 
@@ -385,13 +392,13 @@ class ShellView(gtk.TextView):
                 buf.set_pixels_above(chunk, 0)
 
         # Finally, add space at the end of the buffer, if necessary
-        last_chunk = buf.worksheet.get_chunk(buf.worksheet.get_line_count() - 1)
-        chunk_y, chunk_height = self.__get_chunk_yrange(last_chunk)
-        chunk_height -= self.__pixels_below_buffer
 
         pixels_below = 0
-        if widget_end_y is not None and widget_end_y > chunk_y + chunk_height:
-            pixels_below = widget_end_y - (chunk_y + chunk_height)
+        if widget_end_y is not None:
+            end_line_y, end_line_height = self.get_line_yrange(buf.get_end_iter())
+            end_y = end_line_y + end_line_height - self.__pixels_below_buffer
+            if widget_end_y > end_y:
+                pixels_below = widget_end_y - end_y
 
         self.__set_pixels_below_buffer(pixels_below)
 
@@ -875,7 +882,7 @@ class ShellView(gtk.TextView):
 
         self.__invalidate_status(chunk)
         if chunk.end == buf.worksheet.get_line_count():
-            self.__update_last_chunk()
+            self.__update_last_chunk(chunk)
 
     def on_chunk_changed(self, worksheet, chunk, changed_lines):
         self.__invalidate_status(chunk)
@@ -919,6 +926,8 @@ class ShellView(gtk.TextView):
         return False
 
     def on_chunk_deleted(self, worksheet, chunk):
+        buf = self.get_buffer()
+
         if self.__cursor_chunk == chunk:
             self.__cursor_chunk = None
             if self.__scroll_idle is not None:
@@ -927,7 +936,12 @@ class ShellView(gtk.TextView):
 
         if self.__last_chunk == chunk:
             self.__last_chunk = None
-            self.__update_last_chunk()
+
+            new_last_chunk = buf.worksheet.get_chunk(buf.worksheet.get_line_count() - 1)
+            # We might find a newly created chunk that hasn't been "inserted" yet -
+            # in that case, we wait until we get chunk-inserted
+            if hasattr(new_last_chunk, 'pixels_above'):
+                self.__update_last_chunk(new_last_chunk)
 
     def on_notify_state(self, worksheet, param_spec):
         if (self.flags() & gtk.REALIZED) != 0:

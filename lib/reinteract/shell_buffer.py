@@ -233,6 +233,7 @@ class ShellBuffer(Destroyable, gtk.TextBuffer):
 
         start = self.get_iter_at_mark(chunk.results_start_mark)
         self.apply_tag(self.__result_tag, start, location)
+        self.apply_tag(self.__whole_buffer_tag, start, location)
         if chunk.error_message:
             self.apply_tag(self.__error_tag, start, location)
         chunk.results_end_mark = self.create_mark(None, location, True)
@@ -245,7 +246,7 @@ class ShellBuffer(Destroyable, gtk.TextBuffer):
         self.__end_modification()
 
         if chunk.pixels_below != 0:
-            chunk.__reset_last_line_tag()
+            self.__reset_last_line_tag(chunk)
 
     def __delete_results_marks(self, chunk):
         if not (isinstance(chunk, StatementChunk) and chunk.results_start_mark):
@@ -274,7 +275,7 @@ class ShellBuffer(Destroyable, gtk.TextBuffer):
         self.__end_modification()
 
         if chunk.pixels_below != 0:
-            chunk.__reset_last_line_tag()
+            self.__reset_last_line_tag(chunk)
 
     def __delete_sidebar_results(self, chunk):
         if not (isinstance(chunk, StatementChunk) and chunk.sidebar_results):
@@ -798,9 +799,6 @@ class ShellBuffer(Destroyable, gtk.TextBuffer):
 
         """
 
-        if not hasattr(chunk, 'pixels_above'):
-            chunk.pixels_above = 0
-
         if pixels_above == chunk.pixels_above:
             return
 
@@ -825,9 +823,6 @@ class ShellBuffer(Destroyable, gtk.TextBuffer):
         padding at the end of the buffer.
 
         """
-
-        if not hasattr(chunk, 'pixels_below'):
-            chunk.pixels_below = 0
 
         if pixels_below == chunk.pixels_below:
             return
