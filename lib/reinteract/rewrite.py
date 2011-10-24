@@ -454,18 +454,16 @@ class _Transformer(ast.NodeTransformer, _ScopeMixin):
 
             node.context_expr = self.visit(node.context_expr)
             node.optional_vars = self.visit(optional_vars)
-
-            if node.optional_vars:
-                self.handle_assign_to_name(node.optional_vars.id, node.optional_vars)
+            self.handle_assign_to_name(node.optional_vars.id, node.optional_vars)
 
             node.body = self.visit_statements(node.body)
 
             return node, self.visit(output_stmt)
         else:
             node.context_expr = self.visit(node.context_expr)
-            node.optional_vars = self.visit(node.optional_vars)
 
-            if node.optional_vars:
+            if node.optional_vars is not None:
+                node.optional_vars = self.visit(node.optional_vars)
                 self.handle_assign_to_name(node.optional_vars.id, node.optional_vars)
 
             node.body = self.visit_statements(node.body)
