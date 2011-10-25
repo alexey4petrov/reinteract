@@ -1,0 +1,56 @@
+diff -up ./setupext.py.freetype ./setupext.py
+--- ./setupext.py.freetype	2011-10-06 10:50:23.000000000 -0400
++++ ./setupext.py	2011-10-24 10:04:32.000000000 -0400
+@@ -334,13 +334,33 @@ def find_include_file(include_dirs, file
+             return True
+     return False
+ 
++def freetype2_config_include_dirs():
++    stdin, stdout = run_child_process('freetype-config --cflags')
++    dirs = []
++    for word in stdout.read().split():
++        if word.startswith('-I'):
++            word = word[2:].strip()
++            if word == '':
++                continue
++        dirs.append(word)
++    return dirs
++
++def freetype2_config_library_dirs():
++    stdin, stdout = run_child_process('freetype-config --libs')
++    dirs = []
++    for word in stdout.read().split():
++        if word.startswith('-L'):
++            word = word[2:].strip()
++            if word == '':
++                continue
++        dirs.append(word)
++    return dirs
++
+ def check_for_freetype():
+     module = Extension('test', [])
+     add_base_flags(module)
+     if not get_pkgconfig(module, 'freetype2'):
+-        basedirs = module.include_dirs[:]  # copy the list to avoid inf loop!
+-        for d in basedirs:
+-            module.include_dirs.append(os.path.join(d, 'freetype2'))
++        module.include_dirs.extend(freetype2_config_include_dirs())
+ 
+     print_status("freetype2", get_pkgconfig_version('freetype2'))
+     if not find_include_file(module.include_dirs, 'ft2build.h'):
+@@ -584,13 +604,8 @@ def add_ft2font_flags(module):
+         module.libraries.extend(['freetype', 'z'])
+         add_base_flags(module)
+ 
+-        basedirs = module.include_dirs[:]  # copy the list to avoid inf loop!
+-        for d in basedirs:
+-            module.include_dirs.append(os.path.join(d, 'freetype2'))
+-            p = os.path.join(d, 'lib/freetype2/include')
+-            if os.path.exists(p): module.include_dirs.append(p)
+-            p = os.path.join(d, 'lib/freetype2/include/freetype2')
+-            if os.path.exists(p): module.include_dirs.append(p)
++        module.include_dirs.extend(freetype2_config_include_dirs())
++        module.library_dirs.extend(freetype2_config_library_dirs())
+ 
+         basedirs = module.library_dirs[:]  # copy the list to avoid inf loop!
+         for d in basedirs:

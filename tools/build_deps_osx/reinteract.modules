@@ -39,8 +39,8 @@
              autogenargs="--without-x --with-included-modules=basic-atsui"
              makeargs="-k -C modules; make">
     <!-- The last version that will build on Tiger is 1.24.5 -->
-    <branch version="1.28.3" repo="gnomeftp" module="sources/pango/1.28/pango-1.28.3.tar.bz2"
-            hash="sha256:5e278bc9430cc7bb00270f183360d262c5006b51248e8b537ea904573f200632">
+    <branch version="1.28.4" repo="gnomeftp" module="sources/pango/1.28/pango-1.28.4.tar.bz2"
+            hash="sha256:7eb035bcc10dd01569a214d5e2bc3437de95d9ac1cfa9f50035a687c45f05a9f">
 <!--    <branch version="1.24.5" module="pango/1.24/pango-1.24.5.tar.bz2"
             hash="sha256:0f733d1ec3e8dafcae152d7ac58f1090bee1fd856176c8fee0e81b0e42392f4e">-->
   <patch file="https://raw.github.com/jralls/gtk-osx-build/master/patches/pangoatsui-fontname.patch" strip="1"/>
@@ -58,26 +58,29 @@
     </after>
   </autotools>
 
-  <!-- Add two patches fixing a crash when printing -->
+  <!-- Add a patches fixing a crash when printing -->
   <autotools id="gtk+" autogen-sh="configure"
              autogenargs="--with-gdktarget=quartz"
              autogen-template="autoreconf -fis &amp;&amp; %(srcdir)s/%(autogen-sh)s --prefix %(prefix)s --libdir %(libdir)s %(autogenargs)s">
-    <branch repo="gnomeftp" module="gtk+/2.24/gtk+-2.24.0.tar.bz2" version="2.24.0"
-            hash="sha256:cbed1a7b8cd1e471388a00f22557dd061334698a0c1aece11b7ed6541d115606">
-      <patch file="https://raw.github.com/jralls/gtk-osx-build/master/patches/gtkselection.patch" strip="1"/>
-      <patch file="https://raw.github.com/jralls/gtk-osx-build/master/patches/gtk-introspection.patch" strip="1"/>
-      <patch file="https://raw.github.com/jralls/gtk-osx-build/master/patches/gtk-keyhash.patch" strip="1"/>
-      <patch file="https://raw.github.com/jralls/gtk-osx-build/master/patches/gtk-relocation.patch" strip="1"/>
-      <patch file="https://raw.github.com/jralls/gtk-osx-build/master/patches/gdk-deadkeys.patch" strip="1"/>
-      <patch file="https://raw.github.com/jralls/gtk-osx-build/master/patches/gdkeventloop.patch" strip="1"/>
-      <patch file="https://raw.github.com/jralls/gtk-osx-build/master/patches/gtkdndmemory.patch" strip="1"/>
-      <patch file="https://raw.github.com/jralls/gtk-osx-build/master/patches/gtkselection_deref.patch" strip="1"/>
-      <patch file="https://raw.github.com/jralls/gtk-osx-build/master/patches/gtk-borderless.patch" strip="1"/>
-      <patch file="https://raw.github.com/jralls/gtk-osx-build/master/patches/gtk2-lion-resize.patch" strip="1"/>
-      <patch file="https://raw.github.com/jralls/gtk-osx-build/master/patches/gdk-quartz-version.patch" strip="1"/>
-      <patch file="https://raw.github.com/jralls/gtk-osx-build/master/patches/gdk-quartz-norects.patch" strip="1"/>
+    <branch repo="gnomeftp" module="sources/gtk+/2.24/gtk+-2.24.6.tar.bz2" version="2.24.6"
+            hash="sha256:6f45bdbf9ea27eb3b5f977d7ee2365dede0d0ce454985680c26e5210163bbf37">
+      <patch file="http://git.gnome.org/browse/gtk-osx/plain/patches/0001-Backport-acf1345-Fix-refresh-of-static-autorelease_p.patch" strip="1"/>
+      <patch file="http://git.gnome.org/browse/gtk-osx/plain/patches/0002-Bug-628396-Gtk-build-fails-because-of-objective-c-el.patch" strip="1"/>
+      <patch file="http://git.gnome.org/browse/gtk-osx/plain/patches/0003-Bug-658772-Implement-relocatable-paths-for-quartz-si.patch" strip="1"/>
+      <patch file="http://git.gnome.org/browse/gtk-osx/plain/patches/0004-Bug-571582-GtkSelection-implementation-for-quartz.patch" strip="1"/>
+      <patch file="http://git.gnome.org/browse/gtk-osx/plain/patches/0005-Bug-657770-Write-to-released-memory-in-gtkdnd-quartz.patch" strip="1"/>
+      <patch file="http://git.gnome.org/browse/gtk-osx/plain/patches/0006-Bug-658722-Drag-and-Drop-sometimes-stops-working.patch" strip="1"/>
+      <patch file="http://git.gnome.org/browse/gtk-osx/plain/patches/0007-Bug-658767-Drag-and-Drop-NSEvent-capture-is-racy.patch" strip="1"/>
+      <patch file="http://git.gnome.org/browse/gtk-osx/plain/patches/0008-Implement-GtkDragSourceOwner-pasteboardChangedOwner.patch" strip="1"/>
+      <patch file="http://git.gnome.org/browse/gtk-osx/plain/patches/0009-Implement-recent-items-in-Filechooser.patch" strip="1"/>
+      <patch file="http://git.gnome.org/browse/gtk-osx/plain/patches/0010-Bug-617583-Dead-accents-keys-don-t-work-in-GTK-appli.patch" strip="1"/>
+      <patch file="http://git.gnome.org/browse/gtk-osx/plain/patches/0011-bgo-514843-filechooser-Deal-with-corrupted-.gtk-book.patch" strip="1"/>
+      <patch file="http://git.gnome.org/browse/gtk-osx/plain/patches/0012-Bug-605799-Option-MOD1-and-Command-SUPER-modifiers-a.patch" strip="1"/>
+      <patch file="http://git.gnome.org/browse/gtk-osx/plain/patches/0013-Bug-659406-Abstract-what-triggers-a-context-menu.patch" strip="1"/>
+      <patch file="http://git.gnome.org/browse/gtk-osx/plain/patches/0014-Bug-659907-gdk_quartz_draw_opaque_stippled_pattern-c.patch" strip="1"/>
+      <patch file="http://git.gnome.org/browse/gtk-osx/plain/patches/0015-Bug-653450-gtkfilechooser-crashes-when-adding-favori.patch" strip="1"/>
+      <patch file="http://git.gnome.org/browse/gtk-osx/plain/patches/gtk+-Bug-655065-autotestkeywords-ldadd.patch" strip="1"/>
       <patch file="gtk+-2.24.0-poll-error.patch" strip="1"/>
-      <patch file="gtk+-2.24.0-print-polling.patch" strip="1"/>
     </branch>
     <dependencies>
       <dep package="pango"/>
@@ -120,15 +123,18 @@
   </autotools>
 
   <distutils id="numpy">
-    <branch repo="sourceforge" module="numpy/numpy-1.2.1.tar.gz" version="1.2.1"
-            size="1448933" md5sum="1bc6dbddaf4b48ded8a619c6438fff37" />
+    <branch repo="sourceforge" module="numpy/numpy-1.6.1.tar.gz" version="1.6.1"
+            size="2637779" md5sum="2bce18c08fc4fce461656f0f4dd9103e" />
     <dependencies>
     </dependencies>
   </distutils>
 
   <distutils id="matplotlib">
-    <branch repo="sourceforge" module="matplotlib/matplotlib-0.98.5.2.tar.gz" version="0.98.5.2"
-            size="11535286" md5sum="3e8210ec8bb71a18962ec8b43688509c" />
+    <branch repo="sourceforge" module="matplotlib/matplotlib-1.1.0.tar.gz" version="1.1.0"
+            size="35842643" md5sum="57a627f30b3b27821f808659889514c2">
+      <!-- fixes build to work against system freetype -->
+      <patch file="matplotlib-1.1.0-freetype-build.patch" strip="0"/>
+    </branch>
     <dependencies>
       <dep package="pygtk"/>
     </dependencies>
