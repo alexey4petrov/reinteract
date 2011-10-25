@@ -103,10 +103,32 @@ class ShellView(gtk.TextView):
         buffer_line = self.get_buffer().pos_to_iter(line)
         return self.get_line_yrange(buffer_line)
 
-    def __get_chunk_yrange(self, chunk):
+    def __get_chunk_yrange(self, chunk, include_padding=False, include_results=False):
+        # include_padding: whether to include pixels_above/pixels_below
+        # include_results: whether to include the results of the chunk
+
         y, _ = self.__get_worksheet_line_yrange(chunk.start)
         end_y, end_height = self.__get_worksheet_line_yrange(chunk.end - 1)
         height = end_y + end_height - y
+
+        if isinstance(chunk, StatementChunk) and chunk.results_end_mark is not None:
+            if include_results:
+                buf = self.get_buffer()
+                end_iter = buf.get_iter_at_mark(chunk.results_end_mark)
+                end_line_y, end_line_height = self.get_line_yrange(end_iter)
+                height = end_line_y + end_line_height - y
+
+                if not include_padding:
+                    y += chunk.pixels_above
+                    height -= chunk.pixels_above + chunk.pixels_below
+            else:
+                # In this case, pixels_below is part of the results, which we don't include
+                if not include_padding:
+                    y += chunk.pixels_above
+                    height -= chunk.pixels_above
+        elif not include_padding:
+            y += chunk.pixels_above
+            height -= chunk.pixels_above + chunk.pixels_below
 
         return y, height
 
@@ -119,8 +141,6 @@ class ShellView(gtk.TextView):
         buf = self.get_buffer()
 
         chunk_y, chunk_height = self.__get_chunk_yrange(chunk)
-        chunk_y += chunk.pixels_above
-        chunk_height -= chunk.pixels_above + chunk.pixels_below
 
         _, window_y = self.buffer_to_window_coords(gtk.TEXT_WINDOW_LEFT, 0, chunk_y)
         cr.rectangle(area.x, window_y, area.width, chunk_height)
@@ -281,12 +301,14 @@ class ShellView(gtk.TextView):
 
         for chunk in self.__iterate_expose_chunks(event):
             if chunk.pixels_above != 0 or chunk.pixels_below != 0:
-                chunk_y, chunk_height = self.__get_chunk_yrange(chunk)
-                _, window_y = self.buffer_to_window_coords(gtk.TEXT_WINDOW_TEXT, 0, chunk_y)
+                total_y, total_height = self.__get_chunk_yrange(chunk, include_padding=True, include_results=True)
+                no_pad_y, no_pad_height = self.__get_chunk_yrange(chunk, include_padding=False, include_results=True)
+                _, total_y = self.buffer_to_window_coords(gtk.TEXT_WINDOW_TEXT, 0, total_y)
+                _, no_pad_y = self.buffer_to_window_coords(gtk.TEXT_WINDOW_TEXT, 0, no_pad_y)
 
                 if chunk.pixels_above != 0:
-                    cr.rectangle(selection_left, window_y,
-                                 selection_width, chunk.pixels_above)
+                    cr.rectangle(selection_left, total_y,
+                                 selection_width, no_pad_y - total_y)
                     if self.__line_boundary_in_selection(chunk.start):
                         cr.set_source_color(self.style.base[gtk.STATE_SELECTED])
                     else:
@@ -294,13 +316,8 @@ class ShellView(gtk.TextView):
                     cr.fill()
 
                 if chunk.pixels_below != 0:
-                    if isinstance(chunk, StatementChunk) and chunk.results_end_mark is not None:
-                        end_iter = buf.get_iter_at_mark(chunk.results_end_mark)
-                        end_line_y, end_line_height = self.get_line_yrange(end_iter)
-                        chunk_height = end_line_y + end_line_height - chunk_y
-
-                    cr.rectangle(selection_left, window_y + chunk_height - chunk.pixels_below,
-                                 selection_width, chunk.pixels_below)
+                    cr.rectangle(selection_left, no_pad_y + no_pad_height,
+                                 selection_width, total_y + total_height - (no_pad_y + no_pad_height))
                     if self.__line_boundary_in_selection(chunk.end):
                         cr.set_source_color(self.style.base[gtk.STATE_SELECTED])
                     else:
@@ -359,9 +376,11 @@ class ShellView(gtk.TextView):
                     else:
                         slot_extra += chunk.pixels_above + chunk.pixels_below
 
-                    slot_start_y, _ = self.__get_chunk_yrange(slot_start_chunk)
+                    slot_start_y, _ = self.__get_chunk_yrange(slot_start_chunk,
+                                                              include_results=True, include_padding=True)
 
-                    chunk_start_y, chunk_height =  self.__get_chunk_yrange(chunk)
+                    chunk_start_y, chunk_height =  self.__get_chunk_yrange(chunk,
+                                                                           include_results=True, include_padding=True)
                     slot_height = chunk_start_y + chunk_height - slot_start_y - slot_extra
 
                     if widget_end_y is not None and widget_end_y > slot_start_y:
@@ -868,7 +887,7 @@ class ShellView(gtk.TextView):
     def __invalidate_status(self, chunk):
         buf = self.get_buffer()
         
-        chunk_y, chunk_height = self.__get_chunk_yrange(chunk)
+        chunk_y, chunk_height = self.__get_chunk_yrange(chunk, include_padding=True)
 
         _, window_y = self.buffer_to_window_coords(gtk.TEXT_WINDOW_LEFT, 0, chunk_y)
 
@@ -986,10 +1005,6 @@ class ShellView(gtk.TextView):
             widget = result.create_widget()
             widget.show()
             widgets.append(widget)
-
-        chunk_y, chunk_height = self.__get_chunk_yrange(chunk)
-        chunk_y += chunk.pixels_above
-        chunk_height -= chunk.pixels_below + chunk.pixels_above
 
         self.sidebar.add_slot(chunk, widgets)
 
