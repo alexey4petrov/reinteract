@@ -140,6 +140,14 @@ class Sidebar(gtk.VBox):
                 child.y = child.target_y
                 child.resize_window()
 
+        # process_updates() here to avoid scrolling this window lagging
+        # behind the mouse, but more importantly, because of a GDK
+        # Quartz backend bug if GtkTextView calls process_updates()
+        # and we don't.
+        # https://bugzilla.gnome.org/show_bug.cgi?id=662674
+        if self.window:
+            self.window.process_updates(True)
+
     #######################################################
     # Callbacks
     #######################################################
