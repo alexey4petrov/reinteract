@@ -124,8 +124,8 @@ BUILD_DEPS_OSX_EXTRA =							\
 	tools/build_deps_osx/i386.cache					\
 	tools/build_deps_osx/jhbuildrc-reinteract			\
 	tools/build_deps_osx/glib-2.28.8-zlib-macosx.patch		\
-	gtk+-2.24.0-poll-error.patch					\
-	gtk+-2.24.0-print-polling.patch					\
+	tools/build_deps_osx/gtk+-2.24.0-poll-error.patch		\
+	tools/build_deps_osx/matplotlib-1.1.0-freetype-build.patch	\
 	tools/build_deps_osx/pango-relocate.patch			\
 	tools/build_deps_osx/ppc.cache					\
 	tools/build_deps_osx/reinteract-bootstrap.modules		\
