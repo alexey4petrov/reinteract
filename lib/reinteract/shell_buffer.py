@@ -625,9 +625,6 @@ class ShellBuffer(Destroyable, gtk.TextBuffer):
     def on_chunk_changed(self, worksheet, chunk, changed_lines):
         _debug("...chunk %s changed", chunk);
 
-        if len(changed_lines) == 0:
-            return
-
         if chunk.results_start_mark:
             # Check that the result is still immediately after the chunk, and if
             # not, delete it and insert it again
@@ -649,10 +646,13 @@ class ShellBuffer(Destroyable, gtk.TextBuffer):
                 tag = None
             self.__retag_chunk(chunk, changed_lines, tag)
 
-        if chunk.pixels_above != 0 and changed_lines[0] == 0:
+        # We can't use changed lines to optimize this since pure deletions
+        # of lines aren't reflected.
+
+        if chunk.pixels_above != 0:
             self.__reset_first_line_tag(chunk)
 
-        if chunk.pixels_below != 0 and changed_lines[-1] == chunk.end - chunk.start - 1:
+        if chunk.pixels_below != 0:
             self.__reset_last_line_tag(chunk)
 
     def on_chunk_status_changed(self, worksheet, chunk):
