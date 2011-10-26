@@ -49,6 +49,7 @@ reinteractpkg_PYTHON =                                                        \
                     lib/reinteract/save_file.py                               \
                     lib/reinteract/shell_buffer.py                            \
                     lib/reinteract/shell_view.py                              \
+                    lib/reinteract/sidebar.py                                 \
                     lib/reinteract/statement.py                               \
                     lib/reinteract/stdout_capture.py                          \
                     lib/reinteract/style.py                                   \
@@ -57,6 +58,7 @@ reinteractpkg_PYTHON =                                                        \
                     lib/reinteract/tokenized_statement.py                     \
                     lib/reinteract/undo_stack.py                              \
                     lib/reinteract/reunicode.py                               \
+                    lib/reinteract/view_sidebar_layout.py                     \
                     lib/reinteract/window_builder.py                          \
                     lib/reinteract/worksheet.py                               \
                     lib/reinteract/worksheet_editor.py                        \
