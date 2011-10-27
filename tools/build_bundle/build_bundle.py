@@ -54,11 +54,12 @@ DEP_LIBRARY_FILES = [
     'lib/libpango-1.0.*.dylib',
     'lib/libpangocairo-1.0.*.dylib',
     'lib/libpixman-1.*.dylib',
-    'lib/libpng12.*.dylib',
+    'lib/libpng14.*.dylib',
     'lib/libpyglib-2.0-python.*.dylib',
     'lib/libtiff.3.dylib',
     'lib/pango/1.6.0/modules/pango-*.so',
-    'lib/gtk-2.0/2.10.0/*/*.so', # engines, immodules, and pixbuf loaders
+    'lib/gtk-2.0/2.10.0/*/*.so', # engines, immodules
+    'lib/gdk-pixbuf-2.0/2.10.0/*/*.so', # pixbuf loaders
     'share/themes'
 ]
 
