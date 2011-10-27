@@ -70,7 +70,7 @@ class Builder(object):
 
         self.file_attributes[relative] = attributes
 
-    def add_files_from_directory(self, sourcedir, directory, **attributes):
+    def add_files_from_directory(self, sourcedir, directory, exclude=None, **attributes):
         """
         Add a directory of files into the temporary tree
 
@@ -78,6 +78,9 @@ class Builder(object):
           to the top of the Reinteract source distribution.
         @param directory: directory put files into (relative to the top of the temporary tree)
         @param attributes: attributes passed to add_file() for each file
+        @param exclude: if present, a list of regular expression objects to match
+          against filenames (using .match() so anchored at the beginning). Filenames
+          that match are excluded.
 
         """
 
@@ -87,9 +90,19 @@ class Builder(object):
             abssourcedir = os.path.join(self.topdir, sourcedir)
 
         for f in os.listdir(abssourcedir):
+            excluded = False
+            if exclude is not None:
+                for pattern in exclude:
+                    if pattern.match(f):
+                        excluded = True
+            if excluded:
+                continue
+
             absf = os.path.join(abssourcedir, f)
             if os.path.isdir(absf):
-                self.add_files_from_directory(absf, os.path.join(directory, f), **attributes)
+                self.add_files_from_directory(absf, os.path.join(directory, f),
+                                              exclude=exclude,
+                                              **attributes)
             else:
                 self.add_file(absf, directory, **attributes)
 
@@ -138,7 +151,10 @@ class Builder(object):
         f = mod.__file__
         if f.endswith('__init__.pyc') or f.endswith('__init__.pyo') or f.endswith('__init__.py'):
             dir = os.path.dirname(f)
-            self.add_files_from_directory(dir, os.path.join(directory, os.path.basename(dir)), **attributes)
+            # We include tests/ because with test data, they can be huge
+            self.add_files_from_directory(dir, os.path.join(directory, os.path.basename(dir)),
+                                          exclude=[re.compile('tests$')],
+                                          **attributes)
         else:
             if f.endswith('.pyc') or f.endswith('.pyo'):
                 # Don't worry about getting the compiled files, we'll recompile anyways
