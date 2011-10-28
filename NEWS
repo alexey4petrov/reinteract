@@ -1,0 +1,134 @@
+==================== 0.5.9 ====================
+
+New Functionality
+=================
+
+* Support for printing worksheets and libraries. (Jorn Baayen, Me)
+
+* Add a 'build' keyword that groups a block of statements, and
+  outputs a specified value after the block executes. For example:
+
+     build replot.Axes() as p:
+        p.plot(...)
+        p.plot(...)
+
+* Initial support for sidebars: if a custom result has a 'display' property,
+  with a value of 'side', then the result is shown in a resizable sidebar
+  to the side of the worksheet contents. replot.Axes now has support for
+  creating such a result:
+
+     build replot.Axes(display='side') as p:
+       p.plot(...)
+
+* When an error occurs, highlight the particular line within a multiline
+  statement that triggered the error. (Me, Robert Schroll)
+
+* Handle Unicode worksheet content.
+
+* Handle notebooks and worksheets with unicode names. (Jorn Baayen)
+
+* For non-Reinteract files in a notebook, launch them with the system
+  default handler. (Robert Schroll)
+
+* Add support for decorators. (Robert Schroll)
+
+* On OS X, the Python framework to use can now be specified using
+  a pythonFrameworkDir user default.
+  (defaults write org.reinteract.Reinteract pythonFrameworkDir <location>)
+
+Functionality for Reinteract Extensions
+=======================================
+
+* The CustomResult class now has a print_result() method that can
+  be used to implement printing for custom result widgets.
+
+* Allow modules to export "wrapper" functions:
+
+  If a module directly imported by a worksheet has a a method called
+  __reinteract_wrap__ then it will be called for each result and if
+  it returns something other than None, then that will be used in
+  preference to the result. The idea here is to allow certain types
+  of results to be automatically bundled up in a CustomResult for
+  display.
+
+* Add a reinteract.custom_result.ResultWidget that can be derived for
+  for automatic tracking of DPI. (Jorn Baayen)
+
+* Add reinteract.statement.Statement.get_current(), so modules can have
+  access to the currently executing statement.
+
+Behavior changes
+================
+
+* Don't execute open worksheets when a notebook is loaded. (Robert Schroll)
+
+* Automatically watch for changes to the notebook on disk using GIO
+  directory monitors. (Robert Schroll, Me)
+
+* Allow executing a worksheet only up to the current cursor line using
+  shift-Return or KP_Enter. (Robert Schroll)
+
+        <shift>Return        Calculate to insert point
+        <control>Return      Calculate whole worksheet
+        <control><alt>Return Calculate all worksheets
+
+    Additionally, <control>KP_Enter acts like <control>Return and
+    KP_Enter and <shift>KP_Enter act like <shift>Return.
+
+* Support <Alt>digit for switching between different open files.
+  (Suggestion by Antti Kaihola.)
+
+* When an executing worksheet is closed, show a dialog and wait rather
+  than letting it run unchecked in the background.
+
+* Methods that begin with get/is/has are assumed to be getters that
+  don't mutate the object.
+
+* Statements that have with a result other than None now only output
+  at the toplevel, not within functions and class definitions.
+  (Me, Robert Schroll)
+
+* When editing inside a parenthesized expression or after a \, just copy
+  the indentation level from the previous line - don't always go back
+  to a four-space indent. (Robert Schroll)
+
+* Scroll to make the result visible after a computation. (Robert Schroll)
+
+* When the user selects within a single result, allow cutting and pasting
+  that, even though results are ignored when copying a larger selected
+  area that contains both code and results. (Robert Schroll)
+
+* Hide the cursor when executing a notebook. (Robert Schroll)
+
+* Reinteract now does a better job at understanding when two references to
+  the the same name reference the variable are the same or not, avoiding
+  spurious warnings about mutated variables.
+
+* We now require Python 2.6 and PyGObject 2.16
+
+Bug fixes
+=========
+
+* Use glib.get_user_special_dir(glib.USER_DIRECTORY_DOCUMENTS) instead
+  of hardcoding ~/Documents. (Joerg Bornschein)
+
+* Fix problems with completion popups going off the screen. (Robert Schroll, Me)
+
+* Fix handling of functions with docstrings. (Suggestion by Antti Kaihola.)
+
+* Fix memory leaks when closing worksheets and windows.
+
+* Use 'is None' and 'is not None' (Suggestion by Jonathan Griffitts)
+
+* Bug fixes for deletion, reindentation, highlighting results needing recomputation,
+  opening notebooks that have been deleted, display of worksheet modification
+  times. (Robert Schroll)
+
+* Mousewheel scrolling now works anywhere in a documentation tooltip (Robert Schroll)
+
+* Clean up tabs and spaces in the codebase. (Joerg Bornschein)
+
+* Fixes for reloading modules and for cleaning up after failed imports.
+  (Reloading problems reported by Laser Yuan)
+
+* Many other bug fixes
