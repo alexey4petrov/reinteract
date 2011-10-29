@@ -42,6 +42,7 @@ class Sidebar(gtk.VBox):
         self.y_offset = 0
 
         self.slots = []
+        self.width = -1
 
         self.__freeze_positions_count = 0
 
@@ -251,6 +252,13 @@ class Sidebar(gtk.VBox):
     # Public API
     #######################################################
 
+    def set_width(self, width):
+        self.width = width
+
+        for child in self.__iterate_children():
+            if hasattr(child.widget, 'set_sidebar_width'):
+                child.widget.set_sidebar_width(self.width - LEFT_MARGIN)
+
     def set_scroll_adjustments(self, hadjustment, vadjustment):
         if self.hadjustment:
             self.hadjustment.disconnect(self.__hadjustment_value_changed_id)
@@ -279,6 +287,8 @@ class Sidebar(gtk.VBox):
             child = SidebarChild(self, widget)
             if self.window:
                 child.create_window()
+            if hasattr(child.widget, 'set_sidebar_width'):
+                child.widget.set_sidebar_width(self.width - LEFT_MARGIN)
             self.add(child.widget)
             children.append(child)
 

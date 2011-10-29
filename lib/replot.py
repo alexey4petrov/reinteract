@@ -19,6 +19,10 @@ import numpy
 from reinteract.recorded_object import RecordedObject, default_filter
 import reinteract.custom_result as custom_result
 
+DEFAULT_FIGURE_WIDTH = 6
+DEFAULT_FIGURE_HEIGHT = 4.5
+DEFAULT_ASPECT_RATIO = DEFAULT_FIGURE_WIDTH / DEFAULT_FIGURE_HEIGHT
+
 class _PlotResultCanvas(FigureCanvasCairo):
     def draw_event(*args):
         # Since we never change anything about the figure, the only time we
@@ -38,10 +42,7 @@ class PlotWidget(custom_result.ResultWidget):
     def __init__(self, result):
         custom_result.ResultWidget.__init__(self)
 
-        if result.display == 'side':
-           figsize=(4.5,3.375)
-        else:
-           figsize=(6,4.5)
+        figsize=(DEFAULT_FIGURE_WIDTH, DEFAULT_FIGURE_HEIGHT)
 
         self.figure = Figure(facecolor='white', figsize=figsize)
         self.canvas = _PlotResultCanvas(self.figure)
@@ -51,6 +52,8 @@ class PlotWidget(custom_result.ResultWidget):
         self.add_events(gtk.gdk.BUTTON_PRESS_MASK | gtk.gdk.BUTTON_RELEASE)
 
         self.cached_contents = None
+
+        self.sidebar_width = -1
 
     def do_expose_event(self, event):
         cr = self.window.cairo_create()
@@ -109,8 +112,27 @@ class PlotWidget(custom_result.ResultWidget):
             requisition.width = self.figure.bbox.width
             requisition.height = self.figure.bbox.height
 
+    def recompute_figure_size(self):
+        width = (self.sidebar_width / self.figure.dpi)
+        height = width / DEFAULT_ASPECT_RATIO
+
+        self.figure.set_figwidth(width)
+        self.figure.set_figheight(height)
+
+        self.queue_resize()
+
     def sync_dpi(self, dpi):
         self.figure.set_dpi(dpi)
+        if self.sidebar_width >= 0:
+            self.recompute_figure_size()
+
+    def set_sidebar_width(self, width):
+        if self.sidebar_width == width:
+            return
+
+        self.sidebar_width = width
+        if self.sidebar_width >= 0:
+            self.recompute_figure_size()
 
     def sync_style(self, style):
         self.cached_contents = None

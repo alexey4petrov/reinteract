@@ -379,6 +379,7 @@ class ViewSidebarLayout(gtk.VBox):
             self.add(sidebar)
             sidebar.set_scroll_adjustments(self.__sidebar_hscrollbar.get_adjustment(),
                                            self.__vscrollbar.get_adjustment())
+            sidebar.set_width(self.sidebar_width)
 
     def set_sidebar_open(self, open_):
         self.sidebar_open = open_
@@ -395,6 +396,8 @@ class ViewSidebarLayout(gtk.VBox):
 
     def __set_sidebar_width(self, sidebar_width):
         self.__sidebar_width = sidebar_width
+        if self.sidebar:
+            self.sidebar.set_width(self.sidebar_width)
         self.queue_resize()
 
     sidebar_width = gobject.property(getter=__get_sidebar_width,
