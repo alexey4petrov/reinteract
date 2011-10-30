@@ -59,7 +59,7 @@ class _TokenIter(object):
         else:
             l = self.line - 1
             while True:
-                if l < 0:
+                if l < 0 or not self.statement.is_continued(l):
                     raise StopIteration("Already at beginning")
                 if len(self.statement.tokens[l]) > 0:
                     break
@@ -74,7 +74,7 @@ class _TokenIter(object):
         else:
             l = self.line + 1
             while True:
-                if l >= len(self.statement.tokens):
+                if l >= len(self.statement.tokens) or not self.statement.is_continued(l - 1):
                     raise StopIteration("Already at end")
                 if len(self.statement.tokens[l]) > 0:
                     break
@@ -430,7 +430,7 @@ class TokenizedStatement(object):
         # that list of names against the scope.
         
         # Look for a token right before the specified position.  index - 1 is OK here
-        # even though that byte may note b a character start since we are just
+        # even though that byte may not be a character start since we are just
         # interested in a position inside the token
         iter = self._get_iter(line, index - 1)
         if iter is not None and (iter.token_type == TOKEN_KEYWORD or
@@ -709,6 +709,35 @@ if __name__ == '__main__':
     assert raised
     assert i.start == 1
     assert i.end == 2
+
+    # Test that iteration is confined to a single line and continuations
+
+    ts = TokenizedStatement()
+    ts.set_lines(['a', '(b +', 'c)', 'd'])
+    i = ts._get_iter(1, 0)
+    i.next() # b
+    i.next() # +
+    i.next() # c
+    i.next() # )
+
+    raised = False
+    try:
+        i.next()
+    except StopIteration:
+        raised = True
+    assert raised
+
+    i.prev() # c
+    i.prev() # +
+    i.prev() # b
+    i.prev() # (
+
+    raised = False
+    try:
+        i.prev()
+    except StopIteration:
+        raised = True
+    assert raised
 
     ### Tests of paired punctuation
     
