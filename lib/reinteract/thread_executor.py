@@ -341,7 +341,7 @@ if __name__ == '__main__': #pragma: no cover
     test_execute(
         [
             ("y = 1", Statement.EXECUTE_SUCCESS, []),
-            ("for x in xrange(0,100000000): y = y* 2", Statement.INTERRUPTED, None),
+            ("for x in xrange(0,100000000):\n    y = y * 2\n    if y > 100: y = 1", Statement.INTERRUPTED, None),
             ("z = 1", Statement.COMPILE_SUCCESS, None)
         ])
 
