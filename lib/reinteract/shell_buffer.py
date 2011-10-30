@@ -508,6 +508,9 @@ class ShellBuffer(Destroyable, gtk.TextBuffer):
 
             location = result_end
 
+        if isinstance(chunk, StatementChunk):
+            chunk.error_line = None
+
         self.insert(location, text, -1)
 
         # Worksheet considers an insertion of multiple lines of text at
@@ -562,8 +565,15 @@ class ShellBuffer(Destroyable, gtk.TextBuffer):
 
         for chunk in worksheet.iterate_chunks(start_line, end_line):
             if chunk != worksheet.get_chunk(end_line):
+                if isinstance(chunk, StatementChunk):
+                    chunk.error_line = None
+
                 self.__delete_results_marks(chunk)
                 self.__delete_sidebar_results(chunk)
+
+        chunk = worksheet.get_chunk(end_line)
+        if isinstance(chunk, StatementChunk):
+            chunk.error_line = None
 
         self.delete(start, end)
         self.__end_modification()
@@ -635,8 +645,6 @@ class ShellBuffer(Destroyable, gtk.TextBuffer):
         elif not chunk.sidebar_results:
             self.__insert_results(chunk)
 
-        self.__adjust_status_tags(chunk)
-
         if isinstance(chunk, StatementChunk):
             self.__fontify_statement_chunk(chunk, changed_lines)
         else:
@@ -645,6 +653,8 @@ class ShellBuffer(Destroyable, gtk.TextBuffer):
             else:
                 tag = None
             self.__retag_chunk(chunk, changed_lines, tag)
+
+        self.__adjust_status_tags(chunk)
 
         # We can't use changed lines to optimize this since pure deletions
         # of lines aren't reflected.
