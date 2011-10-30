@@ -82,6 +82,7 @@ class StatementChunk(Chunk):
         self.needs_compile = False
         self.needs_execute = False
         self.statement = None
+        self.statement_dirty = True
 
         self.results = None
 
@@ -105,7 +106,7 @@ class StatementChunk(Chunk):
             self.status_changed = True
         self.needs_execute = False
 
-        self.statement = None
+        self.statement_dirty = True
 
         return True
 
@@ -118,10 +119,11 @@ class StatementChunk(Chunk):
         else:
             return False
 
-    def get_statement(self, worksheet):
-        if not self.statement:
+    def get_clean_statement(self, worksheet):
+        if self.statement_dirty:
             self.statement = Statement(self.tokenized.get_text(), worksheet)
             self.statement.chunk = self
+            self.statement_dirty = False
 
         return self.statement
 

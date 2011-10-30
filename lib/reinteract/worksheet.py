@@ -633,7 +633,7 @@ class Worksheet(Destroyable, gobject.GObject):
                         executor = ThreadExecutor(parent)
 
                 if executor:
-                    statement = chunk.get_statement(self)
+                    statement = chunk.get_clean_statement(self)
                     executor.add_statement(statement)
 
                 parent = chunk.statement
