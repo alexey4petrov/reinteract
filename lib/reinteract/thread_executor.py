@@ -258,6 +258,11 @@ if __name__ == '__main__': #pragma: no cover
     notebook = Notebook()
     worksheet = Worksheet(notebook)
 
+    # If we create more than one glib.MainLoop, we trigger a pygobject
+    # bug - https://bugzilla.gnome.org/show_bug.cgi?id=663068 - so create
+    # just one and use it for all the test runs.
+    loop = glib.MainLoop()
+
     def test_execute(statements):
         executor = ThreadExecutor()
 
@@ -267,8 +272,6 @@ if __name__ == '__main__': #pragma: no cover
             statement._expected_results = expected_results
             statement._got_executing = False
             executor.add_statement(statement)
-
-        loop = glib.MainLoop()
 
         def on_statement_executing(executor, statement):
             if hasattr(statement, '_got_state'):
