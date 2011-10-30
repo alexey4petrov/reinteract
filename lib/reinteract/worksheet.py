@@ -696,11 +696,14 @@ class Worksheet(Destroyable, gobject.GObject):
         if self.state == NotebookFile.EXECUTING:
             self.__executor.interrupt()
 
-    def __get_last_scope(self, chunk):
-        # Get the last result scope we have that precedes the specified chunk
+    def __get_completion_scope(self, chunk):
+        # Get the scope that we should use for completions for a given chunk; we
+        # use the chunks own scope when possible because when we have something
+        # like a build: statement, we will want to complete on variables not
+        # in the previous scope.
 
         scope = None
-        line = chunk.start - 1
+        line = chunk.start
         while line >= 0:
             previous_chunk = self.__chunks[line]
 
@@ -708,7 +711,6 @@ class Worksheet(Destroyable, gobject.GObject):
             # it's fair game for completion/help, even if it's old
             if isinstance(previous_chunk, StatementChunk) and previous_chunk.statement is not None and previous_chunk.statement.result_scope is not None:
                 return previous_chunk.statement.result_scope
-                break
 
             line = previous_chunk.start - 1
 
@@ -732,7 +734,7 @@ class Worksheet(Destroyable, gobject.GObject):
         if not isinstance(chunk, StatementChunk) and not isinstance(chunk, BlankChunk):
             return []
 
-        scope = self.__get_last_scope(chunk)
+        scope = self.__get_completion_scope(chunk)
 
         if isinstance(chunk, StatementChunk):
             return chunk.tokenized.find_completions(line - chunk.start,
@@ -768,7 +770,7 @@ class Worksheet(Destroyable, gobject.GObject):
 
         obj, start_line, start_index, end_line, end_index = \
             chunk.tokenized.get_object_at_location(line - chunk.start, offset,
-                                                   self.__get_last_scope(chunk),
+                                                   self.__get_completion_scope(chunk),
                                                    result_scope, include_adjacent)
 
         if obj is None:
