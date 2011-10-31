@@ -142,6 +142,29 @@ class _ScopeBindingVisitor(ast.NodeVisitor, _ScopeMixin):
         for name in node.names:
             self.bind_name(name, NAME_GLOBAL)
 
+    def visit_Import(self, node):
+        for alias in node.names:
+            if alias.asname:
+                asname = alias.asname
+            else:
+                asname = alias.name
+
+            self.bind_name(asname, NAME_LOCAL)
+
+    def visit_ImportFrom(self, node):
+        for alias in node.names:
+            if alias.name == '*':
+                # This might overwrite a variable and make an apparent mutation not
+                # a mutation, but that's pretty weird, just ignore
+                continue
+
+            if alias.asname:
+                asname = alias.asname
+            else:
+                asname = alias.name
+
+            self.bind_name(asname, NAME_LOCAL)
+
     def visit_Lambda(self, node):
         self.push_scope(node)
         self.bind_args(node.args)
@@ -992,6 +1015,9 @@ a.a = A()
     test_mutated('def f(x):\n    x[1] = 2\n', ())
     test_mutated('def f(y):\n    x = [1]\n    x[1] = 2\n', ())
     test_mutated('def f(x):\n    def g(x):\n        pass', ())
+    test_mutated('def f(x):\n    import g', ())
+    test_mutated('def f(x):\n    from m import g', ())
+    test_mutated('def f(x):\n    from m import g as h\n    h[2] = 3', ())
     test_mutated('class X:\n    x = [1]\n    x[1] = 2\n', ())
     test_mutated('def f(x):\n    class C:\n        pass', ())
 
