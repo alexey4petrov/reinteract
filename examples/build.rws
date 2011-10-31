@@ -48,18 +48,20 @@ build list():
 # in this file is the right way to do the following, but
 # wanted to show off more complex possibilities.)
 
-from reinteract.statement import Statement
-
 class build_list():
     def __enter__(self):
+        from reinteract.statement import Statement
+
         l = []
         Statement.get_current()._list = l
         return l
 
     def __exit__(self, exception_type, exception_value, traceback):
+        from reinteract.statement import Statement
         Statement.get_current()._list = None
 
 def append(v):
+    from reinteract.statement import Statement
     Statement.get_current()._list.append(v)
 
 build build_list():
