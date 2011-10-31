@@ -41,9 +41,12 @@ class NotebookWindow(BaseNotebookWindow):
          <menuitem action="open"/>
          <menuitem action="save"/>
          <menuitem action="rename"/>
-         <menuitem action="print"/>
-         <menuitem action="close"/>
          <separator/>
+         <menuitem action="page-setup"/>
+         <menuitem action="print"/>
+         <menuitem action="export-to-pdf"/>
+         <separator/>
+         <menuitem action="close"/>
          <menuitem action="quit"/>
       </menu>
       <menu action="edit">

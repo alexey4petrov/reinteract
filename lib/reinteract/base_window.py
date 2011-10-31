@@ -86,7 +86,9 @@ class BaseWindow:
             ('open',          gtk.STOCK_OPEN,  None,             None,         None, self.on_open),
             ('save',          gtk.STOCK_SAVE,  None,             None,         None, self.on_save),
             ('rename',        None,            "_Rename...",     None,         None, self.on_rename),
+            ('page-setup',    None,            "Page Set_up...", None,         None, self.on_page_setup),
             ('print',         gtk.STOCK_PRINT, "_Print...",      "<control>p", None, self.on_print),
+            ('export-to-pdf', None,            "E_xport to PDF...", None,      None, self.on_export_to_pdf),
             ('close',         gtk.STOCK_CLOSE, None,             "<control>w", None, self.on_close),
 
             ('quit',          gtk.STOCK_QUIT, None,                None,         None, self.on_quit),
@@ -230,9 +232,17 @@ class BaseWindow:
         if self.current_editor:
             self.current_editor.rename()
 
+    def on_page_setup(self, action):
+        if self.current_editor:
+            self.current_editor.page_setup()
+
     def on_print(self, action):
         if self.current_editor:
             self.current_editor.print_contents()
+
+    def on_export_to_pdf(self, action):
+        if self.current_editor:
+            self.current_editor.export_to_pdf()
 
     def on_close(self, action):
         self._close_current()

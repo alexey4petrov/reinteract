@@ -29,6 +29,10 @@ class EditorWindow(BaseWindow):
          <menuitem action="save"/>
          <menuitem action="save-as"/>
          <separator/>
+         <menuitem action="page-setup"/>
+         <menuitem action="print"/>
+         <menuitem action="export-to-pdf"/>
+         <separator/>
          <menuitem action="quit"/>
       </menu>
       <menu action="edit">

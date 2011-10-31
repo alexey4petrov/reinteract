@@ -18,7 +18,7 @@ from shell_buffer import ShellBuffer
 from shell_view import ShellView
 import reunicode
 from view_sidebar_layout import ViewSidebarLayout
-from worksheet_print import WorksheetPrintOperation
+from worksheet_print import WorksheetPrintOperation, export_to_pdf
 
 class WorksheetEditor(Editor):
     DISCARD_FORMAT = 'Discard unsaved changes to worksheet "%s"?'
@@ -108,6 +108,9 @@ class WorksheetEditor(Editor):
 
     def _create_print_operation(self):
         return WorksheetPrintOperation(self.buf.worksheet)
+
+    def _export_to_pdf(self, filename, page_setup):
+        export_to_pdf(self.buf.worksheet, filename, page_setup)
 
     @classmethod
     def _validate_name(cls, name):

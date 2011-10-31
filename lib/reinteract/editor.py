@@ -31,6 +31,7 @@ class Editor(Destroyable, gobject.GObject):
 
         self.notebook = notebook
         self._unsaved_index = application.allocate_unsaved_index()
+        self.__pdf_filename = None
 
     def do_destroy(self):
         if self._unsaved_index is not None:
@@ -110,6 +111,9 @@ class Editor(Destroyable, gobject.GObject):
         return NotImplementedError()
 
     def _save(self, filename):
+        return NotImplementedError()
+
+    def _export_to_pdf(self, filename, page_setup):
         return NotImplementedError()
 
     @classmethod
@@ -243,6 +247,7 @@ class Editor(Destroyable, gobject.GObject):
             self._clear_unsaved()
             os.remove(old_filename)
             self.notebook.refresh()
+            self.__pdf_filename = None
 
         self.__prompt_for_name(title=title, save_button_text="_Rename", action=action, check_name=check_name)
 
@@ -262,6 +267,12 @@ class Editor(Destroyable, gobject.GObject):
     def interrupt(self):
         pass
 
+    def page_setup(self):
+        page_setup = gtk.print_run_page_setup_dialog(self.widget.get_toplevel(),
+                                                     self._get_page_setup(),
+                                                     self._get_print_settings())
+        self._save_page_setup(page_setup)
+
     def print_contents(self):
         print_op = self._create_print_operation()
         print_op.set_embed_page_setup(True)
@@ -272,6 +283,101 @@ class Editor(Destroyable, gobject.GObject):
         if print_op.run(gtk.PRINT_OPERATION_ACTION_PRINT_DIALOG, self.widget.get_toplevel()):
             self._save_page_setup(print_op.get_default_page_setup())
             self._save_print_settings(print_op.get_print_settings())
+
+    def export_to_pdf(self):
+        ### Get the filename to save to ###
+
+        chooser = gtk.FileChooserDialog("Export to PDF...",
+                                        self.widget.get_toplevel(),
+                                        gtk.FILE_CHOOSER_ACTION_SAVE,
+                                        (gtk.STOCK_CANCEL, gtk.RESPONSE_CANCEL,
+                                         gtk.STOCK_SAVE,   gtk.RESPONSE_OK))
+        chooser.set_default_response(gtk.RESPONSE_OK)
+
+        # We reuse the last filename that the use exported to in this
+        # run of the application, otherwise we base the exported name
+        # on the worksheet name
+
+        if self.__pdf_filename is None:
+            basename = os.path.basename(self.filename)
+            if basename.endswith(".rws") or basename.endswith(".RWS"):
+                basename = basename[:-4]
+            elif  basename.endswith(".py") or basename.endswith(".PY"):
+                basename = basename[:-3]
+
+            self.__pdf_filename = basename + ".pdf"
+
+        chooser.set_current_name(self.__pdf_filename)
+
+        # The export folder is saved persistantly (relative to the notebook
+        # folder if it's inside it)
+
+        notebook_state = application.state.get_notebook_state(self.notebook.folder)
+        folder = notebook_state.get_pdf_folder()
+
+        if folder is None:
+            folder = self.notebook.folder
+        elif not os.path.isabs(folder):
+            folder = os.path.join(self.notebook.folder, folder)
+
+        chooser.set_current_folder(folder)
+
+        while True:
+            response = chooser.run()
+            filename = None
+            if response != gtk.RESPONSE_OK:
+                chooser.destroy()
+                return
+
+            # Overwrite confirmation
+
+            filename = chooser.get_filename()
+            if os.path.exists(filename):
+                dialog = gtk.MessageDialog(parent=chooser, buttons=gtk.BUTTONS_NONE,
+                                           type=gtk.MESSAGE_QUESTION)
+                dialog.set_markup(format_escaped("<big><b>Replace '%s'?</b></big>", os.path.basename(filename)))
+                dialog.format_secondary_text("The file already exists in \"%s\".  Replacing it will "
+                                             "overwrite its contents." % os.path.dirname(filename))
+
+                dialog.add_buttons(gtk.STOCK_CANCEL, gtk.RESPONSE_CANCEL,
+                                   "_Replace", gtk.RESPONSE_OK)
+                dialog.set_default_response(gtk.RESPONSE_OK)
+
+                response = dialog.run()
+                dialog.destroy()
+                if response == gtk.RESPONSE_OK:
+                    break
+            else:
+                break
+
+        filename = filename.decode('UTF-8')
+
+        ### Save the PDF ###
+
+        self._export_to_pdf(filename, self._get_page_setup())
+
+        ### Now save the selected folder and filename later use ###
+
+        folder = os.path.dirname(filename)
+
+        parent = folder
+        while True:
+            if parent == self.notebook.folder:
+                folder = os.path.relpath(folder, self.notebook.folder)
+                break
+
+            tmp = os.path.dirname(parent)
+            if tmp == parent:
+                break
+            parent = tmp
+
+        if not isinstance(folder, unicode):
+            folder = folder.decode("UTF-8")
+
+        notebook_state.set_pdf_folder(folder)
+        self.__pdf_filename = os.path.basename(filename)
+
+        chooser.destroy()
 
     def undo(self):
         pass

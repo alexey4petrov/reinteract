@@ -78,6 +78,22 @@ class NotebookState:
     def update_last_opened(self):
         self.app_state.set_float(self.section_name, 'last_opened', time.time())
 
+    def get_pdf_folder(self):
+        value = self.app_state.get_string(self.section_name, 'pdf_folder')
+        if value is not None:
+            return value.decode("UTF-8")
+        else:
+            return None
+
+    def set_pdf_folder(self, folder):
+        if folder:
+            if not isinstance(folder, unicode):
+                raise ValueError("folder argument must be unicode")
+
+            self.app_state.set_string(self.section_name, 'pdf_folder', folder)
+        else:
+            self.app_state.remove_option(self._section_name, 'pdf_folder')
+
 class WorksheetState:
     def __init__(self, app_state, path):
         self.path = path

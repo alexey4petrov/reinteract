@@ -6,6 +6,7 @@
 #
 ########################################################################
 
+import cairo
 import gtk
 import logging
 import os
@@ -357,3 +358,107 @@ class WorksheetPrintOperation(gtk.PrintOperation):
            page_layout.append_chunk(chunk)
 
         page_layout.finish()
+
+# gtk.PrintOperation() doesn't work for exporting to PDF on windows, since it's
+# it's still going through the windows printing system, which doesn't have native
+# PDF export. But the code for printing expects a gtk.PrintContext, so we provide
+# this mostly-compatible class that provides what is needed.
+#
+class PDFPrintContext(object):
+    def __init__(self, page_setup, cr):
+        self.page_setup = page_setup
+        self.paper_size = page_setup.get_paper_size()
+        self.pango_fontmap = pangocairo.cairo_font_map_get_default()
+        self.cr = cr
+
+    def get_cairo_context(self):
+        return self.cr
+
+    def get_page_setup(self):
+        return self.page_setup
+
+    def get_width(self):
+        return self.page_setup.get_page_width(gtk.UNIT_POINTS)
+
+    def get_height(self):
+        return self.page_setup.get_page_height(gtk.UNIT_POINTS)
+
+    def get_dpi_x(self):
+        return 72
+
+    def get_dpi_y(self):
+        return 72
+
+    def get_pango_fontmap(self):
+        return self.pango_fontmap
+
+    def create_pango_context(self):
+        pango_context = self.pango_fontmap.create_context()
+
+        options = cairo.FontOptions()
+        options.set_hint_metrics(cairo.HINT_METRICS_OFF)
+        pangocairo.context_set_font_options(pango_context, options)
+
+        pangocairo.context_set_resolution(pango_context, 72)
+
+        return pango_context
+
+    def create_pango_layout(self):
+        context = self.create_pango_context()
+        layout = pango.Layout(context)
+        self.cr.update_context(context)
+
+        return layout
+
+def export_to_pdf(worksheet, filename, page_setup):
+    paper_size = page_setup.get_paper_size()
+
+    orientation = page_setup.get_orientation()
+    if (orientation ==  gtk.PAGE_ORIENTATION_PORTRAIT or
+        orientation == gtk.PAGE_ORIENTATION_REVERSE_PORTRAIT):
+        width = paper_size.get_width(gtk.UNIT_POINTS)
+        height = paper_size.get_height(gtk.UNIT_POINTS)
+    else:
+        width = paper_size.get_height(gtk.UNIT_POINTS)
+        height= paper_size.get_width(gtk.UNIT_POINTS)
+
+    surface = cairo.PDFSurface(filename, width, height)
+
+    raw_cr = cairo.Context(surface)
+    cr = pangocairo.CairoContext(raw_cr)
+
+    context = PDFPrintContext(page_setup, cr)
+
+    ########################################
+
+    page_layout = _PageLayout(worksheet, context, phase=_MEASURE)
+
+    for chunk in worksheet.iterate_chunks():
+        page_layout.append_chunk(chunk)
+
+    page_layout.finish()
+
+    pages = page_layout.pages
+
+    cr.translate(page_setup.get_left_margin(gtk.UNIT_POINTS),
+                 page_setup.get_right_margin(gtk.UNIT_POINTS))
+
+    ########################################
+
+    for page_nr in xrange(0, len(pages)):
+        page = pages[page_nr]
+
+        page_layout = _PageLayout(worksheet, context, phase=_RENDER,
+                                  page_number=page_nr + 1, page_count=len(pages))
+
+        for chunk in worksheet.iterate_chunks(page.start_line, page.end_line):
+            page_layout.append_chunk(chunk)
+
+        page_layout.finish()
+
+        cr.show_page()
+
+    ########################################
+
+    surface.finish()
+
