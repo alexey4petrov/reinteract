@@ -53,7 +53,9 @@ class MiniWindow(BaseNotebookWindow):
          <separator/>
          <menuitem action="preferences"/>
       </menu>
-	<menu action="help">
+      <menu action="help">
+        <menuitem action="online-documentation"/>
+        <separator/>
         <menuitem action="about"/>
       </menu>
    </menubar>

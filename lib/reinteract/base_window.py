@@ -100,6 +100,7 @@ class BaseWindow:
 
             ('paste',   gtk.STOCK_PASTE,     None,         None,              None,  self.on_paste),
             ('delete',  gtk.STOCK_DELETE,    None,         None,              None,  self.on_delete),
+            ('online-documentation', None, "Online _Documentation", None, None,  self.on_online_documentation),
             ('about',   gtk.STOCK_ABOUT,     None,         None,              None, self.on_about),
             ('calculate', gtk.STOCK_REFRESH, "Ca_lculate", '<control>Return', None,  self.on_calculate),
             ('calculate-to-line', None, "Calculate to Line", '<shift>Return', None, self.on_calculate_to_line),
@@ -295,6 +296,9 @@ class BaseWindow:
 
     def on_about(self, action):
         application.show_about_dialog(self.window)
+
+    def on_online_documentation(self, action):
+        application.show_uri("http://www-new.reinteract.org/documentation.html")
 
     def on_key_press_event(self, window, event):
         if global_settings.main_menu_mode:

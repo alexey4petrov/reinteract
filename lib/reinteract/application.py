@@ -166,6 +166,16 @@ class Application():
         self.__about_dialog.set_transient_for(parent)
         self.__about_dialog.present()
 
+    def show_uri(self, uri):
+        if sys.platform=='win32':
+            os.startfile(uri)
+        elif sys.platform == 'darwin':
+            os.spawnl(os.P_NOWAIT, '/usr/bin/open', uri)
+        else:
+            gtk.show_uri(gtk.gdk.screen_get_default(),
+                         uri,
+                         gtk.get_current_event_time())
+
     def quit(self, from_window_close=False):
         for window in self.windows:
             if not window.confirm_discard(before_quit=not from_window_close):
