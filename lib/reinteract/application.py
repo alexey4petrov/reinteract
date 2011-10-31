@@ -10,6 +10,7 @@
 # the user interface objects of the current session, rather than global options and
 # preferences.
 
+import glib
 import gtk
 import re
 import os
@@ -28,6 +29,8 @@ class Application():
         self.__unsaved_indices = []
         self.windows = set()
         self.__about_dialog = None
+        self.__page_setup = None
+        self.__print_settings = None
 
         config_folder = global_settings.config_dir
         if not os.path.exists(config_folder):
@@ -195,6 +198,45 @@ class Application():
         """Free an index previously returned by allocate_unsaved_index()"""
 
         self.__unsaved_indices[index - 1] = False
+
+    def __get_page_setup_filename(self):
+        return os.path.join(global_settings.config_dir, "page_setup.ini")
+
+    def get_page_setup(self):
+        if not self.__page_setup:
+            self.__page_setup = gtk.PageSetup()
+            try:
+                filename = self.__get_page_setup_filename()
+                self.__page_setup.load_file(filename)
+            except glib.GError:
+                pass
+
+        return self.__page_setup
+
+    def save_page_setup(self, page_setup):
+        self.__page_setup = page_setup
+
+        filename = self.__get_page_setup_filename()
+        page_setup.to_file(filename)
+
+    # We currently don't persist print permanently settings - it seems
+    # like the stuff that you don't want to persist (number of copies,
+    # etc), is at least as much as the stuff you want to persist
+    # (printer output tray, perhaps) - instead we just keep them
+    # around until quit.
+
+    def get_print_settings(self):
+        if self.__print_settings is None:
+            self.__print_settings = gtk.PrintSettings()
+
+        return self.__print_settings
+
+    def save_print_settings(self, settings):
+        self.__print_settings = settings
+
+    def free_caches(self):
+        self.__page_setup = None
+        self.__print_settings = None
 
 # The global singleton
 application = Application()

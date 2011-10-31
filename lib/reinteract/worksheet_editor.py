@@ -106,6 +106,9 @@ class WorksheetEditor(Editor):
             if old_sidebar_width >= 0:
                 self.config_state.set_sidebar_width(old_sidebar_width)
 
+    def _create_print_operation(self):
+        return WorksheetPrintOperation(self.buf.worksheet)
+
     @classmethod
     def _validate_name(cls, name):
         return reunicode.validate_name(name)
@@ -127,10 +130,6 @@ class WorksheetEditor(Editor):
 
     def interrupt(self):
         self.buf.worksheet.interrupt()
-
-    def print_contents(self):
-        print_op = WorksheetPrintOperation(self.buf.worksheet)
-        print_op.run(gtk.PRINT_OPERATION_ACTION_PRINT_DIALOG, self.widget.get_toplevel())
 
     def undo(self):
         self.buf.worksheet.undo()

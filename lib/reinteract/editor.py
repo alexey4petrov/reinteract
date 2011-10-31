@@ -75,6 +75,18 @@ class Editor(Destroyable, gobject.GObject):
 
         builder.dialog.destroy()
 
+    def _get_page_setup(self):
+        return application.get_page_setup()
+
+    def _save_page_setup(self, page_setup):
+        application.save_page_setup(page_setup)
+
+    def _get_print_settings(self):
+        return application.get_print_settings()
+
+    def _save_print_settings(self, print_settings):
+        application.save_print_settings(print_settings)
+
     #######################################################
     # Implemented by subclasses
     #######################################################
@@ -251,7 +263,15 @@ class Editor(Destroyable, gobject.GObject):
         pass
 
     def print_contents(self):
-        pass
+        print_op = self._create_print_operation()
+        print_op.set_embed_page_setup(True)
+
+        print_op.set_default_page_setup(self._get_page_setup())
+        print_op.set_print_settings(self._get_print_settings())
+
+        if print_op.run(gtk.PRINT_OPERATION_ACTION_PRINT_DIALOG, self.widget.get_toplevel()):
+            self._save_page_setup(print_op.get_default_page_setup())
+            self._save_print_settings(print_op.get_print_settings())
 
     def undo(self):
         pass

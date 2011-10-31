@@ -88,6 +88,9 @@ class LibraryEditor(Editor):
         self.buf.worksheet.save(filename)
         self.notebook.reset_module_by_filename(filename)
 
+    def _create_print_operation(self):
+        return WorksheetPrintOperation(self.buf.worksheet)
+
     @classmethod
     def _validate_name(cls, name):
         # Remove surrounding whitespace
@@ -118,10 +121,6 @@ class LibraryEditor(Editor):
     def load(self, filename, escape=False):
         self.buf.worksheet.load(filename, escape=escape)
         self.buf.place_cursor(self.buf.get_start_iter())
-
-    def print_contents(self):
-        print_op = WorksheetPrintOperation(self.buf.worksheet)
-        print_op.run(gtk.PRINT_OPERATION_ACTION_PRINT_DIALOG, self.widget.get_toplevel())
 
     def undo(self):
         self.buf.worksheet.undo()

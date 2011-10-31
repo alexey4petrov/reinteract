@@ -52,6 +52,7 @@ reinteract.main.main()
 
 from reinteract.application import application
 application.close_all_windows(confirm_discard=False, wait_for_execution=False)
+application.free_caches()
 
 if len(application.windows) > 0:
     print "Some worksheets still executing, skipping leak checks."
