@@ -507,7 +507,12 @@ class _Transformer(ast.NodeTransformer, _ScopeMixin):
                 # a mutation, but that's pretty weird, just ignore
                 continue
 
-            self.handle_assign_to_name(alias.name, node)
+            if alias.asname:
+                asname = alias.asname
+            else:
+                asname = alias.name
+
+            self.handle_assign_to_name(asname, node)
 
         return self.generic_visit(node)
 
@@ -1027,6 +1032,7 @@ a.a = A()
     test_mutated('build:\n    import sys\n    sys.b = 1', ())
     test_mutated('build:\n    import sys as a\n    a.b = 1', ())
     test_mutated('build:\n    from sys import a\n    a.b = 1', ())
+    test_mutated('build:\n    from sys import b as a\n    a.b = 1', ())
     test_mutated('build:\n    from sys import *\n    a.b = 1', ('a')) # pragmatic
 
     # Different control flow expressions
