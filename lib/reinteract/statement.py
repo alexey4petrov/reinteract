@@ -134,6 +134,12 @@ class Statement:
             self.error_line = e.lineno
             self.state = Statement.COMPILE_ERROR
             return False
+        except Exception, e:
+            self.error_message = "Reinteract encountered an unexpected error while compiling this chunk.\n" + \
+                "Please submit a bug with the code and the following information:\n\n" + \
+                traceback.format_exc()
+            self.state = Statement.COMPILE_ERROR
+            return False
 
         self.future_features = self.__parent_future_features
         if self.imports is not None:
