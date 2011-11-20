@@ -105,12 +105,18 @@ class _ScopeBindingVisitor(ast.NodeVisitor, _ScopeMixin):
                 self.scope._bindings[name] = binding
 
     def bind_args(self, args):
-        for arg in args.args:
-            self.bind_name(arg.id, NAME_LOCAL)
+        self.bind_arg_tuple(args.args)
         if args.vararg is not None:
             self.bind_name(args.vararg, NAME_LOCAL)
         if args.kwarg is not None:
             self.bind_name(args.kwarg, NAME_LOCAL)
+
+    def bind_arg_tuple(self, argt):
+        for arg in argt:
+            if isinstance(arg, ast.Tuple):
+                self.bind_arg_tuple(arg.elts)
+            else:
+                self.bind_name(arg.id, NAME_LOCAL)
 
     def visit_ClassDef(self, node):
         self.bind_name(node.name, NAME_LOCAL)
@@ -1020,6 +1026,8 @@ a.a = A()
     test_mutated('def f(x):\n    from m import g as h\n    h[2] = 3', ())
     test_mutated('class X:\n    x = [1]\n    x[1] = 2\n', ())
     test_mutated('def f(x):\n    class C:\n        pass', ())
+    test_mutated('def f((x,)):\n    x[1] = 2\n', ())
+    test_mutated('def f(((x,),)):\n    x[1] = 2\n', ())
 
     # But these are global mutations
     test_mutated('class X:\n    x[1] = 2\n', ('x'))
