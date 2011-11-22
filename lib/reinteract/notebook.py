@@ -363,7 +363,10 @@ class Notebook(gobject.GObject):
         try:
             getattr(module, fromname)
         except AttributeError:
-            self.__find_and_load(fullname + "." + fromname, fromname, parent=module, local=local)
+            try:
+                self.__find_and_load(fullname + "." + fromname, fromname, parent=module, local=local)
+            except ImportError:
+                pass
 
     def __get_package(self, globals):
         # The behavior of core Python is to set module.__package__ to None when
