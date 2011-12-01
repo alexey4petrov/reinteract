@@ -349,6 +349,13 @@ class Notebook(gobject.GObject):
             module, local = self.__find_and_load(fullname, names[-1])
         else:
             parent, local = self.__import_recurse(names[0:-1])
+
+            # Loading the parent might have loaded the module we were looking for
+            try:
+                return self.__modules[fullname], True
+            except KeyError:
+                pass
+
             module, _ = self.__find_and_load(fullname, names[-1], parent=parent, local=local)
 
         return module, local
