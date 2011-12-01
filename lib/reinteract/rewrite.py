@@ -60,7 +60,7 @@ class _ScopeMixin(object):
 
     def pop_scope(self):
         scope = self.scopes.pop()
-        if isinstance(scope, ast.FunctionDef):
+        if not isinstance(scope, ast.ClassDef):
             self.function_count -= 1
 
     def resolve_name(self, name):
