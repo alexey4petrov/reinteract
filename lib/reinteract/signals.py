@@ -15,27 +15,16 @@ Modified: January 08, 2011 ( multi-threading support )
 """
 
 #--------------------------------------------------------------------------------------
-import weakref
 import inspect
+import weakref
+import threading
 
 
 #--------------------------------------------------------------------------------------
-# This class was generously donated by a poster on ASPN (aspn.activestate.com)
-class WeakMethod:
-	def __init__(self, f):
-            self.f = f.im_func
-            self.c = weakref.ref(f.im_self)
-	def __call__(self, *args, **kwargs):
-            if self.c() == None : return
-            self.f(self.c(), *args, **kwargs)
-
-
-#--------------------------------------------------------------------------------------
-class Lock:
+class Lock :
     #--------------------------------------------------------------------------------------
     def __init__( self, the_threadsafe ):
-        from threading import Lock
-        self._engine = Lock() if the_threadsafe == True else None
+        self._engine = threading.Lock() if the_threadsafe == True else None
         pass
 
     #--------------------------------------------------------------------------------------
@@ -58,6 +47,35 @@ class Lock:
 
 
 #--------------------------------------------------------------------------------------
+class WeakMethod :
+    #--------------------------------------------------------------------------------------
+    def __init__( self, f ) :
+        self.f = f.im_func
+        self.c = weakref.ref( f.im_self )
+        pass
+
+    #--------------------------------------------------------------------------------------
+    def __call__( self, *args, **kwargs ) :
+        if not self : 
+            return
+
+        self.f( self.c(), *args, **kwargs )
+        pass
+
+    #--------------------------------------------------------------------------------------
+    def __eq__( self, the_weak_method ) :
+        return self.f == the_weak_method.im_func and \
+            self.c() == the_weak_method.im_self
+
+    #--------------------------------------------------------------------------------------
+    def __nonzero__( self ) :
+        return self.c() != None
+    
+    #--------------------------------------------------------------------------------------
+    pass
+
+
+#--------------------------------------------------------------------------------------
 class Signal:
     """
     class Signal
@@ -72,64 +90,54 @@ class Signal:
     its list of connected slots.
     """
     #--------------------------------------------------------------------------------------
-    def __init__( self, the_threadsafe = True ):
+    def __init__( self, the_threadsafe = True ) :
         self._lock = Lock( the_threadsafe )
-        self.slots = []
+        self._slots = []
         pass
 
     #--------------------------------------------------------------------------------------
-    def __call__(self, *args, **kwargs):
+    def __call__( self, *args, **kwargs ) :
         with self._lock :
-            for i in range(len(self.slots)):
-                slot = self.slots[i]
-                if slot != None:
-                    slot(*args, **kwargs)
-                else:
-                    del self.slots[i]
+            a_slots = self._slots[ : ]
+
+            for a_slot in self._slots :
+                if a_slot :
+                    a_slot( *args, **kwargs )
+                    a_slots.append( a_slot )
                     pass
                 pass
+
+            self._slots = a_slots
             pass
         pass
 
     #--------------------------------------------------------------------------------------
-    def connect(self, slot):
-        self.disconnect(slot)
+    def connect( self, the_slot ) :
+        self.disconnect( the_slot )
+
         with self._lock :
-            if inspect.ismethod(slot):
-                self.slots.append(WeakMethod(slot))
+            if inspect.ismethod( the_slot ) :
+                self._slots.append( WeakMethod( the_slot ) )
             else:
-                self.slots.append(slot)
+                self._slots.append( the_slot )
                 pass
             pass
         pass
 
     #--------------------------------------------------------------------------------------
-    def disconnect(self, slot):
+    def disconnect( self, the_slot ) :
         with self._lock :
-            try:
-                for i in range(len(self.slots)):
-                    wm = self.slots[i]
-                    if inspect.ismethod(slot):
-                        if wm.f == slot.im_func and wm.c() == slot.im_self:
-                            del self.slots[i]
-                            return
-                        pass
-                    else:
-                        if wm == slot:
-                            del self.slots[i]
-                            return
-                        pass
-                    pass
-                pass
-            except:
+            try :
+                self._slots.remove( the_slot )
+            except :
                 pass
             pass
         pass
 
     #--------------------------------------------------------------------------------------
-    def disconnectAll(self):
+    def disconnectAll( self ) :
         with self._lock :
-            del self.slots[ : ]
+            del self._slots[ : ]
             pass
         pass
 
@@ -139,6 +147,7 @@ class Signal:
 
 #--------------------------------------------------------------------------------------
 if __name__ == "__main__":
+    #--------------------------------------------------------------------------------------
     class Button:
         def __init__(self):
             # Creating a signal as a member of a class
@@ -202,6 +211,9 @@ if __name__ == "__main__":
     sig = Signal()
     sig.connect(listenWithArgs)
     sig("Hello, World!")
+
+    #--------------------------------------------------------------------------------------
+    pass
 
 
 #--------------------------------------------------------------------------------------
