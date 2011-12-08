@@ -1,25 +1,22 @@
 #!/usr/bin/env python
 
+#--------------------------------------------------------------------------------------
 """
+Licensed under the Python Software Foundation License
+
 File:    signals.py
+Purpose: A signals implementation
+
 Author:  Patrick Chasco
 Created: July 26, 2005
 
-Purpose: A signals implementation
+Author:  Alexey Petrov
+Modified: January 08, 2011 ( multi-threading support )
 """
 
 #--------------------------------------------------------------------------------------
 import weakref
-import threading
 import inspect
-
-
-#--------------------------------------------------------------------------------------
-class _WeakMethod_FuncHost:
-    def __init__(self, func):
-        self.hostedFunction = func
-    def func(self, *args, **kwargs):
-        self.hostedFunction(*args, **kwargs)
 
 
 #--------------------------------------------------------------------------------------
@@ -31,6 +28,33 @@ class WeakMethod:
 	def __call__(self, *args, **kwargs):
             if self.c() == None : return
             self.f(self.c(), *args, **kwargs)
+
+
+#--------------------------------------------------------------------------------------
+class Lock:
+    #--------------------------------------------------------------------------------------
+    def __init__( self, the_threadsafe ):
+        from threading import Lock
+        self._engine = Lock() if the_threadsafe == True else None
+        pass
+
+    #--------------------------------------------------------------------------------------
+    def __enter__( self ) :
+        if self._engine != None : 
+            self._engine.acquire()
+            pass
+        pass
+
+    #--------------------------------------------------------------------------------------
+    def __exit__( self, exc_type, exc_value, exc_tb ) :
+        if self._engine != None : 
+            self._engine.release()
+            pass
+
+        return False
+        
+    #--------------------------------------------------------------------------------------
+        pass
 
 
 #--------------------------------------------------------------------------------------
@@ -48,18 +72,21 @@ class Signal:
     its list of connected slots.
     """
     #--------------------------------------------------------------------------------------
-    def __init__( self, threadsafe = True ):
+    def __init__( self, the_threadsafe = True ):
+        self._lock = Lock( the_threadsafe )
         self.slots = []
         pass
 
     #--------------------------------------------------------------------------------------
     def __call__(self, *args, **kwargs):
-        for i in range(len(self.slots)):
-            slot = self.slots[i]
-            if slot != None:
-                slot(*args, **kwargs)
-            else:
-                del self.slots[i]
+        with self._lock :
+            for i in range(len(self.slots)):
+                slot = self.slots[i]
+                if slot != None:
+                    slot(*args, **kwargs)
+                else:
+                    del self.slots[i]
+                    pass
                 pass
             pass
         pass
@@ -67,37 +94,43 @@ class Signal:
     #--------------------------------------------------------------------------------------
     def connect(self, slot):
         self.disconnect(slot)
-        if inspect.ismethod(slot):
-            self.slots.append(WeakMethod(slot))
-        else:
-            self.slots.append(slot)
+        with self._lock :
+            if inspect.ismethod(slot):
+                self.slots.append(WeakMethod(slot))
+            else:
+                self.slots.append(slot)
+                pass
             pass
         pass
 
     #--------------------------------------------------------------------------------------
     def disconnect(self, slot):
-        try:
-            for i in range(len(self.slots)):
-                wm = self.slots[i]
-                if inspect.ismethod(slot):
-                    if wm.f == slot.im_func and wm.c() == slot.im_self:
-                        del self.slots[i]
-                        return
-                    pass
-                else:
-                    if wm == slot:
-                        del self.slots[i]
-                        return
+        with self._lock :
+            try:
+                for i in range(len(self.slots)):
+                    wm = self.slots[i]
+                    if inspect.ismethod(slot):
+                        if wm.f == slot.im_func and wm.c() == slot.im_self:
+                            del self.slots[i]
+                            return
+                        pass
+                    else:
+                        if wm == slot:
+                            del self.slots[i]
+                            return
+                        pass
                     pass
                 pass
-            pass
-        except:
+            except:
+                pass
             pass
         pass
 
     #--------------------------------------------------------------------------------------
     def disconnectAll(self):
-        del self.slots[ : ]
+        with self._lock :
+            del self.slots[ : ]
+            pass
         pass
 
     #--------------------------------------------------------------------------------------
