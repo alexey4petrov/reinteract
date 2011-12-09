@@ -70,10 +70,6 @@ def order_positions(start_line, start_offset, end_line, end_offset):
 
 class Worksheet(Destroyable, gobject.GObject):
     __gsignals__ = {
-        # text-* are emitted before we fix up our internal state, so what can be done
-        # in them are limited. They are meant for keeping a UI in sync with the internal
-        # state.
-        'text-deleted': (gobject.SIGNAL_RUN_LAST, gobject.TYPE_NONE, (int, int, int, int)),
         'lines-inserted': (gobject.SIGNAL_RUN_LAST, gobject.TYPE_NONE, (int, int)),
         'lines-deleted': (gobject.SIGNAL_RUN_LAST, gobject.TYPE_NONE, (int, int)),
         'chunk-changed': (gobject.SIGNAL_RUN_LAST, gobject.TYPE_NONE, (gobject.TYPE_PYOBJECT, gobject.TYPE_PYOBJECT)),
@@ -107,6 +103,7 @@ class Worksheet(Destroyable, gobject.GObject):
         # in them are limited. They are meant for keeping a UI in sync with the internal
         # state.
         self.text_inserted = signals.Signal()
+        self.text_deleted = signals.Signal()
 
         self.notebook = notebook
         self.edit_only = edit_only
@@ -572,7 +569,7 @@ class Worksheet(Destroyable, gobject.GObject):
 
         deleted_text = self.get_text(start_line, start_offset, end_line, end_offset)
 
-        self.emit('text-deleted', start_line, start_offset, end_line, end_offset)
+        self.text_deleted( self, start_line, start_offset, end_line, end_offset )
 
         if start_offset == 0 and end_offset == 0:
             # Deleting some whole number of lines
