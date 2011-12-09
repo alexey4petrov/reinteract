@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 # Copyright 2008-2009 Owen Taylor
 #
 # This file is part of Reinteract and distributed under the terms
@@ -100,6 +102,9 @@ class Worksheet(Destroyable, gobject.GObject):
     def __init__(self, notebook, edit_only=False):
         gobject.GObject.__init__(self)
 
+        import signals
+        self.chunk_inserted = signals.Signal()
+
         self.notebook = notebook
         self.edit_only = edit_only
         self.__file = None
@@ -190,6 +195,7 @@ class Worksheet(Destroyable, gobject.GObject):
                 chunk.changes.clear()
                 chunk.status_changed = False
                 self.emit('chunk-inserted', chunk)
+                self.chunk_inserted( self, chunk )
             elif not chunk.changes.empty():
                 changed_lines = range(chunk.changes.start, chunk.changes.end)
                 chunk.changes.clear()
@@ -1160,7 +1166,9 @@ if __name__ == '__main__': #pragma: no cover
             raise AssertionError("\nGot:\n   '%s'\nExpected:\n   '%s'" % (log, expected))
         clear_log()
 
-    worksheet.connect('chunk-inserted', on_chunk_inserted)
+    # worksheet.connect('chunk-inserted', on_chunk_inserted)
+    worksheet.chunk_inserted.connect( on_chunk_inserted )
+
     worksheet.connect('chunk-changed', on_chunk_changed)
     worksheet.connect('chunk-deleted', on_chunk_deleted)
     worksheet.connect('chunk-status-changed', on_chunk_status_changed)

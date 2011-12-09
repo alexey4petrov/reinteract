@@ -15,15 +15,10 @@ Modified: January 08, 2011 ( multi-threading support )
 """
 
 #--------------------------------------------------------------------------------------
-import inspect
-import weakref
-import threading
-
-
-#--------------------------------------------------------------------------------------
-class Lock :
+class _Lock :
     #--------------------------------------------------------------------------------------
     def __init__( self, the_threadsafe ):
+        import threading
         self._engine = threading.Lock() if the_threadsafe == True else None
         pass
 
@@ -47,11 +42,13 @@ class Lock :
 
 
 #--------------------------------------------------------------------------------------
-class WeakMethod :
+class _WeakMethod :
     #--------------------------------------------------------------------------------------
     def __init__( self, f ) :
-        self.f = f.im_func
+        import weakref
         self.c = weakref.ref( f.im_self )
+
+        self.f = f.im_func
         pass
 
     #--------------------------------------------------------------------------------------
@@ -91,14 +88,14 @@ class Signal:
     """
     #--------------------------------------------------------------------------------------
     def __init__( self, the_threadsafe = True ) :
-        self._lock = Lock( the_threadsafe )
+        self._lock = _Lock( the_threadsafe )
         self._slots = []
         pass
 
     #--------------------------------------------------------------------------------------
     def __call__( self, *args, **kwargs ) :
         with self._lock :
-            a_slots = self._slots[ : ]
+            a_slots = []
 
             for a_slot in self._slots :
                 if a_slot :
@@ -116,8 +113,9 @@ class Signal:
         self.disconnect( the_slot )
 
         with self._lock :
+            import inspect
             if inspect.ismethod( the_slot ) :
-                self._slots.append( WeakMethod( the_slot ) )
+                self._slots.append( _WeakMethod( the_slot ) )
             else:
                 self._slots.append( the_slot )
                 pass
