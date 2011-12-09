@@ -87,7 +87,7 @@ class Worksheet(Destroyable, gobject.GObject):
         #
         self.sig_chunk_inserted = signals.Signal()
         self.sig_chunk_changed = signals.Signal()
-        self.chunk_deleted = signals.Signal()
+        self.sig_chunk_deleted = signals.Signal()
         self.sig_chunk_status_changed = signals.Signal()
         self.sig_chunk_results_changed = signals.Signal()
 
@@ -186,7 +186,7 @@ class Worksheet(Destroyable, gobject.GObject):
         self.__changed_chunks = set()
 
         for chunk in deleted_chunks:
-            self.chunk_deleted( self, chunk )
+            self.sig_chunk_deleted( self, chunk )
 
         for chunk in sorted(changed_chunks, lambda a, b: cmp(a.start,b.start)):
             if chunk.newly_inserted:

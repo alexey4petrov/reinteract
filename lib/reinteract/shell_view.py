@@ -45,7 +45,7 @@ class ShellView(gtk.TextView):
             buf.worksheet.sig_chunk_inserted.connect( self.on_chunk_inserted )
             buf.worksheet.sig_chunk_changed.connect( self.on_chunk_changed )
             buf.worksheet.sig_chunk_status_changed.connect( self.on_chunk_status_changed )
-            buf.worksheet.chunk_deleted.connect( self.on_chunk_deleted )
+            buf.worksheet.sig_chunk_deleted.connect( self.on_chunk_deleted )
             buf.worksheet.connect('notify::state', self.on_notify_state)
 
             # Track changes to update completion
