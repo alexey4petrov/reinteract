@@ -77,19 +77,6 @@ class Worksheet(Destroyable, gobject.GObject):
         'text-deleted': (gobject.SIGNAL_RUN_LAST, gobject.TYPE_NONE, (int, int, int, int)),
         'lines-inserted': (gobject.SIGNAL_RUN_LAST, gobject.TYPE_NONE, (int, int)),
         'lines-deleted': (gobject.SIGNAL_RUN_LAST, gobject.TYPE_NONE, (int, int)),
-        'chunk-inserted': (gobject.SIGNAL_RUN_LAST, gobject.TYPE_NONE, (gobject.TYPE_PYOBJECT,)),
-        # Chunk changed is emitted when the text or tokenization of a chunk
-        # changes. Note that "changes" here specifically includes being
-        # replaced by identical text, so if I have the two chunks
-        #
-        #  if
-        #  if
-        #
-        # And I delete the from the first 'i' to the second f, the first
-        # chunk is considered to change, even though it's text remains 'if'.
-        # This is because text in a buffering that is shadowing us may
-        # be tagged with fonts/styles.
-        #
         'chunk-changed': (gobject.SIGNAL_RUN_LAST, gobject.TYPE_NONE, (gobject.TYPE_PYOBJECT, gobject.TYPE_PYOBJECT)),
         'chunk-deleted': (gobject.SIGNAL_RUN_LAST, gobject.TYPE_NONE, (gobject.TYPE_PYOBJECT,)),
         'chunk-status-changed': (gobject.SIGNAL_RUN_LAST, gobject.TYPE_NONE, (gobject.TYPE_PYOBJECT,)),
@@ -103,6 +90,18 @@ class Worksheet(Destroyable, gobject.GObject):
         gobject.GObject.__init__(self)
 
         import signals
+        # Chunk changed is emitted when the text or tokenization of a chunk
+        # changes. Note that "changes" here specifically includes being
+        # replaced by identical text, so if I have the two chunks
+        #
+        #  if
+        #  if
+        #
+        # And I delete the from the first 'i' to the second f, the first
+        # chunk is considered to change, even though it's text remains 'if'.
+        # This is because text in a buffering that is shadowing us may
+        # be tagged with fonts/styles.
+        #
         self.chunk_inserted = signals.Signal()
 
         self.notebook = notebook
@@ -194,7 +193,6 @@ class Worksheet(Destroyable, gobject.GObject):
                 chunk.newly_inserted = False
                 chunk.changes.clear()
                 chunk.status_changed = False
-                self.emit('chunk-inserted', chunk)
                 self.chunk_inserted( self, chunk )
             elif not chunk.changes.empty():
                 changed_lines = range(chunk.changes.start, chunk.changes.end)
@@ -1166,7 +1164,6 @@ if __name__ == '__main__': #pragma: no cover
             raise AssertionError("\nGot:\n   '%s'\nExpected:\n   '%s'" % (log, expected))
         clear_log()
 
-    # worksheet.connect('chunk-inserted', on_chunk_inserted)
     worksheet.chunk_inserted.connect( on_chunk_inserted )
 
     worksheet.connect('chunk-changed', on_chunk_changed)
@@ -1396,8 +1393,8 @@ if __name__ == '__main__': #pragma: no cover
     insert(1, 0, "#")
     assert worksheet.get_chunk(2).needs_execute
 
-    # Test that we don't send out ::chunk-deleted signal for chunks for
-    # which we never sent a ::chunk-inserted signal
+    # Test that we don't send out '::chunk-deleted' signal for chunks for
+    # which we never sent a '::chunk_inserted' signal
 
     clear()
 

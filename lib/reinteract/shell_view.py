@@ -42,7 +42,7 @@ class ShellView(gtk.TextView):
         self.edit_only = buf.worksheet.edit_only
 
         if not self.edit_only:
-            buf.worksheet.connect('chunk-inserted', self.on_chunk_inserted)
+            buf.worksheet.chunk_inserted.connect( self.on_chunk_inserted )
             buf.worksheet.connect('chunk-changed', self.on_chunk_changed)
             buf.worksheet.connect('chunk-status-changed', self.on_chunk_status_changed)
             buf.worksheet.connect('chunk-deleted', self.on_chunk_deleted)
@@ -958,7 +958,7 @@ class ShellView(gtk.TextView):
 
             new_last_chunk = buf.worksheet.get_chunk(buf.worksheet.get_line_count() - 1)
             # We might find a newly created chunk that hasn't been "inserted" yet -
-            # in that case, we wait until we get chunk-inserted
+            # in that case, we wait until we get 'chunk_inserted'
             if hasattr(new_last_chunk, 'pixels_above'):
                 self.__update_last_chunk(new_last_chunk)
 

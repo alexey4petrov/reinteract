@@ -91,7 +91,7 @@ class ShellBuffer(Destroyable, gtk.TextBuffer):
         self.worksheet.connect('text-deleted', self.on_text_deleted)
         self.worksheet.connect('lines-inserted', self.on_lines_inserted)
         self.worksheet.connect('lines-deleted', self.on_lines_deleted)
-        self.worksheet.connect('chunk-inserted', self.on_chunk_inserted)
+        self.worksheet.chunk_inserted.connect( self.on_chunk_inserted )
         self.worksheet.connect('chunk-changed', self.on_chunk_changed)
         self.worksheet.connect('chunk-deleted', self.on_chunk_deleted)
         self.worksheet.connect('chunk-status-changed', self.on_chunk_status_changed)
