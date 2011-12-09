@@ -73,7 +73,6 @@ class Worksheet(Destroyable, gobject.GObject):
         # text-* are emitted before we fix up our internal state, so what can be done
         # in them are limited. They are meant for keeping a UI in sync with the internal
         # state.
-        'text-inserted': (gobject.SIGNAL_RUN_LAST, gobject.TYPE_NONE, (int, int, str)),
         'text-deleted': (gobject.SIGNAL_RUN_LAST, gobject.TYPE_NONE, (int, int, int, int)),
         'lines-inserted': (gobject.SIGNAL_RUN_LAST, gobject.TYPE_NONE, (int, int)),
         'lines-deleted': (gobject.SIGNAL_RUN_LAST, gobject.TYPE_NONE, (int, int)),
@@ -103,6 +102,11 @@ class Worksheet(Destroyable, gobject.GObject):
         # be tagged with fonts/styles.
         #
         self.chunk_inserted = signals.Signal()
+
+        # text-* are emitted before we fix up our internal state, so what can be done
+        # in them are limited. They are meant for keeping a UI in sync with the internal
+        # state.
+        self.text_inserted = signals.Signal()
 
         self.notebook = notebook
         self.edit_only = edit_only
@@ -457,7 +461,7 @@ class Worksheet(Destroyable, gobject.GObject):
 
         self.__freeze_changes()
 
-        self.emit('text-inserted', line, offset, text)
+        self.text_inserted( self, line, offset, text )
 
         count = 0
         ends_with_new_line = False
