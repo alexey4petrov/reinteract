@@ -69,14 +69,6 @@ def order_positions(start_line, start_offset, end_line, end_offset):
     return start_line, start_offset, end_line, end_offset
 
 class Worksheet(Destroyable, gobject.GObject):
-    __gsignals__ = {
-        'chunk-status-changed': (gobject.SIGNAL_RUN_LAST, gobject.TYPE_NONE, (gobject.TYPE_PYOBJECT,)),
-        'chunk-results-changed': (gobject.SIGNAL_RUN_LAST, gobject.TYPE_NONE, (gobject.TYPE_PYOBJECT,)),
-        # This is only for the convenience of the undo stack; otherwise we ignore cursor position
-        'place-cursor': (gobject.SIGNAL_RUN_LAST, gobject.TYPE_NONE, (int, int)),
-        'filename-changed': (gobject.SIGNAL_RUN_LAST, gobject.TYPE_NONE, ())
-    }
-
     def __init__(self, notebook, edit_only=False):
         gobject.GObject.__init__(self)
 
@@ -96,6 +88,8 @@ class Worksheet(Destroyable, gobject.GObject):
         self.chunk_inserted = signals.Signal()
         self.chunk_changed = signals.Signal()
         self.chunk_deleted = signals.Signal()
+        self.sig_chunk_status_changed = signals.Signal()
+        self.sig_chunk_results_changed = signals.Signal()
 
         # text-* are emitted before we fix up our internal state, so what can be done
         # in them are limited. They are meant for keeping a UI in sync with the internal
@@ -103,8 +97,12 @@ class Worksheet(Destroyable, gobject.GObject):
         self.text_inserted = signals.Signal()
         self.text_deleted = signals.Signal()
 
-        self.lines_inserted = signals.Signal()
-        self.lines_deleted = signals.Signal()
+        self.sig_lines_inserted = signals.Signal()
+        self.sig_lines_deleted = signals.Signal()
+
+        # This is only for the convenience of the undo stack; otherwise we ignore cursor position
+        self.sig_place_cursor = signals.Signal()
+        self.sig_filename_changed = signals.Signal()
 
         self.notebook = notebook
         self.edit_only = edit_only
@@ -203,10 +201,10 @@ class Worksheet(Destroyable, gobject.GObject):
                 self.chunk_changed( self, chunk, changed_lines )
             if isinstance(chunk, StatementChunk) and chunk.status_changed:
                 chunk.status_changed = False
-                self.emit('chunk-status-changed', chunk)
+                self.sig_chunk_status_changed( self, chunk )
             if isinstance(chunk, StatementChunk) and chunk.results_changed:
                 chunk.results_changed = False
-                self.emit('chunk-results-changed', chunk)
+                self.sig_chunk_results_changed( self, chunk )
 
     def __chunk_changed(self, chunk):
         self.__changed_chunks.add(chunk)
@@ -447,7 +445,7 @@ class Worksheet(Destroyable, gobject.GObject):
         self.__changes.insert(line, count)
         self.__scan_adjacent = True
         self.__chunk_changed(chunk)
-        self.lines_inserted( self, line, line + count)
+        self.sig_lines_inserted( self, line, line + count )
 
     def insert(self, line, offset, text):
         _debug("Inserting %r at %s,%s", text, line, offset)
@@ -553,7 +551,7 @@ class Worksheet(Destroyable, gobject.GObject):
 
         self.__changes.delete_range(start_line, end_line)
         self.__scan_adjacent = True
-        self.lines_deleted( self, start_line, end_line )
+        self.sig_lines_deleted( self, start_line, end_line )
 
     def delete_range(self, start_line, start_offset, end_line, end_offset):
         _debug("Deleting from %s,%s to %s,%s", start_line, start_offset, end_line, end_offset)
@@ -597,7 +595,7 @@ class Worksheet(Destroyable, gobject.GObject):
 
     def place_cursor(self, line, offset):
         _debug("Place cursor at %s,%s", line, offset)
-        self.emit('place-cursor', line, offset)
+        self.sig_place_cursor( self, line, offset )
 
     def undo(self):
         self.__undo_stack.undo()
@@ -894,7 +892,7 @@ class Worksheet(Destroyable, gobject.GObject):
     # This should be a gobject.property, but we define filenames to be unicode strings
     # and it's impossible to have a unicode-string valued property. Unicode strings
     # set on a string gobject.property get endecoded to UTF-8. So, we use the separate
-    # ::filename-changed signal.
+    # '::sig_filename_changed' signal.
     filename = property(__get_filename, __set_filename)
 
     @gobject.property
@@ -918,7 +916,7 @@ class Worksheet(Destroyable, gobject.GObject):
     def __set_filename_and_modified(self, filename, modified):
         self.filename = filename
         self.code_modified = modified
-        self.emit('filename-changed')
+        self.sig_filename_changed( self )
 
     def load(self, filename, escape=False):
         """Load a file from disk into the worksheet. Can raise IOError if the

@@ -217,8 +217,8 @@ def test_worksheet() :
     worksheet.chunk_inserted.connect( a_logger.on_chunk_inserted )
     worksheet.chunk_changed.connect( a_logger.on_chunk_changed )
     worksheet.chunk_deleted.connect( a_logger.on_chunk_deleted )
-    worksheet.connect('chunk-status-changed', a_logger.on_chunk_status_changed)
-    worksheet.connect('chunk-results-changed', a_logger.on_chunk_results_changed)
+    worksheet.sig_chunk_status_changed.connect( a_logger.on_chunk_status_changed )
+    worksheet.sig_chunk_results_changed.connect( a_logger.on_chunk_results_changed )
 
     # Insertions
     insert(0, 0, "11\n22\n33")

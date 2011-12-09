@@ -89,14 +89,14 @@ class ShellBuffer(Destroyable, gtk.TextBuffer):
         self.worksheet = Worksheet(notebook, edit_only)
         self.worksheet.text_inserted.connect( self.on_text_inserted )
         self.worksheet.text_deleted.connect( self.on_text_deleted )
-        self.worksheet.lines_inserted.connect( self.on_lines_inserted )
-        self.worksheet.lines_deleted.connect( self.on_lines_deleted )
+        self.worksheet.sig_lines_inserted.connect( self.on_lines_inserted )
+        self.worksheet.sig_lines_deleted.connect( self.on_lines_deleted )
         self.worksheet.chunk_inserted.connect( self.on_chunk_inserted )
         self.worksheet.chunk_changed.connect( self.on_chunk_changed )
         self.worksheet.chunk_deleted.connect( self.on_chunk_deleted )
-        self.worksheet.connect('chunk-status-changed', self.on_chunk_status_changed)
-        self.worksheet.connect('chunk-results-changed', self.on_chunk_results_changed)
-        self.worksheet.connect('place-cursor', self.on_place_cursor)
+        self.worksheet.sig_chunk_status_changed.connect( self.on_chunk_status_changed )
+        self.worksheet.sig_chunk_results_changed.connect( self.on_chunk_results_changed )
+        self.worksheet.sig_place_cursor.connect( self.on_place_cursor )
 
         style = DEFAULT_STYLE
 

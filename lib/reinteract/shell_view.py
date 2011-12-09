@@ -44,7 +44,7 @@ class ShellView(gtk.TextView):
         if not self.edit_only:
             buf.worksheet.chunk_inserted.connect( self.on_chunk_inserted )
             buf.worksheet.chunk_changed.connect( self.on_chunk_changed )
-            buf.worksheet.connect('chunk-status-changed', self.on_chunk_status_changed)
+            buf.worksheet.sig_chunk_status_changed.connect( self.on_chunk_status_changed )
             buf.worksheet.chunk_deleted.connect( self.on_chunk_deleted )
             buf.worksheet.connect('notify::state', self.on_notify_state)
 
