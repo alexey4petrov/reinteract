@@ -94,8 +94,8 @@ class Worksheet(Destroyable, gobject.GObject):
         # text-* are emitted before we fix up our internal state, so what can be done
         # in them are limited. They are meant for keeping a UI in sync with the internal
         # state.
-        self.text_inserted = signals.Signal()
-        self.text_deleted = signals.Signal()
+        self.sig_text_inserted = signals.Signal()
+        self.sig_text_deleted = signals.Signal()
 
         self.sig_lines_inserted = signals.Signal()
         self.sig_lines_deleted = signals.Signal()
@@ -457,7 +457,7 @@ class Worksheet(Destroyable, gobject.GObject):
 
         self.__freeze_changes()
 
-        self.text_inserted( self, line, offset, text )
+        self.sig_text_inserted( self, line, offset, text )
 
         count = 0
         ends_with_new_line = False
@@ -568,7 +568,7 @@ class Worksheet(Destroyable, gobject.GObject):
 
         deleted_text = self.get_text(start_line, start_offset, end_line, end_offset)
 
-        self.text_deleted( self, start_line, start_offset, end_line, end_offset )
+        self.sig_text_deleted( self, start_line, start_offset, end_line, end_offset )
 
         if start_offset == 0 and end_offset == 0:
             # Deleting some whole number of lines

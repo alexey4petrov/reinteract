@@ -87,8 +87,8 @@ class ShellBuffer(Destroyable, gtk.TextBuffer):
         gtk.TextBuffer.__init__(self)
 
         self.worksheet = Worksheet(notebook, edit_only)
-        self.worksheet.text_inserted.connect( self.on_text_inserted )
-        self.worksheet.text_deleted.connect( self.on_text_deleted )
+        self.worksheet.sig_text_inserted.connect( self.on_text_inserted )
+        self.worksheet.sig_text_deleted.connect( self.on_text_deleted )
         self.worksheet.sig_lines_inserted.connect( self.on_lines_inserted )
         self.worksheet.sig_lines_deleted.connect( self.on_lines_deleted )
         self.worksheet.sig_chunk_inserted.connect( self.on_chunk_inserted )

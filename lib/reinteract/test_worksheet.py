@@ -214,7 +214,7 @@ def test_worksheet() :
 
     #--------------------------------------------------------------------------------------
     a_logger = Logger()
-    worksheet.chunk_inserted.connect( a_logger.on_chunk_inserted )
+    worksheet.sig_chunk_inserted.connect( a_logger.on_chunk_inserted )
     worksheet.sig_chunk_changed.connect( a_logger.on_chunk_changed )
     worksheet.sig_chunk_deleted.connect( a_logger.on_chunk_deleted )
     worksheet.sig_chunk_status_changed.connect( a_logger.on_chunk_status_changed )
