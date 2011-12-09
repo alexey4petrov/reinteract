@@ -490,7 +490,7 @@ class ShellBuffer(Destroyable, gtk.TextBuffer):
         # text (ignoring results) matches what it expects. If the
         # text doesn't start with a newline, then the chunk above is
         # necessarily modified, and we'll fix things up when we get the
-        # '::chunk_changed'. If the text starts with a newline, then we
+        # '::sig_chunk_changed'. If the text starts with a newline, then we
         # insert after the results, since it doesn't matter. But we
         # also have to fix the cursor.
 
@@ -540,7 +540,7 @@ class ShellBuffer(Destroyable, gtk.TextBuffer):
         # if we delete them or not, but the resulting text in the buffer (ignoring
         # results) matches what it expects. In the normal case, we just delete
         # the results, and if they belong to a statement above, they will be added
-        # back when we get the '::chunk_changed' signal. There is a special case when
+        # back when we get the '::sig_chunk_changed' signal. There is a special case when
         # the chunk above doesn't change; when we delete from * to * in:
         #
         # 1 + 1 *

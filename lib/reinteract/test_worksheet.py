@@ -443,7 +443,7 @@ def test_worksheet() :
     insert(1, 0, "#")
     assert worksheet.get_chunk(2).needs_execute
 
-    # Test that we don't send out '::chunk_deleted' signal for chunks for
+    # Test that we don't send out '::sig_chunk_deleted' signal for chunks for
     # which we never sent a '::sig_chunk_inserted' signal
 
     clear()
