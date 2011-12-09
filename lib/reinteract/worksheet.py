@@ -70,8 +70,6 @@ def order_positions(start_line, start_offset, end_line, end_offset):
 
 class Worksheet(Destroyable, gobject.GObject):
     __gsignals__ = {
-        'chunk-changed': (gobject.SIGNAL_RUN_LAST, gobject.TYPE_NONE, (gobject.TYPE_PYOBJECT, gobject.TYPE_PYOBJECT)),
-        'chunk-deleted': (gobject.SIGNAL_RUN_LAST, gobject.TYPE_NONE, (gobject.TYPE_PYOBJECT,)),
         'chunk-status-changed': (gobject.SIGNAL_RUN_LAST, gobject.TYPE_NONE, (gobject.TYPE_PYOBJECT,)),
         'chunk-results-changed': (gobject.SIGNAL_RUN_LAST, gobject.TYPE_NONE, (gobject.TYPE_PYOBJECT,)),
         # This is only for the convenience of the undo stack; otherwise we ignore cursor position
@@ -96,6 +94,8 @@ class Worksheet(Destroyable, gobject.GObject):
         # be tagged with fonts/styles.
         #
         self.chunk_inserted = signals.Signal()
+        self.chunk_changed = signals.Signal()
+        self.chunk_deleted = signals.Signal()
 
         # text-* are emitted before we fix up our internal state, so what can be done
         # in them are limited. They are meant for keeping a UI in sync with the internal
@@ -188,7 +188,7 @@ class Worksheet(Destroyable, gobject.GObject):
         self.__changed_chunks = set()
 
         for chunk in deleted_chunks:
-            self.emit('chunk-deleted', chunk)
+            self.chunk_deleted( self, chunk )
 
         for chunk in sorted(changed_chunks, lambda a, b: cmp(a.start,b.start)):
             if chunk.newly_inserted:
@@ -200,7 +200,7 @@ class Worksheet(Destroyable, gobject.GObject):
                 changed_lines = range(chunk.changes.start, chunk.changes.end)
                 chunk.changes.clear()
                 chunk.status_changed = False
-                self.emit('chunk-changed', chunk, changed_lines)
+                self.chunk_changed( self, chunk, changed_lines )
             if isinstance(chunk, StatementChunk) and chunk.status_changed:
                 chunk.status_changed = False
                 self.emit('chunk-status-changed', chunk)

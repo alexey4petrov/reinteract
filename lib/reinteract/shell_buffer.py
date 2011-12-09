@@ -92,8 +92,8 @@ class ShellBuffer(Destroyable, gtk.TextBuffer):
         self.worksheet.lines_inserted.connect( self.on_lines_inserted )
         self.worksheet.lines_deleted.connect( self.on_lines_deleted )
         self.worksheet.chunk_inserted.connect( self.on_chunk_inserted )
-        self.worksheet.connect('chunk-changed', self.on_chunk_changed)
-        self.worksheet.connect('chunk-deleted', self.on_chunk_deleted)
+        self.worksheet.chunk_changed.connect( self.on_chunk_changed )
+        self.worksheet.chunk_deleted.connect( self.on_chunk_deleted )
         self.worksheet.connect('chunk-status-changed', self.on_chunk_status_changed)
         self.worksheet.connect('chunk-results-changed', self.on_chunk_results_changed)
         self.worksheet.connect('place-cursor', self.on_place_cursor)
@@ -490,7 +490,7 @@ class ShellBuffer(Destroyable, gtk.TextBuffer):
         # text (ignoring results) matches what it expects. If the
         # text doesn't start with a newline, then the chunk above is
         # necessarily modified, and we'll fix things up when we get the
-        # ::chunk-changed. If the text starts with a newline, then we
+        # '::chunk_changed'. If the text starts with a newline, then we
         # insert after the results, since it doesn't matter. But we
         # also have to fix the cursor.
 
@@ -540,7 +540,7 @@ class ShellBuffer(Destroyable, gtk.TextBuffer):
         # if we delete them or not, but the resulting text in the buffer (ignoring
         # results) matches what it expects. In the normal case, we just delete
         # the results, and if they belong to a statement above, they will be added
-        # back when we get the ::chunk-changed signal. There is a special case when
+        # back when we get the '::chunk_changed' signal. There is a special case when
         # the chunk above doesn't change; when we delete from * to * in:
         #
         # 1 + 1 *
