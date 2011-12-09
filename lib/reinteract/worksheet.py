@@ -85,8 +85,8 @@ class Worksheet(Destroyable, gobject.GObject):
         # This is because text in a buffering that is shadowing us may
         # be tagged with fonts/styles.
         #
-        self.chunk_inserted = signals.Signal()
-        self.chunk_changed = signals.Signal()
+        self.sig_chunk_inserted = signals.Signal()
+        self.sig_chunk_changed = signals.Signal()
         self.chunk_deleted = signals.Signal()
         self.sig_chunk_status_changed = signals.Signal()
         self.sig_chunk_results_changed = signals.Signal()
@@ -193,12 +193,12 @@ class Worksheet(Destroyable, gobject.GObject):
                 chunk.newly_inserted = False
                 chunk.changes.clear()
                 chunk.status_changed = False
-                self.chunk_inserted( self, chunk )
+                self.sig_chunk_inserted( self, chunk )
             elif not chunk.changes.empty():
                 changed_lines = range(chunk.changes.start, chunk.changes.end)
                 chunk.changes.clear()
                 chunk.status_changed = False
-                self.chunk_changed( self, chunk, changed_lines )
+                self.sig_chunk_changed( self, chunk, changed_lines )
             if isinstance(chunk, StatementChunk) and chunk.status_changed:
                 chunk.status_changed = False
                 self.sig_chunk_status_changed( self, chunk )

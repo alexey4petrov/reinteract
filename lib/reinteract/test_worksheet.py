@@ -215,7 +215,7 @@ def test_worksheet() :
     #--------------------------------------------------------------------------------------
     a_logger = Logger()
     worksheet.chunk_inserted.connect( a_logger.on_chunk_inserted )
-    worksheet.chunk_changed.connect( a_logger.on_chunk_changed )
+    worksheet.sig_chunk_changed.connect( a_logger.on_chunk_changed )
     worksheet.chunk_deleted.connect( a_logger.on_chunk_deleted )
     worksheet.sig_chunk_status_changed.connect( a_logger.on_chunk_status_changed )
     worksheet.sig_chunk_results_changed.connect( a_logger.on_chunk_results_changed )
@@ -444,7 +444,7 @@ def test_worksheet() :
     assert worksheet.get_chunk(2).needs_execute
 
     # Test that we don't send out '::chunk_deleted' signal for chunks for
-    # which we never sent a '::chunk_inserted' signal
+    # which we never sent a '::sig_chunk_inserted' signal
 
     clear()
 
