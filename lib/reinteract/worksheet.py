@@ -70,8 +70,6 @@ def order_positions(start_line, start_offset, end_line, end_offset):
 
 class Worksheet(Destroyable, gobject.GObject):
     __gsignals__ = {
-        'lines-inserted': (gobject.SIGNAL_RUN_LAST, gobject.TYPE_NONE, (int, int)),
-        'lines-deleted': (gobject.SIGNAL_RUN_LAST, gobject.TYPE_NONE, (int, int)),
         'chunk-changed': (gobject.SIGNAL_RUN_LAST, gobject.TYPE_NONE, (gobject.TYPE_PYOBJECT, gobject.TYPE_PYOBJECT)),
         'chunk-deleted': (gobject.SIGNAL_RUN_LAST, gobject.TYPE_NONE, (gobject.TYPE_PYOBJECT,)),
         'chunk-status-changed': (gobject.SIGNAL_RUN_LAST, gobject.TYPE_NONE, (gobject.TYPE_PYOBJECT,)),
@@ -104,6 +102,9 @@ class Worksheet(Destroyable, gobject.GObject):
         # state.
         self.text_inserted = signals.Signal()
         self.text_deleted = signals.Signal()
+
+        self.lines_inserted = signals.Signal()
+        self.lines_deleted = signals.Signal()
 
         self.notebook = notebook
         self.edit_only = edit_only
@@ -446,7 +447,7 @@ class Worksheet(Destroyable, gobject.GObject):
         self.__changes.insert(line, count)
         self.__scan_adjacent = True
         self.__chunk_changed(chunk)
-        self.emit('lines-inserted', line, line + count)
+        self.lines_inserted( self, line, line + count)
 
     def insert(self, line, offset, text):
         _debug("Inserting %r at %s,%s", text, line, offset)
@@ -552,7 +553,7 @@ class Worksheet(Destroyable, gobject.GObject):
 
         self.__changes.delete_range(start_line, end_line)
         self.__scan_adjacent = True
-        self.emit('lines-deleted', start_line, end_line)
+        self.lines_deleted( self, start_line, end_line )
 
     def delete_range(self, start_line, start_offset, end_line, end_offset):
         _debug("Deleting from %s,%s to %s,%s", start_line, start_offset, end_line, end_offset)
