@@ -198,27 +198,14 @@ def test_signals_1() :
 #--------------------------------------------------------------------------------------
 def test_signals_2() :
     #--------------------------------------------------------------------------------------
-    from signals import Signal
-
-    #--------------------------------------------------------------------------------------
-    class append :
-        def __init__( self, the_parrent ) :
-            self._parrent = the_parrent
-            pass
-        def __call__( self, the_addon ) :
-            def method( instance, *args, **kwargs ) :
-                self._parrent( instance, *args, **kwargs )
-                the_addon( instance, *args, **kwargs )
-                pass
-            return method
-        pass
+    from signals import Signal, Append
 
     #--------------------------------------------------------------------------------------
     class Container( object ) :
         def __init__( self ) :
             pass
 
-        @append( __init__ )
+        @Append( __init__ )
         def __init__( self, *args, **kwargs ) :
             self._attr = 'dummy'
             self.attr_sig = Signal()

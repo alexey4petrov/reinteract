@@ -168,3 +168,23 @@ class Signal( object ) :
 
 
 #--------------------------------------------------------------------------------------
+class Append :
+    #--------------------------------------------------------------------------------------
+    def __init__( self, the_parrent_method ) :
+        self._parrent_method = the_parrent_method
+        pass
+        
+    #--------------------------------------------------------------------------------------
+    def __call__( self, the_addon_method ) :
+        def composite_method( instance, *args, **kwargs ) :
+            a_result = self._parrent_method( instance, *args, **kwargs )
+            the_addon_method( instance, *args, **kwargs )
+            return a_result
+
+        return composite_method
+
+    #--------------------------------------------------------------------------------------
+    pass
+
+
+#--------------------------------------------------------------------------------------
