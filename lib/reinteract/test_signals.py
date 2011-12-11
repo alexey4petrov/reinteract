@@ -189,6 +189,16 @@ def test_signals_1() :
     assert len( Listener.LOGGER ) == 1
 
     #--------------------------------------------------------------------------------------
+    # example with arguments and a local signal
+    sig = Signal()
+    sig.connect( listenWithArgs )
+
+    reset_logs()
+    sig( "Hello, World!" )
+
+    assert len( listenWithArgs.LOGGER ) == 1
+
+    #--------------------------------------------------------------------------------------
     pass
 
 
