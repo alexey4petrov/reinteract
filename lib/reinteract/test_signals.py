@@ -102,16 +102,11 @@ def test_signals_1() :
 
     #--------------------------------------------------------------------------------------
     class Listener:
-        def __init__( self ):
-            self._log = []
+        def __init__( self, the_log ):
+            self._log = the_log
             pass
         def onClick( self ) :
             self._log.append( "onClick " )
-            pass
-        def __len__( self ) :
-            return len( self._log )
-        def clean( self ) :
-            del self._log[ : ]
             pass
         pass
 
@@ -124,24 +119,35 @@ def test_signals_1() :
     # a function that accepts arguments
     def listenWithArgs(text):
         print "listenWithArgs: ", text
+        pass
 
     #--------------------------------------------------------------------------------------
+    a_log = []
     b = Button()
-    l = Listener()
+    l = Listener( a_log )
     
     #--------------------------------------------------------------------------------------
     # Demonstrating connecting and calling signals
-    b.sigClick.connect(l.onClick)
+    b.sigClick.connect( l.onClick )
 
     b.sigClick()
-    assert len( l ) == 1
+    assert len( a_log ) == 1
 
     #--------------------------------------------------------------------------------------
     # Disconnecting all signals
     b.sigClick.disconnectAll()
     b.sigClick()
 
-    assert len( l ) == 1
+    assert len( a_log ) == 1
+
+    #--------------------------------------------------------------------------------------
+    # connecting multiple functions to a signal
+    l2 = Listener( a_log )
+    b.sigClick.connect(l.onClick)
+    b.sigClick.connect(l2.onClick)
+    b.sigClick()
+    
+    assert len( a_log ) == 3
 
     #--------------------------------------------------------------------------------------
     pass
