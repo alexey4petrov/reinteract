@@ -1,18 +1,12 @@
 #!/usr/bin/env python
 
 #--------------------------------------------------------------------------------------
-"""
-Licensed under the Python Software Foundation License
-
-File:    signals.py
-Purpose: A signals implementation
-
-Author:  Patrick Chasco
-Created: July 26, 2005
-
-Author:  Alexey Petrov
-Modified: January 08, 2011 ( multi-threading support )
-"""
+# Copyright 2011 Alexey Petrov
+#
+# This file is part of Reinteract and distributed under the terms
+# of the BSD license. See the file COPYING in the Reinteract
+# distribution for full details.
+#
 
 #--------------------------------------------------------------------------------------
 def test_signals_0() :
@@ -119,9 +113,25 @@ def test_signals_1() :
     #--------------------------------------------------------------------------------------
     # a function that accepts arguments
     def listenWithArgs(text):
-        print "listenWithArgs: ", text
+        listenWithArgs.LOGGER.append( text )
         pass
 
+    listenWithArgs.LOGGER = []
+
+    #--------------------------------------------------------------------------------------
+    def reset_logs() :
+        del Listener.LOGGER[ : ]
+        del listenFunction.LOGGER[ : ]
+        del listenWithArgs.LOGGER[ : ]
+        pass
+        
+    #--------------------------------------------------------------------------------------
+    def count() :
+        return \
+            len( Listener.LOGGER ) + \
+            len( listenFunction.LOGGER ) + \
+            len( listenWithArgs.LOGGER )
+        
     #--------------------------------------------------------------------------------------
     b = Button()
     l = Listener()
@@ -129,7 +139,8 @@ def test_signals_1() :
     #--------------------------------------------------------------------------------------
     # Demonstrating connecting and calling signals
     b.sigClick.connect( l.onClick )
-    del Listener.LOGGER[ : ]
+
+    reset_logs()
     b.sigClick()
 
     assert len( Listener.LOGGER ) == 1
@@ -137,7 +148,8 @@ def test_signals_1() :
     #--------------------------------------------------------------------------------------
     # Disconnecting all signals
     b.sigClick.disconnectAll()
-    del Listener.LOGGER[ : ]
+
+    reset_logs()
     b.sigClick()
 
     assert len( Listener.LOGGER ) == 0
@@ -147,7 +159,8 @@ def test_signals_1() :
     l2 = Listener()
     b.sigClick.connect( l.onClick )
     b.sigClick.connect( l2.onClick )
-    del Listener.LOGGER[ : ]
+
+    reset_logs()
     b.sigClick()
     
     assert len( Listener.LOGGER ) == 2
@@ -156,12 +169,24 @@ def test_signals_1() :
     # disconnecting individual functions
     b.sigClick.disconnect( l.onClick )
     b.sigClick.connect( listenFunction )
-    del listenFunction.LOGGER[ : ]
-    del Listener.LOGGER[ : ]
+
+    reset_logs()
     b.sigClick()
     
     assert len( Listener.LOGGER ) == 1
     assert len( listenFunction.LOGGER ) == 1
+
+    #--------------------------------------------------------------------------------------
+    # signals disconnecting automatically
+    b.sigClick.disconnectAll()
+    b.sigClick.connect( l.onClick )
+    b.sigClick.connect( l2.onClick )
+    del l2
+
+    reset_logs()
+    b.sigClick()
+    
+    assert len( Listener.LOGGER ) == 1
 
     #--------------------------------------------------------------------------------------
     pass
