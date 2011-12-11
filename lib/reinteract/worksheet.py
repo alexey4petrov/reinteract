@@ -102,14 +102,21 @@ class Worksheet(Destroyable, gobject.GObject):
 
         # This is only for the convenience of the undo stack; otherwise we ignore cursor position
         self.sig_place_cursor = signals.Signal()
-        self.sig_filename_changed = signals.Signal()
 
         self.notebook = notebook
         self.edit_only = edit_only
+
         self.__file = None
+        self.sig_file = signals.Signal()
+
         self.__filename = None
+        self.sig_filename_changed = signals.Signal()
+
         self.__code_modified = False
         self.sig_code_modified = signals.Signal()
+
+        self.__state = NotebookFile.EXECUTE_SUCCESS
+        self.sig_state = signals.Signal()
 
         self.global_scope = {}
         notebook.setup_globals(self.global_scope)
@@ -861,13 +868,6 @@ class Worksheet(Destroyable, gobject.GObject):
     def get_line(self, line):
         return self.__lines[line]
 
-    def __set_state(self, new_state):
-        if self.edit_only:
-            return
-        self.state = new_state
-        if self.__file:
-            self.__file.state = new_state
-
     #--------------------------------------------------------------------------------------
     # This should be a gobject.property, but we define filenames to be unicode strings
     # and it's impossible to have a unicode-string valued property. Unicode strings
@@ -895,14 +895,27 @@ class Worksheet(Destroyable, gobject.GObject):
         else:
             self.__file = None
             pass
+
+        self.sig_filename_changed( self, self.__filename )
+        pass
+
+    def __set_filename_and_modified(self, filename, modified):
+        self.filename = filename
+        self.code_modified = modified
         pass
 
     filename = property( __get_filename, __set_filename )
 
     #--------------------------------------------------------------------------------------
-    @property
-    def file(self):
+    def __get_file( self ) :
         return self.__file
+
+    def __set_file( self, value ) :
+        self.__file = value
+        self.sig_file( self, self.__file )
+        pass
+
+    file = property( __get_file, __set_file )
     
     #--------------------------------------------------------------------------------------
     def __set_code_modified(self, code_modified):
@@ -923,13 +936,23 @@ class Worksheet(Destroyable, gobject.GObject):
     code_modified = property( __get_code_modified, __set_code_modified )
 
     #--------------------------------------------------------------------------------------
-    state = gobject.property(type=int, default=NotebookFile.EXECUTE_SUCCESS)
+    def __get_state( self ) :
+        return self.__state
 
-    def __set_filename_and_modified(self, filename, modified):
-        self.filename = filename
-        self.code_modified = modified
-        self.sig_filename_changed( self )
+    def __set_state(self, new_state):
+        if self.edit_only:
+            return
+        self.__state = new_state
+        if self.__file:
+            self.__file.state = new_state
+            pass
 
+        self.sig_state( self, self.__state )
+        pass
+
+    state = property( __get_state, __set_state )
+
+    #--------------------------------------------------------------------------------------
     def load(self, filename, escape=False):
         """Load a file from disk into the worksheet. Can raise IOError if the
         file cannot be read, and reunicode.ConversionError if the file contains

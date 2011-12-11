@@ -46,9 +46,9 @@ class WorksheetEditor(Editor):
         self.widget.show_all()
 
         self.buf.worksheet.sig_filename_changed.connect( lambda *args: self._update_filename() )
-        self.buf.worksheet.connect('notify::file', lambda *args: self._update_file())
-        self.buf.worksheet.connect('notify::code-modified', lambda *args: self._update_modified())
-        self.buf.worksheet.connect('notify::state', lambda *args: self._update_state())
+        self.buf.worksheet.sig_file.connect( lambda *args: self._update_file() )
+        self.buf.worksheet.sig_code_modified.connect( lambda *args: self._update_modified() )
+        self.buf.worksheet.sig_state.connect( lambda *args: self._update_state() )
 
     def do_destroy(self):
         self.buf.destroy()

@@ -618,6 +618,9 @@ def test_worksheet_1() :
             pass
         def __len__( self ) :
             return len( self._log )
+        def clean( self ) :
+            del self._log[ : ]
+            pass
         pass
 
     #--------------------------------------------------------------------------------------
@@ -626,6 +629,8 @@ def test_worksheet_1() :
 
     worksheet.sig_code_modified.connect( lambda *args : a_logger( *args ) )
 
+    #--------------------------------------------------------------------------------------
+    a_logger.clean()
     worksheet.begin_user_action()
     worksheet.insert(0, 0, "11\n22\n33")
 
