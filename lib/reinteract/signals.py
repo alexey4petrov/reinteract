@@ -1,18 +1,12 @@
 #!/usr/bin/env python
 
 #--------------------------------------------------------------------------------------
-"""
-Licensed under the Python Software Foundation License
-
-File:    signals.py
-Purpose: A signals implementation
-
-Author:  Patrick Chasco
-Created: July 26, 2005
-
-Author:  Alexey Petrov
-Modified: January 08, 2011 ( multi-threading support )
-"""
+# Copyright 2011 Alexey Petrov
+#
+# This file is part of Reinteract and distributed under the terms
+# of the BSD license. See the file COPYING in the Reinteract
+# distribution for full details.
+#
 
 #--------------------------------------------------------------------------------------
 class _Lock :
@@ -73,6 +67,34 @@ class _WeakMethod :
 
 
 #--------------------------------------------------------------------------------------
+class _WeakObject :
+    #--------------------------------------------------------------------------------------
+    def __init__( self, the_object ) :
+        import weakref
+        self._engine = weakref.ref( the_object )
+        pass
+
+    #--------------------------------------------------------------------------------------
+    def __call__( self, *args, **kwargs ) :
+        if not self : 
+            return
+
+        self._engine()( *args, **kwargs )
+        pass
+
+    #--------------------------------------------------------------------------------------
+    def __eq__( self, the_other ) :
+        return self._engine() == the_other._engine()
+
+    #--------------------------------------------------------------------------------------
+    def __nonzero__( self ) :
+        return self._engine() != None
+    
+    #--------------------------------------------------------------------------------------
+    pass
+
+
+#--------------------------------------------------------------------------------------
 class Signal:
     """
     class Signal
@@ -117,7 +139,7 @@ class Signal:
             if inspect.ismethod( the_slot ) :
                 self._slots.append( _WeakMethod( the_slot ) )
             else:
-                self._slots.append( the_slot )
+                self._slots.append( _WeakObject( the_slot ) )
                 pass
             pass
         pass
