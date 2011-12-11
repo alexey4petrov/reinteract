@@ -102,19 +102,20 @@ def test_signals_1() :
 
     #--------------------------------------------------------------------------------------
     class Listener:
-        def __init__( self, the_log ):
-            self._log = the_log
-            pass
+        LOGGER = []
         def onClick( self ) :
-            self._log.append( "onClick " )
+            Listener.LOGGER.append( "onClick " )
             pass
         pass
 
     #--------------------------------------------------------------------------------------
     # a sample function to connect to the signal
     def listenFunction():
-        print "listenFunction"
-   
+        listenFunction.LOGGER.append( "listenFunction" )
+        pass
+
+    listenFunction.LOGGER = []
+
     #--------------------------------------------------------------------------------------
     # a function that accepts arguments
     def listenWithArgs(text):
@@ -122,32 +123,45 @@ def test_signals_1() :
         pass
 
     #--------------------------------------------------------------------------------------
-    a_log = []
     b = Button()
-    l = Listener( a_log )
+    l = Listener()
     
     #--------------------------------------------------------------------------------------
     # Demonstrating connecting and calling signals
     b.sigClick.connect( l.onClick )
-
+    del Listener.LOGGER[ : ]
     b.sigClick()
-    assert len( a_log ) == 1
+
+    assert len( Listener.LOGGER ) == 1
 
     #--------------------------------------------------------------------------------------
     # Disconnecting all signals
     b.sigClick.disconnectAll()
+    del Listener.LOGGER[ : ]
     b.sigClick()
 
-    assert len( a_log ) == 1
+    assert len( Listener.LOGGER ) == 0
 
     #--------------------------------------------------------------------------------------
     # connecting multiple functions to a signal
-    l2 = Listener( a_log )
-    b.sigClick.connect(l.onClick)
-    b.sigClick.connect(l2.onClick)
+    l2 = Listener()
+    b.sigClick.connect( l.onClick )
+    b.sigClick.connect( l2.onClick )
+    del Listener.LOGGER[ : ]
     b.sigClick()
     
-    assert len( a_log ) == 3
+    assert len( Listener.LOGGER ) == 2
+
+    #--------------------------------------------------------------------------------------
+    # disconnecting individual functions
+    b.sigClick.disconnect( l.onClick )
+    b.sigClick.connect( listenFunction )
+    del listenFunction.LOGGER[ : ]
+    del Listener.LOGGER[ : ]
+    b.sigClick()
+    
+    assert len( Listener.LOGGER ) == 1
+    assert len( listenFunction.LOGGER ) == 1
 
     #--------------------------------------------------------------------------------------
     pass
