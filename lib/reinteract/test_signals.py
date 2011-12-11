@@ -196,10 +196,79 @@ def test_signals_1() :
     pass
 
 #--------------------------------------------------------------------------------------
+def test_signals_2() :
+    #--------------------------------------------------------------------------------------
+    from signals import Signal
+
+    #--------------------------------------------------------------------------------------
+    def repeat( the_method ) :
+        print the_method.func_name
+        print the_method.__class__
+        print dir(the_method)
+        return the_method
+
+    #--------------------------------------------------------------------------------------
+    class append :
+        def __init__( self, the_parrent ) :
+            self._parrent = the_parrent
+            pass
+        def __call__( self, the_addon ) :
+            print 'self -', self
+            def method( instance, *args, **kwargs ) :
+                self._parrent( instance, *args, **kwargs )
+                the_addon( instance, *args, **kwargs )
+                pass
+            print method
+            return method
+        pass
+
+    #--------------------------------------------------------------------------------------
+    class Container( object ) :
+        def __init__( self ) :
+            pass
+
+        @append( __init__ )
+        def __init__( self, *args, **kwargs ) :
+            self._attr = 'dummy'
+            self.attr_sig = Signal()
+            pass
+
+        @property
+        def attr( self ) :
+            return self._attr
+
+        @attr.setter
+        def attr( self, the_value ) :
+            self._attr = the_value
+            self.attr_sig( self, self._attr )
+            pass
+
+        pass
+
+    #--------------------------------------------------------------------------------------
+    def listener( the_container, the_attr ) :
+        listener.LOGGER.append( the_attr )
+        pass
+
+    listener.LOGGER = []
+
+    #--------------------------------------------------------------------------------------
+    a_container = Container()
+    a_container.attr_sig.connect( listener )
+
+    a_container.attr = 'funny'
+
+    assert len( listener.LOGGER ) == 1
+
+    #--------------------------------------------------------------------------------------
+    pass
+
+#--------------------------------------------------------------------------------------
 if __name__ == "__main__":
     #--------------------------------------------------------------------------------------
     test_signals_0()
     test_signals_1()
+    test_signals_2()
 
     #--------------------------------------------------------------------------------------
     pass
