@@ -66,7 +66,7 @@ def order_positions(start_line, start_offset, end_line, end_offset):
 
     return start_line, start_offset, end_line, end_offset
 
-class Worksheet( object ):
+class Worksheet(object):
     def __init__(self, notebook, edit_only=False):
         import signals
         # Chunk changed is emitted when the text or tokenization of a chunk
@@ -871,7 +871,7 @@ class Worksheet( object ):
     def __get_filename( self ) :
         return self.__filename
 
-    def __set_filename( self, filename ) :
+    def __set_filename(self, filename):
         if filename == self.__filename:
             return
 
@@ -902,10 +902,10 @@ class Worksheet( object ):
     filename = property( __get_filename, __set_filename )
 
     #--------------------------------------------------------------------------------------
-    def __get_file( self ) :
+    def __get_file(self) :
         return self.__file
 
-    def __set_file( self, value ) :
+    def __set_file(self, value):
         self.__file = value
         self.sig_file( self, self.__file )
         pass
@@ -931,7 +931,7 @@ class Worksheet( object ):
     code_modified = property( __get_code_modified, __set_code_modified )
 
     #--------------------------------------------------------------------------------------
-    def __get_state( self ) :
+    def __get_state(self):
         return self.__state
 
     def __set_state(self, new_state):
