@@ -109,6 +109,7 @@ class Worksheet(Destroyable, gobject.GObject):
         self.__file = None
         self.__filename = None
         self.__code_modified = False
+        self.sig_code_modified = signals.Signal()
 
         self.global_scope = {}
         notebook.setup_globals(self.global_scope)
@@ -867,7 +868,15 @@ class Worksheet(Destroyable, gobject.GObject):
         if self.__file:
             self.__file.state = new_state
 
-    def __set_filename(self, filename):
+    #--------------------------------------------------------------------------------------
+    # This should be a gobject.property, but we define filenames to be unicode strings
+    # and it's impossible to have a unicode-string valued property. Unicode strings
+    # set on a string gobject.property get endecoded to UTF-8. So, we use the separate
+    # '::sig_filename_changed' signal.
+    def __get_filename( self ) :
+        return self.__filename
+
+    def __set_filename( self, filename ) :
         if filename == self.__filename:
             return
 
@@ -885,20 +894,17 @@ class Worksheet(Destroyable, gobject.GObject):
                 self.__file.modified = self.__code_modified
         else:
             self.__file = None
+            pass
+        pass
 
-    def __get_filename(self):
-        return self.__filename
+    filename = property( __get_filename, __set_filename )
 
-    # This should be a gobject.property, but we define filenames to be unicode strings
-    # and it's impossible to have a unicode-string valued property. Unicode strings
-    # set on a string gobject.property get endecoded to UTF-8. So, we use the separate
-    # '::sig_filename_changed' signal.
-    filename = property(__get_filename, __set_filename)
-
-    @gobject.property
+    #--------------------------------------------------------------------------------------
+    @property
     def file(self):
         return self.__file
-
+    
+    #--------------------------------------------------------------------------------------
     def __set_code_modified(self, code_modified):
         if code_modified == self.__code_modified:
             return
@@ -906,11 +912,17 @@ class Worksheet(Destroyable, gobject.GObject):
         self.__code_modified = code_modified
         if self.__file:
             self.__file.modified = code_modified
+            pass
+
+        self.sig_code_modified( self, self.__code_modified )
+        pass
 
     def __get_code_modified(self):
         return self.__code_modified
 
-    code_modified = gobject.property(getter=__get_code_modified, setter=__set_code_modified, type=bool, default=False)
+    code_modified = property( __get_code_modified, __set_code_modified )
+
+    #--------------------------------------------------------------------------------------
     state = gobject.property(type=int, default=NotebookFile.EXECUTE_SUCCESS)
 
     def __set_filename_and_modified(self, filename, modified):

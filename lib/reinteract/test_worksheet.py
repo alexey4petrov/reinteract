@@ -11,7 +11,7 @@
 ######################################################################
 
 
-def test_worksheet() :
+def test_worksheet_0() :
     from chunks import StatementChunk, BlankChunk, CommentChunk
     from notebook import Notebook, NotebookFile
     from worksheet import Worksheet, _debug
@@ -599,15 +599,53 @@ b = 2"""
 
     clear()
     expect([B(0,1)])
+    pass
 
 
-######################################################################
-if __name__ == "__main__":
+#--------------------------------------------------------------------------------------
+def test_worksheet_1() :
     #--------------------------------------------------------------------------------------
-    test_worksheet()
+    from notebook import Notebook
+    from worksheet import Worksheet
+
+    #--------------------------------------------------------------------------------------
+    class Logger :
+        def __init__( self ) :
+            self._log = []
+            pass
+        def __call__( self, *args ) :
+            self._log.append( args )
+            pass
+        def __len__( self ) :
+            return len( self._log )
+        pass
+
+    #--------------------------------------------------------------------------------------
+    worksheet = Worksheet( Notebook() )
+    a_logger = Logger()
+
+    worksheet.sig_code_modified.connect( lambda *args : a_logger( *args ) )
+
+    worksheet.begin_user_action()
+    worksheet.insert(0, 0, "11\n22\n33")
+
+    assert worksheet.in_user_action() == True
+    assert len( a_logger ) == 1
+
+    worksheet.end_user_action()
 
     #--------------------------------------------------------------------------------------
     pass
 
 
-######################################################################
+#--------------------------------------------------------------------------------------
+if __name__ == "__main__":
+    #--------------------------------------------------------------------------------------
+    test_worksheet_0()
+    test_worksheet_1()
+
+    #--------------------------------------------------------------------------------------
+    pass
+
+
+#--------------------------------------------------------------------------------------
