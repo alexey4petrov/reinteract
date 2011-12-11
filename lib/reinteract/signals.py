@@ -95,7 +95,7 @@ class _WeakObject :
 
 
 #--------------------------------------------------------------------------------------
-class Signal:
+class Signal( object ) :
     """
     class Signal
 
@@ -138,6 +138,8 @@ class Signal:
             import inspect
             if inspect.ismethod( the_slot ) :
                 self._slots.append( _WeakMethod( the_slot ) )
+            elif inspect.isfunction( the_slot ) :
+                self._slots.append( the_slot )
             else:
                 self._slots.append( _WeakObject( the_slot ) )
                 pass

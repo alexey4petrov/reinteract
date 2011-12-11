@@ -140,13 +140,66 @@ def test_signals_0() :
     assert len( Listener.LOGGER ) == 0
 
     #--------------------------------------------------------------------------------------
+    # signals disconnecting 'lambda slots' automatically
+    sig = Signal()
+    sig.connect( lambda *args : listenFunction() )
+
+    reset_logs()
+    sig( "Hello, World!" )
+
+    assert len( listenFunction.LOGGER ) == 1
+
+    #--------------------------------------------------------------------------------------
     pass
 
+
+#--------------------------------------------------------------------------------------
+def test_signals_1() :
+    #--------------------------------------------------------------------------------------
+    from signals import Signal
+
+    #--------------------------------------------------------------------------------------
+    class Container( object ) :
+        def __init__( self ) :
+            self._attr = 'dummy'
+            self.attr_sig = Signal()
+            pass
+
+        @property
+        def attr( self ) :
+            return self._attr
+
+        @attr.setter
+        def attr( self, the_value ) :
+            self._attr = the_value
+            self.attr_sig( self, self._attr )
+            pass
+
+        pass
+
+    #--------------------------------------------------------------------------------------
+    def listener( the_container, the_attr ) :
+        listener.LOGGER.append( the_attr )
+        pass
+
+    listener.LOGGER = []
+
+    #--------------------------------------------------------------------------------------
+    a_container = Container()
+    a_container.attr_sig.connect( listener )
+
+    a_container.attr = 'funny'
+
+    assert len( listener.LOGGER ) == 1
+
+    #--------------------------------------------------------------------------------------
+    pass
 
 #--------------------------------------------------------------------------------------
 if __name__ == "__main__":
     #--------------------------------------------------------------------------------------
     test_signals_0()
+    test_signals_1()
 
     #--------------------------------------------------------------------------------------
     pass
