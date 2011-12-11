@@ -201,24 +201,15 @@ def test_signals_2() :
     from signals import Signal
 
     #--------------------------------------------------------------------------------------
-    def repeat( the_method ) :
-        print the_method.func_name
-        print the_method.__class__
-        print dir(the_method)
-        return the_method
-
-    #--------------------------------------------------------------------------------------
     class append :
         def __init__( self, the_parrent ) :
             self._parrent = the_parrent
             pass
         def __call__( self, the_addon ) :
-            print 'self -', self
             def method( instance, *args, **kwargs ) :
                 self._parrent( instance, *args, **kwargs )
                 the_addon( instance, *args, **kwargs )
                 pass
-            print method
             return method
         pass
 
