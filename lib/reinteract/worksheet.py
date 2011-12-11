@@ -9,7 +9,6 @@
 ########################################################################
 
 import glib
-import gobject
 import logging
 import os
 import re
@@ -68,10 +67,8 @@ def order_positions(start_line, start_offset, end_line, end_offset):
 
     return start_line, start_offset, end_line, end_offset
 
-class Worksheet(Destroyable, gobject.GObject):
+class Worksheet(Destroyable):
     def __init__(self, notebook, edit_only=False):
-        gobject.GObject.__init__(self)
-
         import signals
         # Chunk changed is emitted when the text or tokenization of a chunk
         # changes. Note that "changes" here specifically includes being
