@@ -27,6 +27,9 @@ def test_signals_0() :
         def onClick( self ) :
             Listener.LOGGER.append( "onClick " )
             pass
+        def __call__( self ) :
+            self.onClick()
+            pass
         pass
 
     #--------------------------------------------------------------------------------------
@@ -104,7 +107,17 @@ def test_signals_0() :
     assert len( listenFunction.LOGGER ) == 1
 
     #--------------------------------------------------------------------------------------
-    # signals disconnecting automatically
+    # example with arguments and a local signal
+    sig = Signal()
+    sig.connect( listenWithArgs )
+
+    reset_logs()
+    sig( "Hello, World!" )
+
+    assert len( listenWithArgs.LOGGER ) == 1
+
+    #--------------------------------------------------------------------------------------
+    # signals disconnecting 'method slots' automatically
     b.sigClick.disconnectAll()
     b.sigClick.connect( l.onClick )
     b.sigClick.connect( l2.onClick )
@@ -116,14 +129,15 @@ def test_signals_0() :
     assert len( Listener.LOGGER ) == 1
 
     #--------------------------------------------------------------------------------------
-    # example with arguments and a local signal
-    sig = Signal()
-    sig.connect( listenWithArgs )
+    # signals disconnecting 'object slots' automatically
+    b.sigClick.disconnectAll()
+    b.sigClick.connect( l )
+    del l
 
     reset_logs()
-    sig( "Hello, World!" )
-
-    assert len( listenWithArgs.LOGGER ) == 1
+    b.sigClick()
+    
+    assert len( Listener.LOGGER ) == 0
 
     #--------------------------------------------------------------------------------------
     pass
