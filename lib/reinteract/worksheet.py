@@ -16,7 +16,6 @@ from StringIO import StringIO
 
 from change_range import ChangeRange
 from chunks import *
-from destroyable import Destroyable
 from notebook import Notebook, NotebookFile
 import reunicode
 from statement import Statement
@@ -67,7 +66,7 @@ def order_positions(start_line, start_offset, end_line, end_offset):
 
     return start_line, start_offset, end_line, end_offset
 
-class Worksheet(Destroyable):
+class Worksheet( object ):
     def __init__(self, notebook, edit_only=False):
         import signals
         # Chunk changed is emitted when the text or tokenization of a chunk
@@ -141,7 +140,7 @@ class Worksheet(Destroyable):
 
         notebook._add_worksheet(self)
 
-    def do_destroy(self):
+    def destroy(self):
         if self.__executor:
             # Interruption is handled at a higher level
             self.__executor.destroy()
@@ -153,8 +152,7 @@ class Worksheet(Destroyable):
             self.__file.active = False
 
         self.notebook._remove_worksheet(self)
-
-        Destroyable.do_destroy(self)
+        pass
 
     #######################################################
 
