@@ -152,6 +152,24 @@ class Worksheet(object):
             self.__file.active = False
 
         self.notebook._remove_worksheet(self)
+
+        self.sig_chunk_inserted.disconnectAll()
+        self.sig_chunk_changed.disconnectAll()
+        self.sig_chunk_deleted.disconnectAll()
+        self.sig_chunk_status_changed.disconnectAll()
+        self.sig_chunk_results_changed.disconnectAll()
+
+        self.sig_text_inserted.disconnectAll()
+        self.sig_text_deleted.disconnectAll()
+        self.sig_lines_inserted.disconnectAll()
+        self.sig_lines_deleted.disconnectAll()
+
+        self.sig_place_cursor.disconnectAll()
+
+        self.sig_file.disconnectAll()
+        self.sig_filename_changed.disconnectAll()
+        self.sig_code_modified.disconnectAll()
+        self.sig_state.disconnectAll()
         pass
 
     #######################################################
