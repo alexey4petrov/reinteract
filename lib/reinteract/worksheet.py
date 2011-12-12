@@ -701,9 +701,9 @@ class Worksheet(object):
             self.__executor = executor
             self.__executor_error = False
             self.__set_state(NotebookFile.EXECUTING)
-            executor.connect('statement-executing', on_statement_execution_state_changed)
-            executor.connect('statement-complete', on_statement_execution_state_changed)
-            executor.connect('complete', on_complete)
+            executor.sig_statement_executing.connect(on_statement_execution_state_changed)
+            executor.sig_statement_complete.connect(on_statement_execution_state_changed)
+            executor.sig_complete.connect(on_complete)
 
             if executor.compile():
                 executor.execute()

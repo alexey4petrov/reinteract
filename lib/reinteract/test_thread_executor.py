@@ -70,9 +70,9 @@ def test_thread_executor_0() :
             timed_out = True
             loop.quit()
 
-        executor.connect('statement-executing', on_statement_executing)
-        executor.connect('statement-complete', on_statement_complete)
-        executor.connect('complete', on_complete)
+        executor.sig_statement_executing.connect(on_statement_executing)
+        executor.sig_statement_complete.connect(on_statement_complete)
+        executor.sig_complete.connect(on_complete)
 
         if executor.compile():
             executor.execute()
@@ -88,9 +88,9 @@ def test_thread_executor_0() :
             assert_equals(s._got_state, s._expected_state)
             assert_equals(s._got_results, s._expected_results)
             if s._out_of_order:
-                raise AssertionError("ThreadExecutor sent 'statement-executing' after 'statement-complete'")
+                raise AssertionError("ThreadExecutor sent 'sig_statement_executing' after 'sig_statement_complete'")
             if s._expected_state == Statement.INTERRUPTED and not s._got_executing:
-                raise AssertionError("ThreadExecutor did not send 'statement-executing' within timeout")
+                raise AssertionError("ThreadExecutor did not send 'sig_statement_executing' within timeout")
 
     test_execute(
         [

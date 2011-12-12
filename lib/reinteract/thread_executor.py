@@ -91,6 +91,11 @@ class ThreadExecutor(Destroyable, gobject.GObject):
         """
         gobject.GObject.__init__(self)
 
+        import signals
+        self.sig_statement_executing = signals.Signal()
+        self.sig_statement_complete = signals.Signal()
+        self.sig_complete = signals.Signal()
+
         self.parent_statement = parent_statement
         self.statements = []
         self.lock = thread.allocate_lock()
@@ -101,6 +106,14 @@ class ThreadExecutor(Destroyable, gobject.GObject):
         self.complete = False
         self.interrupted = False
 
+#      def do_destroy(self):
+#          self.sig_statement_executing.disconnectAll()
+#          self.sig_statement_complete.disconnectAll()
+#          self.sig_complete.disconnectAll()
+#  
+#          Destroyable.do_destroy(self)
+#          pass
+
     def __run_idle(self):
         self.lock.acquire()
         complete = self.complete
@@ -109,14 +122,14 @@ class ThreadExecutor(Destroyable, gobject.GObject):
         self.lock.release()
 
         for i in xrange(self.last_signalled + 1, last_complete + 1):
-            self.emit('statement-complete', self.statements[i])
+            self.sig_statement_complete(self, self.statements[i])
 
         self.last_signalled = last_complete
 
         if complete:
-            self.emit('complete')
+            self.sig_complete(self)
         elif last_complete < len(self.statements) - 1:
-            self.emit('statement-executing', self.statements[last_complete + 1])
+            self.sig_statement_executing(self, self.statements[last_complete + 1])
 
         return False
 
@@ -201,8 +214,8 @@ class ThreadExecutor(Destroyable, gobject.GObject):
 
         if not success:
             for statement in self.statements:
-                self.emit('statement-complete', statement)
-            self.emit('complete')
+                self.sig_statement_complete(self, statement)
+            self.sig_complete(self)
 
         return success
 
