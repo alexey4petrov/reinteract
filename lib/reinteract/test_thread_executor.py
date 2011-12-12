@@ -11,7 +11,7 @@
 #
 ########################################################################
 
-if __name__ == '__main__': #pragma: no cover
+def test_thread_executor_0() :
     from notebook import Notebook
     from statement import Statement
     from test_utils import assert_equals
@@ -127,3 +127,16 @@ if __name__ == '__main__': #pragma: no cover
                 ("sys.stdin.readline()", Statement.INTERRUPTED, None),
                 ("z = 1", Statement.COMPILE_SUCCESS, None)
             ])
+        pass
+
+
+#--------------------------------------------------------------------------------------
+if __name__ == "__main__":
+    #--------------------------------------------------------------------------------------
+    test_thread_executor_0()
+
+    #--------------------------------------------------------------------------------------
+    pass
+
+
+#--------------------------------------------------------------------------------------
