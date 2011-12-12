@@ -1,12 +1,20 @@
 #!/usr/bin/env python
 
 #--------------------------------------------------------------------------------------
-# Copyright 2011 Alexey Petrov
-#
-# This file is part of Reinteract and distributed under the terms
-# of the BSD license. See the file COPYING in the Reinteract
-# distribution for full details.
-#
+"""
+Licensed under the Python Software Foundation License
+
+File:     signals.py
+
+Author:   Patrick Chasco
+Created:  July 26, 2005
+Purpose:  A signals implementation
+
+Author:   Alexey Petrov
+Modified: January 08, 2011
+Purpose:  Support multi-threading and functional objects
+          Code implementation advancment
+"""
 
 #--------------------------------------------------------------------------------------
 class _Lock :
@@ -32,7 +40,7 @@ class _Lock :
         return False
         
     #--------------------------------------------------------------------------------------
-        pass
+    pass
 
 
 #--------------------------------------------------------------------------------------
@@ -136,10 +144,10 @@ class Signal( object ) :
 
         with self._lock :
             import inspect
-            if inspect.ismethod( the_slot ) :
-                self._slots.append( _WeakMethod( the_slot ) )
-            elif inspect.isfunction( the_slot ) :
+            if inspect.isfunction( the_slot ) :
                 self._slots.append( the_slot )
+            elif inspect.ismethod( the_slot ) :
+                self._slots.append( _WeakMethod( the_slot ) )
             else:
                 self._slots.append( _WeakObject( the_slot ) )
                 pass
