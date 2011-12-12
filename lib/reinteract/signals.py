@@ -125,15 +125,18 @@ class Signal( object ) :
     #--------------------------------------------------------------------------------------
     def __call__( self, *args, **kwargs ) :
         with self._lock :
-            a_slots = []
+            an_iter_slots = self._slots[ : ]
+            pass
 
-            for a_slot in self._slots :
-                if a_slot :
-                    a_slot( *args, **kwargs )
-                    a_slots.append( a_slot )
-                    pass
+        a_slots = []
+        for a_slot in an_iter_slots :
+            if a_slot :
+                a_slot( *args, **kwargs )
+                a_slots.append( a_slot )
                 pass
+            pass
 
+        with self._lock :
             self._slots = a_slots
             pass
         pass
