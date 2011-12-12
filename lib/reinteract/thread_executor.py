@@ -13,7 +13,6 @@ import signal
 import sys
 import thread
 
-from destroyable import Destroyable
 from statement import Statement
 
 #
@@ -59,7 +58,7 @@ if _pthread_kill is not None:
 
     signal.signal(signal.SIGUSR1, _ignore_handler)
 
-class ThreadExecutor(Destroyable):
+class ThreadExecutor(object):
     """Class to execute Python statements asynchronously in a thread
 
     Note that while ThreadExecutor inherits the Destroyable mixin, destroying a ThreadExecutor
@@ -96,13 +95,11 @@ class ThreadExecutor(Destroyable):
         self.complete = False
         self.interrupted = False
 
-#      def do_destroy(self):
-#          self.sig_statement_executing.disconnectAll()
-#          self.sig_statement_complete.disconnectAll()
-#          self.sig_complete.disconnectAll()
-#  
-#          Destroyable.do_destroy(self)
-#          pass
+    def destroy(self):
+        self.sig_statement_executing.disconnectAll()
+        self.sig_statement_complete.disconnectAll()
+        self.sig_complete.disconnectAll()
+        pass
 
     def __run_idle(self):
         self.lock.acquire()
