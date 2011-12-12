@@ -9,7 +9,6 @@
 
 import ctypes
 import glib
-import gobject
 import signal
 import sys
 import thread
@@ -60,7 +59,7 @@ if _pthread_kill is not None:
 
     signal.signal(signal.SIGUSR1, _ignore_handler)
 
-class ThreadExecutor(Destroyable, gobject.GObject):
+class ThreadExecutor(Destroyable):
     """Class to execute Python statements asynchronously in a thread
 
     Note that while ThreadExecutor inherits the Destroyable mixin, destroying a ThreadExecutor
@@ -71,26 +70,17 @@ class ThreadExecutor(Destroyable, gobject.GObject):
 
     Signals
     =======
-     -  B{statement-executing}(executor, statement) emitted when the executor starts processing a statement. There is no guarantee that this signal will be emitted for each processed statement.
-     -  B{statement-complete}(executor, statement) emitted when the executor is done with all processing it will do on a statement
-     -  B{complete}(executor): emitted when the executor is done with all processing
+     -  B{sig_statement_executing}(executor, statement) emitted when the executor starts processing a statement. There is no guarantee that this signal will be emitted for each processed statement.
+     -  B{sig_statement_complete}(executor, statement) emitted when the executor is done with all processing it will do on a statement
+     -  B{sig_complete}(executor): emitted when the executor is done with all processing
 
     """
-
-    __gsignals__ = {
-        'statement-executing' : (gobject.SIGNAL_RUN_LAST, gobject.TYPE_NONE, (gobject.TYPE_PYOBJECT,)),
-        'statement-complete' : (gobject.SIGNAL_RUN_LAST, gobject.TYPE_NONE, (gobject.TYPE_PYOBJECT,)),
-        'complete' : (gobject.SIGNAL_RUN_LAST, gobject.TYPE_NONE, ()),
-    }
-
     def __init__(self, parent_statement=None):
         """Initialize the ThreadExecutor object
 
         @param parent_statement: prievous statement defining the execution environment for the first statement
 
         """
-        gobject.GObject.__init__(self)
-
         import signals
         self.sig_statement_executing = signals.Signal()
         self.sig_statement_complete = signals.Signal()
@@ -197,7 +187,7 @@ class ThreadExecutor(Destroyable, gobject.GObject):
         """Compile all statements.
 
         If compilation failed, then all processing for the executor is complete, so
-        ::statement-complete is emitted for each statement, then ::complete is emitted.
+        ::sig_statement_complete is emitted for each statement, then ::sig_complete is emitted.
         Otherwise no signals are emitted, until the executor is run using execute()
 
         @returns: True if all statements compiled successfully
@@ -232,7 +222,7 @@ class ThreadExecutor(Destroyable, gobject.GObject):
         Long-running native code-computations will also not be interrupted.
 
         Once the thread is succesfully interrupted, execution finishes as per normal
-        by emitting the ::statement-complete and ::complete signals, except that
+        by emitting the ::sig_statement_complete and ::sig_complete signals, except that
         the state of the interrupted statement will be Statement.INTERRUPTED,
         and subsequence statements will have a state of Statement.COMPILE_SUCCESS.
 
