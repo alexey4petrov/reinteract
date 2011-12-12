@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 # Copyright 2008-2009 Owen Taylor
 #
 # This file is part of Reinteract and distributed under the terms
@@ -7,7 +9,6 @@
 ########################################################################
 
 import glib
-import gobject
 import logging
 import os
 import re
@@ -15,7 +16,6 @@ from StringIO import StringIO
 
 from change_range import ChangeRange
 from chunks import *
-from destroyable import Destroyable
 from notebook import Notebook, NotebookFile
 import reunicode
 from statement import Statement
@@ -66,16 +66,9 @@ def order_positions(start_line, start_offset, end_line, end_offset):
 
     return start_line, start_offset, end_line, end_offset
 
-class Worksheet(Destroyable, gobject.GObject):
-    __gsignals__ = {
-        # text-* are emitted before we fix up our internal state, so what can be done
-        # in them are limited. They are meant for keeping a UI in sync with the internal
-        # state.
-        'text-inserted': (gobject.SIGNAL_RUN_LAST, gobject.TYPE_NONE, (int, int, str)),
-        'text-deleted': (gobject.SIGNAL_RUN_LAST, gobject.TYPE_NONE, (int, int, int, int)),
-        'lines-inserted': (gobject.SIGNAL_RUN_LAST, gobject.TYPE_NONE, (int, int)),
-        'lines-deleted': (gobject.SIGNAL_RUN_LAST, gobject.TYPE_NONE, (int, int)),
-        'chunk-inserted': (gobject.SIGNAL_RUN_LAST, gobject.TYPE_NONE, (gobject.TYPE_PYOBJECT,)),
+class Worksheet(object):
+    def __init__(self, notebook, edit_only=False):
+        import signals
         # Chunk changed is emitted when the text or tokenization of a chunk
         # changes. Note that "changes" here specifically includes being
         # replaced by identical text, so if I have the two chunks
@@ -88,23 +81,38 @@ class Worksheet(Destroyable, gobject.GObject):
         # This is because text in a buffering that is shadowing us may
         # be tagged with fonts/styles.
         #
-        'chunk-changed': (gobject.SIGNAL_RUN_LAST, gobject.TYPE_NONE, (gobject.TYPE_PYOBJECT, gobject.TYPE_PYOBJECT)),
-        'chunk-deleted': (gobject.SIGNAL_RUN_LAST, gobject.TYPE_NONE, (gobject.TYPE_PYOBJECT,)),
-        'chunk-status-changed': (gobject.SIGNAL_RUN_LAST, gobject.TYPE_NONE, (gobject.TYPE_PYOBJECT,)),
-        'chunk-results-changed': (gobject.SIGNAL_RUN_LAST, gobject.TYPE_NONE, (gobject.TYPE_PYOBJECT,)),
-        # This is only for the convenience of the undo stack; otherwise we ignore cursor position
-        'place-cursor': (gobject.SIGNAL_RUN_LAST, gobject.TYPE_NONE, (int, int)),
-        'filename-changed': (gobject.SIGNAL_RUN_LAST, gobject.TYPE_NONE, ())
-    }
+        self.sig_chunk_inserted = signals.Signal()
+        self.sig_chunk_changed = signals.Signal()
+        self.sig_chunk_deleted = signals.Signal()
+        self.sig_chunk_status_changed = signals.Signal()
+        self.sig_chunk_results_changed = signals.Signal()
 
-    def __init__(self, notebook, edit_only=False):
-        gobject.GObject.__init__(self)
+        # text-* are emitted before we fix up our internal state, so what can be done
+        # in them are limited. They are meant for keeping a UI in sync with the internal
+        # state.
+        self.sig_text_inserted = signals.Signal()
+        self.sig_text_deleted = signals.Signal()
+
+        self.sig_lines_inserted = signals.Signal()
+        self.sig_lines_deleted = signals.Signal()
+
+        # This is only for the convenience of the undo stack; otherwise we ignore cursor position
+        self.sig_place_cursor = signals.Signal()
 
         self.notebook = notebook
         self.edit_only = edit_only
+
         self.__file = None
+        self.sig_file = signals.Signal()
+
         self.__filename = None
+        self.sig_filename_changed = signals.Signal()
+
         self.__code_modified = False
+        self.sig_code_modified = signals.Signal()
+
+        self.__state = NotebookFile.EXECUTE_SUCCESS
+        self.sig_state = signals.Signal()
 
         self.global_scope = {}
         notebook.setup_globals(self.global_scope)
@@ -132,7 +140,7 @@ class Worksheet(Destroyable, gobject.GObject):
 
         notebook._add_worksheet(self)
 
-    def do_destroy(self):
+    def destroy(self):
         if self.__executor:
             # Interruption is handled at a higher level
             self.__executor.destroy()
@@ -145,7 +153,24 @@ class Worksheet(Destroyable, gobject.GObject):
 
         self.notebook._remove_worksheet(self)
 
-        Destroyable.do_destroy(self)
+        self.sig_chunk_inserted.disconnectAll()
+        self.sig_chunk_changed.disconnectAll()
+        self.sig_chunk_deleted.disconnectAll()
+        self.sig_chunk_status_changed.disconnectAll()
+        self.sig_chunk_results_changed.disconnectAll()
+
+        self.sig_text_inserted.disconnectAll()
+        self.sig_text_deleted.disconnectAll()
+        self.sig_lines_inserted.disconnectAll()
+        self.sig_lines_deleted.disconnectAll()
+
+        self.sig_place_cursor.disconnectAll()
+
+        self.sig_file.disconnectAll()
+        self.sig_filename_changed.disconnectAll()
+        self.sig_code_modified.disconnectAll()
+        self.sig_state.disconnectAll()
+        pass
 
     #######################################################
 
@@ -182,25 +207,25 @@ class Worksheet(Destroyable, gobject.GObject):
         self.__changed_chunks = set()
 
         for chunk in deleted_chunks:
-            self.emit('chunk-deleted', chunk)
+            self.sig_chunk_deleted( self, chunk )
 
         for chunk in sorted(changed_chunks, lambda a, b: cmp(a.start,b.start)):
             if chunk.newly_inserted:
                 chunk.newly_inserted = False
                 chunk.changes.clear()
                 chunk.status_changed = False
-                self.emit('chunk-inserted', chunk)
+                self.sig_chunk_inserted( self, chunk )
             elif not chunk.changes.empty():
                 changed_lines = range(chunk.changes.start, chunk.changes.end)
                 chunk.changes.clear()
                 chunk.status_changed = False
-                self.emit('chunk-changed', chunk, changed_lines)
+                self.sig_chunk_changed( self, chunk, changed_lines )
             if isinstance(chunk, StatementChunk) and chunk.status_changed:
                 chunk.status_changed = False
-                self.emit('chunk-status-changed', chunk)
+                self.sig_chunk_status_changed( self, chunk )
             if isinstance(chunk, StatementChunk) and chunk.results_changed:
                 chunk.results_changed = False
-                self.emit('chunk-results-changed', chunk)
+                self.sig_chunk_results_changed( self, chunk )
 
     def __chunk_changed(self, chunk):
         self.__changed_chunks.add(chunk)
@@ -441,7 +466,7 @@ class Worksheet(Destroyable, gobject.GObject):
         self.__changes.insert(line, count)
         self.__scan_adjacent = True
         self.__chunk_changed(chunk)
-        self.emit('lines-inserted', line, line + count)
+        self.sig_lines_inserted( self, line, line + count )
 
     def insert(self, line, offset, text):
         _debug("Inserting %r at %s,%s", text, line, offset)
@@ -453,7 +478,7 @@ class Worksheet(Destroyable, gobject.GObject):
 
         self.__freeze_changes()
 
-        self.emit('text-inserted', line, offset, text)
+        self.sig_text_inserted( self, line, offset, text )
 
         count = 0
         ends_with_new_line = False
@@ -547,7 +572,7 @@ class Worksheet(Destroyable, gobject.GObject):
 
         self.__changes.delete_range(start_line, end_line)
         self.__scan_adjacent = True
-        self.emit('lines-deleted', start_line, end_line)
+        self.sig_lines_deleted( self, start_line, end_line )
 
     def delete_range(self, start_line, start_offset, end_line, end_offset):
         _debug("Deleting from %s,%s to %s,%s", start_line, start_offset, end_line, end_offset)
@@ -564,7 +589,7 @@ class Worksheet(Destroyable, gobject.GObject):
 
         deleted_text = self.get_text(start_line, start_offset, end_line, end_offset)
 
-        self.emit('text-deleted', start_line, start_offset, end_line, end_offset)
+        self.sig_text_deleted( self, start_line, start_offset, end_line, end_offset )
 
         if start_offset == 0 and end_offset == 0:
             # Deleting some whole number of lines
@@ -591,7 +616,7 @@ class Worksheet(Destroyable, gobject.GObject):
 
     def place_cursor(self, line, offset):
         _debug("Place cursor at %s,%s", line, offset)
-        self.emit('place-cursor', line, offset)
+        self.sig_place_cursor( self, line, offset )
 
     def undo(self):
         self.__undo_stack.undo()
@@ -856,12 +881,13 @@ class Worksheet(Destroyable, gobject.GObject):
     def get_line(self, line):
         return self.__lines[line]
 
-    def __set_state(self, new_state):
-        if self.edit_only:
-            return
-        self.state = new_state
-        if self.__file:
-            self.__file.state = new_state
+    #--------------------------------------------------------------------------------------
+    # This should be a gobject.property, but we define filenames to be unicode strings
+    # and it's impossible to have a unicode-string valued property. Unicode strings
+    # set on a string gobject.property get endecoded to UTF-8. So, we use the separate
+    # '::sig_filename_changed' signal.
+    def __get_filename( self ) :
+        return self.__filename
 
     def __set_filename(self, filename):
         if filename == self.__filename:
@@ -881,20 +907,30 @@ class Worksheet(Destroyable, gobject.GObject):
                 self.__file.modified = self.__code_modified
         else:
             self.__file = None
+            pass
 
-    def __get_filename(self):
-        return self.__filename
+        self.sig_filename_changed( self, self.__filename )
+        pass
 
-    # This should be a gobject.property, but we define filenames to be unicode strings
-    # and it's impossible to have a unicode-string valued property. Unicode strings
-    # set on a string gobject.property get endecoded to UTF-8. So, we use the separate
-    # ::filename-changed signal.
-    filename = property(__get_filename, __set_filename)
+    def __set_filename_and_modified(self, filename, modified):
+        self.filename = filename
+        self.code_modified = modified
+        pass
 
-    @gobject.property
-    def file(self):
+    filename = property( __get_filename, __set_filename )
+
+    #--------------------------------------------------------------------------------------
+    def __get_file(self) :
         return self.__file
 
+    def __set_file(self, value):
+        self.__file = value
+        self.sig_file( self, self.__file )
+        pass
+
+    file = property( __get_file, __set_file )
+    
+    #--------------------------------------------------------------------------------------
     def __set_code_modified(self, code_modified):
         if code_modified == self.__code_modified:
             return
@@ -902,18 +938,34 @@ class Worksheet(Destroyable, gobject.GObject):
         self.__code_modified = code_modified
         if self.__file:
             self.__file.modified = code_modified
+            pass
+
+        self.sig_code_modified( self, self.__code_modified )
+        pass
 
     def __get_code_modified(self):
         return self.__code_modified
 
-    code_modified = gobject.property(getter=__get_code_modified, setter=__set_code_modified, type=bool, default=False)
-    state = gobject.property(type=int, default=NotebookFile.EXECUTE_SUCCESS)
+    code_modified = property( __get_code_modified, __set_code_modified )
 
-    def __set_filename_and_modified(self, filename, modified):
-        self.filename = filename
-        self.code_modified = modified
-        self.emit('filename-changed')
+    #--------------------------------------------------------------------------------------
+    def __get_state(self):
+        return self.__state
 
+    def __set_state(self, new_state):
+        if self.edit_only:
+            return
+        self.__state = new_state
+        if self.__file:
+            self.__file.state = new_state
+            pass
+
+        self.sig_state( self, self.__state )
+        pass
+
+    state = property( __get_state, __set_state )
+
+    #--------------------------------------------------------------------------------------
     def load(self, filename, escape=False):
         """Load a file from disk into the worksheet. Can raise IOError if the
         file cannot be read, and reunicode.ConversionError if the file contains
@@ -993,554 +1045,3 @@ class Worksheet(Destroyable, gobject.GObject):
                     pass
 
 ######################################################################
-
-if __name__ == '__main__': #pragma: no cover
-    import sys
-
-    if "-d" in sys.argv:
-        logging.basicConfig(level=logging.DEBUG, format="DEBUG: %(message)s")
-
-    gobject.threads_init()
-
-    import stdout_capture
-    stdout_capture.init()
-
-    S = StatementChunk
-    B = BlankChunk
-    C = CommentChunk
-
-    def compare(l1, l2):
-        if len(l1) != len(l2):
-            return False
-
-        for i in xrange(0, len(l1)):
-            e1 = l1[i]
-            e2 = l2[i]
-
-            if type(e1) != type(e2) or e1.start != e2.start or e1.end != e2.end:
-                return False
-
-        return True
-
-    worksheet = Worksheet(Notebook())
-
-    def expect(expected):
-        chunks = [ x for x in worksheet.iterate_chunks() ]
-        if not compare(chunks, expected):
-            raise AssertionError("\nGot:\n   %s\nExpected:\n   %s" % (chunks, expected))
-
-    def expect_text(expected, start_line=0, start_offset=0, end_line=-1, end_offset=-1):
-        text = worksheet.get_text(start_line, start_offset, end_line, end_offset)
-        if (text != expected):
-            raise AssertionError("\nGot:\n   '%s'\nExpected:\n   '%s'" % (text, expected))
-
-    def expect_doctests(expected, start_line, end_line):
-        text = worksheet.get_doctests(start_line, end_line)
-        if (text != expected):
-            raise AssertionError("\nGot:\n   '%s'\nExpected:\n   '%s'" % (text, expected))
-
-    def expect_results(expected):
-        results = [ (x.results if isinstance(x,StatementChunk) else None) for x in worksheet.iterate_chunks() ]
-        if (results != expected):
-            raise AssertionError("\nGot:\n   '%s'\nExpected:\n   '%s'" % (results, expected))
-
-    def insert(line, offset, text):
-        worksheet.insert(line, offset, text)
-
-    def delete(start_line, start_offset, end_line, end_offset):
-        worksheet.delete_range(start_line, start_offset, end_line, end_offset)
-
-    def calculate():
-        worksheet.calculate(wait=True)
-
-    def clear():
-        worksheet.clear()
-
-    def chunk_label(chunk):
-        if chunk.end - chunk.start == 1:
-            return "[%s]" % chunk.start
-        else:
-            return "[%s:%s]" % (chunk.start, chunk.end)
-
-    class CI:
-        def __init__(self, start, end):
-            self.start = start
-            self.end = end
-
-        def __eq__(self, other):
-            if not isinstance(other, CI):
-                return False
-
-            return self.start == other.start and self.end == other.end
-
-        def __repr__(self):
-            return "CI(%s, %s)" % (self.start, self.end)
-
-    class CC:
-        def __init__(self, start, end, changed_lines):
-            self.start = start
-            self.end = end
-            self.changed_lines = changed_lines
-
-        def __eq__(self, other):
-            if not isinstance(other, CC):
-                return False
-
-            return self.start == other.start and self.end == other.end and self.changed_lines == other.changed_lines
-
-        def __repr__(self):
-            return "CC(%s, %s, %s)" % (self.start, self.end, self.changed_lines)
-
-    class CD:
-        def __eq__(self, other):
-            if not isinstance(other, CD):
-                return False
-
-            return True
-
-        def __repr__(self):
-            return "CD()"
-
-    class CSC:
-        def __init__(self, start, end):
-            self.start = start
-            self.end = end
-
-        def __eq__(self, other):
-            if not isinstance(other, CSC):
-                return False
-
-            return self.start == other.start and self.end == other.end
-
-        def __repr__(self):
-            return "CSC(%s, %s)" % (self.start, self.end)
-
-    class CRC:
-        def __init__(self, start, end):
-            self.start = start
-            self.end = end
-
-        def __eq__(self, other):
-            if not isinstance(other, CRC):
-                return False
-
-            return self.start == other.start and self.end == other.end
-
-        def __repr__(self):
-            return "CRC(%s, %s)" % (self.start, self.end)
-
-    log = []
-
-    def on_chunk_inserted(worksheet, chunk):
-        _debug("...Chunk %s inserted", chunk_label(chunk))
-        log.append(CI(chunk.start, chunk.end))
-
-    def on_chunk_changed(worksheet, chunk, changed_lines):
-        _debug("...Chunk %s changed", chunk_label(chunk))
-        log.append(CC(chunk.start, chunk.end, changed_lines))
-
-    def on_chunk_deleted(worksheet, chunk):
-        _debug("...Chunk %s deleted", chunk_label(chunk))
-        log.append(CD())
-
-    def on_chunk_status_changed(worksheet, chunk):
-        _debug("...Chunk %s status changed", chunk_label(chunk))
-        log.append(CSC(chunk.start, chunk.end))
-
-    def on_chunk_results_changed(worksheet, chunk):
-        _debug("...Chunk %s results changed", chunk_label(chunk))
-        log.append(CRC(chunk.start, chunk.end))
-
-    def clear_log():
-        global log
-        log = []
-
-    def expect_log(expected):
-        if log != expected:
-            raise AssertionError("\nGot:\n   '%s'\nExpected:\n   '%s'" % (log, expected))
-        clear_log()
-
-    worksheet.connect('chunk-inserted', on_chunk_inserted)
-    worksheet.connect('chunk-changed', on_chunk_changed)
-    worksheet.connect('chunk-deleted', on_chunk_deleted)
-    worksheet.connect('chunk-status-changed', on_chunk_status_changed)
-    worksheet.connect('chunk-results-changed', on_chunk_results_changed)
-
-    # Insertions
-    insert(0, 0, "11\n22\n33")
-    expect_text("11\n22\n33")
-    expect([S(0,1), S(1,2), S(2,3)])
-    insert(0, 1, "a")
-    expect_text("1a1\n22\n33")
-    expect([S(0,1), S(1,2), S(2,3)])
-    insert(1, 1, "a\na")
-    expect_text("1a1\n2a\na2\n33")
-    expect([S(0,1), S(1,2), S(2,3), S(3,4)])
-    insert(1, 0, "bb\n")
-    expect_text("1a1\nbb\n2a\na2\n33")
-    expect([S(0,1), S(1,2), S(2,3), S(3,4), S(4, 5)])
-    insert(4, 3, "\n")
-    expect_text("1a1\nbb\n2a\na2\n33\n")
-    expect([S(0,1), S(1,2), S(2,3), S(3,4), S(4, 5), B(5, 6)])
-
-    # Deletions
-    delete(4, 3, 5, 0)
-    expect_text("1a1\nbb\n2a\na2\n33")
-    expect([S(0,1), S(1,2), S(2,3), S(3,4), S(4, 5)])
-    delete(0, 1, 0, 2)
-    expect_text("11\nbb\n2a\na2\n33")
-    expect([S(0,1), S(1,2), S(2,3), S(3,4), S(4, 5)])
-    delete(0, 0, 1, 0)
-    expect_text("bb\n2a\na2\n33")
-    expect([S(0,1), S(1,2), S(2,3), S(3,4)])
-    delete(1, 1, 2, 1)
-    expect_text("bb\n22\n33")
-    expect([S(0,1), S(1,2), S(2,3)])
-    delete(2, 1, 1, 0)
-    expect_text("bb\n3")
-    expect([S(0,1), S(1,2)])
-
-    # Test deleting part of a BlankChunk
-    clear()
-    insert(0, 0, "if True\n:    pass\n    \n")
-    delete(2, 4, 3, 0)
-
-    # Check that tracking of changes works properly when there
-    # is an insertion or deletion before the change
-    clear()
-    insert(0, 0, "1\n2")
-    worksheet.begin_user_action()
-    insert(1, 0, "#")
-    insert(0, 0, "0\n")
-    worksheet.end_user_action()
-    expect_text("0\n1\n#2")
-    expect([S(0,1), S(1,2), C(2,3)])
-    worksheet.begin_user_action()
-    delete(2, 0, 2, 1)
-    delete(0, 0, 1, 0)
-    worksheet.end_user_action()
-    expect([S(0,1), S(1,2)])
-
-    # Basic tokenization of valid python
-    clear()
-    insert(0, 0, "1\n\n#2\ndef a():\n  3")
-    expect([S(0,1), B(1,2), C(2,3), S(3,5)])
-
-    clear()
-    expect([B(0,1)])
-
-    # Multiple consecutive blank lines
-    clear()
-    insert(0, 0, "1")
-    insert(0, 1, "\n")
-    expect([S(0,1),B(1,2)])
-    insert(1, 0, "\n")
-    expect([S(0,1),B(1,3)])
-
-    # Continuation lines at the beginning
-    clear()
-    insert(0, 0, "# Something\n   pass")
-    expect([C(0,1), S(1,2)])
-    delete(0, 0, 1, 0)
-    expect([S(0,1)])
-
-    # Decorators
-    clear()
-    insert(0, 0, "def foo():\n    return 42")
-    expect([S(0,2)])
-    insert(0, 0, "@decorated\n")
-    expect([S(0,3)])
-    insert(0, 0, "@decorated\n")
-    expect([S(0,4)])
-
-    # decorator in the middle breaks things up
-    insert(3, 0, "@decorated\n")
-    expect([S(0,3), S(3,5)])
-    delete(3, 0, 4, 0)
-    expect([S(0,4)])
-
-    # lonely decorator at the end of a worksheet
-    clear()
-    insert(0, 0, "@decorated\n# some comment\n")
-    expect([S(0,1), C(1,2), B(2,3)])
-    insert(2, 0, "def foo():\n    return 42")
-    expect([S(0,4)])
-
-    # Calculation
-    clear()
-    insert(0, 0, "1 + 1")
-    calculate()
-    expect_results([['2']])
-
-    clear()
-    insert(0, 0, "if True:\n    print 1\n    print 1")
-    calculate()
-    expect_results([['1', '1']])
-
-    clear()
-    insert(0, 0, "a = 1\nb = 2\na + b")
-    calculate()
-    expect_results([[], [], ['3']])
-    delete(1, 4, 1, 5)
-    insert(1, 4, "3")
-    calculate()
-    expect_results([[], [], ['4']])
-
-    #
-    # Test out signals and expect_log()
-    #
-    clear()
-    clear_log()
-    insert(0, 0, "1 + 1")
-    expect_log([CD(), CI(0,1)])
-    calculate()
-    expect_log([CSC(0,1), CRC(0,1)])
-
-    insert(0, 0, "#")
-    expect_log([CD(), CI(0,1)])
-
-    # Deleting a chunk with results
-    clear()
-    insert(0, 0, "1\n2")
-    calculate()
-    expect([S(0,1),S(1,2)])
-    expect_results([['1'],['2']])
-    clear_log()
-    delete(0, 0, 0, 1)
-    expect([B(0,1),S(1,2)])
-    expect_log([CD(), CI(0,1), CSC(1,2)])
-
-    # change a statement into a comment
-    clear()
-    insert(0, 0, "# a\nb")
-    clear_log()
-    insert(1, 0, "#")
-    expect([C(0,2)])
-    expect_log([CD(), CC(0,2,[1])])
-
-    # Turning a statement into a continuation line
-    clear()
-    insert(0, 0, "1 \\\n+ 2\n")
-    clear_log()
-    insert(1, 0, " ")
-    expect([S(0,2), B(2,3)])
-    expect_log([CD(), CC(0,2,[1])])
-
-    # And back
-    delete(1, 0, 1, 1)
-    expect([S(0,1), S(1,2), B(2,3)])
-    expect_log([CC(0,1,[]),CI(1,2)])
-
-    # Shortening the last chunk in the buffer
-    clear()
-    insert(0, 0, "def a():\n    x = 1\n    return 1")
-    delete(1, 0, 2, 0)
-    expect([S(0, 2)])
-
-    # Inserting a statement above a continuation line at the start of the buffer
-    clear()
-    insert(0, 0, "#def a(x):\n    return x")
-    delete(0, 0, 0, 1)
-    expect([S(0,2)])
-
-    # Deleting an entire continuation line
-    clear()
-
-    insert(0, 0, "for i in (1,2):\n    print i\n    print i + 1\n")
-    expect([S(0,3), B(3,4)])
-    delete(1, 0, 2, 0)
-    expect([S(0,2), B(2,3)])
-
-    # Editing a continuation line, while leaving it a continuation
-    clear()
-
-    insert(0, 0, "1\\\n  + 2\\\n  + 3")
-    delete(1, 0, 1, 1)
-    expect([S(0,3)])
-
-    # Test that changes that substitute text with identical
-    # text counts as changes
-
-    # New text
-    clear()
-    insert(0, 0, "if")
-    clear_log()
-    worksheet.begin_user_action()
-    delete(0, 1, 0, 2)
-    insert(0, 1, "f")
-    worksheet.end_user_action()
-    expect([S(0,1)])
-    expect_log([CC(0,1,[0])])
-
-    # Text from elsewhere in the buffer
-    clear()
-    insert(0, 0, "if\nif")
-    clear_log()
-    delete(0, 1, 1, 1)
-    expect([S(0,1)])
-    expect_log([CD(), CC(0,1,[0])])
-
-    # Test that commenting out a line marks subsequent lines for recalculation
-    clear()
-
-    insert(0, 0, "a = 1\na = 2\na")
-    calculate()
-    insert(1, 0, "#")
-    assert worksheet.get_chunk(2).needs_execute
-
-    # Test that we don't send out ::chunk-deleted signal for chunks for
-    # which we never sent a ::chunk-inserted signal
-
-    clear()
-
-    insert(0, 0, "[1]")
-    clear_log()
-    worksheet.begin_user_action()
-    insert(0, 2, "\n")
-    worksheet.rescan()
-    insert(1, 0, "    ")
-    worksheet.end_user_action()
-    expect_log([CC(0,2,[0,1])])
-
-    #
-    # Undo tests
-    #
-    clear()
-
-    insert(0, 0, "1")
-    worksheet.undo()
-    expect_text("")
-    worksheet.redo()
-    expect_text("1")
-
-    # Undoing insertion of a newline
-    clear()
-
-    insert(0, 0, "1 ")
-    insert(0, 1, "\n")
-    calculate()
-    worksheet.undo()
-    expect_text("1 ")
-
-    # Test the "pruning" behavior of modifications after undos
-    clear()
-
-    insert(0, 0, "1")
-    worksheet.undo()
-    expect_text("")
-    insert(0, 0, "2")
-    worksheet.redo() # does nothing
-    expect_text("2")
-    insert(0, 0, "2\n")
-
-    # Test coalescing consecutive inserts
-    clear()
-
-    insert(0, 0, "1")
-    insert(0, 1, "2")
-    worksheet.undo()
-    expect_text("")
-
-    # Test grouping of multiple undos by user actions
-    clear()
-
-    insert(0, 0, "1")
-    worksheet.begin_user_action()
-    delete(0, 0, 0, 1)
-    insert(0, 0, "2")
-    worksheet.end_user_action()
-    worksheet.undo()
-    expect_text("1")
-    worksheet.redo()
-    expect_text("2")
-
-    # Make sure that coalescing doesn't coalesce one user action with
-    # only part of another
-    clear()
-
-    insert(0, 0, "1")
-    worksheet.begin_user_action()
-    insert(0, 1, "2")
-    delete(0, 0, 0, 1)
-    worksheet.end_user_action()
-    worksheet.undo()
-    expect_text("1")
-    worksheet.redo()
-    expect_text("2")
-
-    #
-    # Tests of get_text()
-    #
-    clear()
-    insert(0, 0, "12\n34\n56")
-    expect_text("12\n34\n56", -1, -1, 0, 0)
-    expect_text("2\n34\n5", 0, 1, 2, 1)
-    expect_text("", -1, -1, -1, -1)
-    expect_text("1", 0, 0, 0, 1)
-    expect_text("2\n3", 0, 1, 1, 1)
-    expect_text("2\n3", 1, 1, 0, 1)
-
-    #
-    # Tests of get_doctests()
-    #
-    clear()
-    insert(0, 0, """# A tests of doctests
-def a(x):
-    return x + 1
-
-a(2)
-""")
-    calculate()
-
-    expect_doctests("""# A tests of doctests
->>> def a(x):
-...     return x + 1
-
->>> a(2)
-3
-""", 0, 5)
-
-    expect_doctests(""">>> def a(x):
-...     return x + 1
-""", 2, 2)
-
-    #
-    # Try writing to a file, and reading it back
-    #
-    import tempfile, os
-
-    clear()
-    expect([B(0,1)])
-
-    SAVE_TEST = """a = 1
-a
-# A comment
-
-b = 2"""
-
-    insert(0, 0, SAVE_TEST)
-    calculate()
-
-    handle, fname = tempfile.mkstemp(u".rws", u"reinteract_worksheet")
-    os.close(handle)
-
-    try:
-        worksheet.save(fname)
-        f = open(fname, "r")
-        saved = f.read()
-        f.close()
-
-        if saved != SAVE_TEST:
-            raise AssertionError("Got '%s', expected '%s'", saved, SAVE_TEST)
-
-        worksheet.load(fname)
-        calculate()
-
-        expect_text(SAVE_TEST)
-        expect([S(0,1), S(1,2), C(2,3), B(3,4), S(4,5)])
-        expect_results([[], ['1'], None, None, []])
-    finally:
-        os.remove(fname)
-
-    clear()
-    expect([B(0,1)])

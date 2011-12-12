@@ -43,7 +43,7 @@ class LibraryEditor(Editor):
 
         self.widget.show_all()
 
-        self.buf.worksheet.connect('filename-changed', lambda *args: self._update_filename())
+        self.buf.worksheet.sig_filename_changed.connect( lambda *args: self._update_filename() )
         self.buf.worksheet.connect('notify::file', lambda *args: self._update_file())
         self.buf.worksheet.connect('notify::code-modified', lambda *args: self._update_modified())
 
