@@ -58,6 +58,50 @@ if _pthread_kill is not None:
 
     signal.signal(signal.SIGUSR1, _ignore_handler)
 
+#--------------------------------------------------------------------------------------
+class EventLoop(object) :
+    #--------------------------------------------------------------------------------------
+    def __init__( self ) :
+        self._loop = glib.MainLoop()
+        self._source_tag = None
+        pass
+
+    #--------------------------------------------------------------------------------------
+    def run( self ) :
+        self._loop.run()
+        pass
+
+    #--------------------------------------------------------------------------------------
+    def quit( self ) :
+        self._loop.quit()
+        pass
+
+    #--------------------------------------------------------------------------------------
+    def cache_event( self, functor ) :
+        if self._source_tag != None :
+            glib.source_remove( self._source_tag )
+            pass
+
+        self._source_tag = glib.idle_add( functor )
+        pass
+
+    #--------------------------------------------------------------------------------------
+    pass
+
+
+#--------------------------------------------------------------------------------------
+def eventLoop() :
+    # If we create more than one glib.MainLoop, we trigger a pygobject
+    # bug - https://bugzilla.gnome.org/show_bug.cgi?id=663068 - so create
+    # just one and use it for all the test runs.
+    if not hasattr( eventLoop, '_engine' ) :
+        eventLoop._engine = EventLoop()
+        pass
+
+    return eventLoop._engine
+
+
+#--------------------------------------------------------------------------------------
 class ThreadExecutor(object):
     """Class to execute Python statements asynchronously in a thread
 
@@ -74,7 +118,7 @@ class ThreadExecutor(object):
      -  B{sig_complete}(executor): emitted when the executor is done with all processing
 
     """
-    def __init__(self, parent_statement=None):
+    def __init__(self, parent_statement=None, event_loop=eventLoop()):
         """Initialize the ThreadExecutor object
 
         @param parent_statement: prievous statement defining the execution environment for the first statement
@@ -89,7 +133,7 @@ class ThreadExecutor(object):
         self.statements = []
         self.lock = thread.allocate_lock()
 
-        self.idle_id = 0
+        self.event_loop = event_loop
         self.last_complete = -1
         self.last_signalled = -1
         self.complete = False
@@ -105,7 +149,6 @@ class ThreadExecutor(object):
         self.lock.acquire()
         complete = self.complete
         last_complete = self.last_complete
-        self.idle_id = 0
         self.lock.release()
 
         for i in xrange(self.last_signalled + 1, last_complete + 1):
@@ -122,9 +165,8 @@ class ThreadExecutor(object):
 
     def __queue_idle(self):
         # Must be called with the lock held
-        if not self.idle_id:
-            self.idle_id = glib.idle_add(self.__run_idle)
-
+        self.event_loop.cache_event(self.__run_idle)
+        
     def __run_thread(self):
         # The patten used twice here of:
         #

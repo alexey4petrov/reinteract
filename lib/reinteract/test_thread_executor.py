@@ -18,7 +18,7 @@ def test_thread_executor_0() :
     from worksheet import Worksheet
     import threading
 
-    from thread_executor import ThreadExecutor, _pthread_kill
+    from thread_executor import ThreadExecutor, _pthread_kill, eventLoop
 
     import stdout_capture
     stdout_capture.init()
@@ -33,13 +33,10 @@ def test_thread_executor_0() :
     notebook = Notebook()
     worksheet = Worksheet(notebook)
 
-    # If we create more than one glib.MainLoop, we trigger a pygobject
-    # bug - https://bugzilla.gnome.org/show_bug.cgi?id=663068 - so create
-    # just one and use it for all the test runs.
-    loop = glib.MainLoop()
 
     def test_execute(statements):
         executor = ThreadExecutor()
+        loop = executor.event_loop
 
         for s, expected_state, expected_results in statements:
             statement = Statement(s, worksheet)
