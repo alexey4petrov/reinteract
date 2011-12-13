@@ -16,6 +16,7 @@ def test_thread_executor_0() :
     from statement import Statement
     from test_utils import assert_equals
     from worksheet import Worksheet
+    import threading
 
     from thread_executor import ThreadExecutor, _pthread_kill
 
@@ -76,13 +77,18 @@ def test_thread_executor_0() :
 
         if executor.compile():
             executor.execute()
-            interrupt_source = glib.timeout_add(500, interrupt)
-            timeout_source = glib.timeout_add(1000, timeout)
+
+            interrupt_source = threading.Timer(0.5, interrupt)
+            interrupt_source.start()
+
+            timeout_source = threading.Timer(1.0, timeout)
+            timeout_source.start()
             loop.run()
             if timed_out:
                 raise AssertionError("Interrupting ThreadExecutor failed")
-            glib.source_remove(interrupt_source)
-            glib.source_remove(timeout_source)
+
+            interrupt_source.cancel()
+            timeout_source.cancel()
 
         for s in executor.statements:
             assert_equals(s._got_state, s._expected_state)
