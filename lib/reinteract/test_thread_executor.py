@@ -23,7 +23,7 @@ def test_thread_executor_0() :
     import stdout_capture
     stdout_capture.init()
 
-    import gobject, glib
+    import gobject
     gobject.threads_init()
 
     import time

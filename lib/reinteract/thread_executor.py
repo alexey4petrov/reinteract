@@ -8,12 +8,12 @@
 ########################################################################
 
 import ctypes
-import glib
 import signal
 import sys
 import thread
 
 from statement import Statement
+from event_loop import eventLoop
 
 #
 # The primary means we use to interrupt a running thread is a Python facility
@@ -58,50 +58,6 @@ if _pthread_kill is not None:
 
     signal.signal(signal.SIGUSR1, _ignore_handler)
 
-#--------------------------------------------------------------------------------------
-class EventLoop(object) :
-    #--------------------------------------------------------------------------------------
-    def __init__( self ) :
-        self._loop = glib.MainLoop()
-        self._source_tag = None
-        pass
-
-    #--------------------------------------------------------------------------------------
-    def run( self ) :
-        self._loop.run()
-        pass
-
-    #--------------------------------------------------------------------------------------
-    def quit( self ) :
-        self._loop.quit()
-        pass
-
-    #--------------------------------------------------------------------------------------
-    def cache_event( self, functor ) :
-        if self._source_tag != None :
-            glib.source_remove( self._source_tag )
-            pass
-
-        self._source_tag = glib.idle_add( functor )
-        pass
-
-    #--------------------------------------------------------------------------------------
-    pass
-
-
-#--------------------------------------------------------------------------------------
-def eventLoop() :
-    # If we create more than one glib.MainLoop, we trigger a pygobject
-    # bug - https://bugzilla.gnome.org/show_bug.cgi?id=663068 - so create
-    # just one and use it for all the test runs.
-    if not hasattr( eventLoop, '_engine' ) :
-        eventLoop._engine = EventLoop()
-        pass
-
-    return eventLoop._engine
-
-
-#--------------------------------------------------------------------------------------
 class ThreadExecutor(object):
     """Class to execute Python statements asynchronously in a thread
 
