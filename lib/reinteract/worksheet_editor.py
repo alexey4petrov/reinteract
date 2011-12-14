@@ -148,43 +148,35 @@ class WorksheetEditor(Editor):
 ######################################################################
 if __name__ == "__main__":
     #--------------------------------------------------------------------------------------
-    # from global_settings import global_settings
-    # notebook_dir = os.path.expanduser(os.path.join(global_settings.notebooks_dir, "Main"))
+    from global_settings import global_settings
+    notebook_dir = os.path.expanduser(os.path.join(global_settings.notebooks_dir, "Main"))
 
-    # from notebook import Notebook
-    # a_notebook = Notebook(notebook_dir)
-    # a_widget = WorksheetEditor(a_notebook)
+    from notebook import Notebook
+    a_notebook = Notebook(notebook_dir)
 
-    window = gtk.Window(gtk.WINDOW_TOPLEVEL)
+    textbuffer = ShellBuffer(a_notebook)
+    textview = ShellView(textbuffer)
+
+    window = gtk.Window()#gtk.WINDOW_TOPLEVEL)
     window.set_resizable(True)  
     window.connect("destroy", lambda widget : gtk.main_quit())
-    window.set_title("TextView Widget Basic Example")
+    window.set_title(__file__)
     window.set_border_width(0)
     window.resize(500, 500)
     
     box1 = gtk.VBox(False, 0)
-    box1.set_border_width(10)
     window.add(box1)
     box1.show()
     
     sw = gtk.ScrolledWindow()
     sw.set_policy(gtk.POLICY_AUTOMATIC, gtk.POLICY_AUTOMATIC)
-    textview = gtk.TextView()
-    textbuffer = textview.get_buffer()
     sw.add(textview)
     sw.show()
     textview.show()
 
     box1.pack_start(sw)
-    infile = open(__file__, "r")
-
-    if infile:
-        string = infile.read()
-        infile.close()
-        textbuffer.set_text(string)
-        pass
-
     window.show()
+
     gtk.main()
 
     #--------------------------------------------------------------------------------------
