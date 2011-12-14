@@ -148,34 +148,58 @@ class WorksheetEditor(Editor):
 ######################################################################
 if __name__ == "__main__":
     #--------------------------------------------------------------------------------------
+    import gobject
+    gobject.threads_init()
+
+    import logging
+    logging.basicConfig(level=logging.DEBUG, format="DEBUG: %(message)s")
+
     from global_settings import global_settings
     notebook_dir = os.path.expanduser(os.path.join(global_settings.notebooks_dir, "Main"))
 
     from notebook import Notebook
     a_notebook = Notebook(notebook_dir)
 
-    textbuffer = ShellBuffer(a_notebook)
-    textview = ShellView(textbuffer)
+    an_editor = WorksheetEditor(a_notebook)
 
-    window = gtk.Window()#gtk.WINDOW_TOPLEVEL)
+    window = gtk.Window(gtk.WINDOW_TOPLEVEL)
     window.set_resizable(True)  
     window.connect("destroy", lambda widget : gtk.main_quit())
     window.set_title(__file__)
     window.set_border_width(0)
     window.resize(500, 500)
     
-    box1 = gtk.VBox(False, 0)
-    window.add(box1)
-    box1.show()
-    
-    sw = gtk.ScrolledWindow()
-    sw.set_policy(gtk.POLICY_AUTOMATIC, gtk.POLICY_AUTOMATIC)
-    sw.add(textview)
-    sw.show()
-    textview.show()
-
-    box1.pack_start(sw)
+    window.add(an_editor.widget)
     window.show()
+
+    # Create an accelerator group
+    accelgroup = gtk.AccelGroup()
+    # Add the accelerator group to the toplevel window
+    window.add_accel_group(accelgroup)
+
+    # Create an ActionGroup named ActionExample
+    actiongroup = gtk.ActionGroup('ActionExample')
+
+    def on_calculate( w ) :
+        an_editor.view.calculate()
+        print 'on_calculate'
+        pass
+
+    calc_action = gtk.Action('calculate', None, None, None)
+    # Connect a callback to the action
+    calc_action.connect('activate', on_calculate)
+    # Add the action to the actiongroup with an accelerator
+    actiongroup.add_action_with_accel(calc_action, '<control>Return')
+    # Have the action use accelgroup
+    calc_action.set_accel_group(accelgroup)
+    # Connect the accelerator to the action
+    calc_action.connect_accelerator()
+
+    quit_action = gtk.Action('Quit', '_Quit me!', 'Quit the Program', gtk.STOCK_QUIT)
+    quit_action.connect('activate', lambda widget : gtk.main_quit())
+    actiongroup.add_action_with_accel(quit_action, None)
+    quit_action.set_accel_group(accelgroup)
+    quit_action.connect_accelerator()
 
     gtk.main()
 
