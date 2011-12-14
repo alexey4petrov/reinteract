@@ -151,6 +151,9 @@ if __name__ == "__main__":
     import gobject
     gobject.threads_init()
 
+    import stdout_capture
+    stdout_capture.init()
+
     import logging
     logging.basicConfig(level=logging.DEBUG, format="DEBUG: %(message)s")
 
@@ -180,14 +183,9 @@ if __name__ == "__main__":
     # Create an ActionGroup named ActionExample
     actiongroup = gtk.ActionGroup('ActionExample')
 
-    def on_calculate( w ) :
-        an_editor.view.calculate()
-        print 'on_calculate'
-        pass
-
     calc_action = gtk.Action('calculate', None, None, None)
     # Connect a callback to the action
-    calc_action.connect('activate', on_calculate)
+    calc_action.connect('activate', lambda w : an_editor.view.calculate())
     # Add the action to the actiongroup with an accelerator
     actiongroup.add_action_with_accel(calc_action, '<control>Return')
     # Have the action use accelgroup

@@ -1,3 +1,7 @@
+#!/usr/bin/env python
+
+########################################################################
+#
 # Copyright 2008-2009 Owen Taylor
 #
 # This file is part of Reinteract and distributed under the terms
@@ -235,3 +239,26 @@ class NotebookWindow(BaseNotebookWindow):
 
     def on_hpaned_notify_position(self, pane, gparamspec):
         self.state.set_pane_position(pane.get_property('position'))
+
+
+######################################################################
+if __name__ == "__main__":
+    #--------------------------------------------------------------------------------------
+    import gobject
+    gobject.threads_init()
+
+    import stdout_capture
+    stdout_capture.init()
+
+    from notebook import Notebook
+    from worksheet import Worksheet
+    a_notebook = Notebook('/home/alexey/reinteract/examples'.decode("UTF-8"))
+    a_window = NotebookWindow(a_notebook)
+    a_window.window.show()
+    gtk.main()
+
+    #--------------------------------------------------------------------------------------
+    pass
+
+
+######################################################################
