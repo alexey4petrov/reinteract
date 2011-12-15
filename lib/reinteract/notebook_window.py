@@ -244,18 +244,8 @@ class NotebookWindow(BaseNotebookWindow):
 ######################################################################
 if __name__ == "__main__":
     #--------------------------------------------------------------------------------------
-    import gobject
-    gobject.threads_init()
-
-    import stdout_capture
-    stdout_capture.init()
-
-    import os, sys
-    script_path = os.path.realpath(os.path.abspath(sys.argv[0])).decode("UTF-8")
-    topdir = os.path.dirname(os.path.dirname(script_path))
-    topdir = os.path.dirname(topdir)
-    libdir = os.path.join(topdir, 'lib')
-    sys.path.insert(0, libdir)
+    from test_utils import adjust_environment
+    topdir = adjust_environment()
 
     examplesdir = os.path.join(topdir, 'examples')
 
@@ -263,6 +253,7 @@ if __name__ == "__main__":
     a_notebook = Notebook(examplesdir)
     a_window = NotebookWindow(a_notebook)
     a_window.window.show()
+
     gtk.main()
 
     #--------------------------------------------------------------------------------------

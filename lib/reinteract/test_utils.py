@@ -37,7 +37,7 @@ def adjust_environment():
         sys.path.insert( 1 , libdir )
         pass
                                    
-    pass
+    return topdir
 
 
 ########################################################################
