@@ -153,6 +153,7 @@ class Application():
         return new_notebook.run(parent)
 
     def open_notebook_dialog(self, parent=None):
+        import open_notebook
         return open_notebook.run(parent)
 
     def on_about_dialog_destroy(self, dialog):
@@ -255,7 +256,7 @@ from about_dialog import AboutDialog
 from notebook import Notebook
 from notebook_info import NotebookInfo
 import new_notebook
-# import open_notebook # to avoid cyclic dependecies when running 'notebook_window.py'
+# import open_notebook # to avoid cyclic dependecies  'notebook_window.py'
 
 if global_settings.main_menu_mode:
     from main_menu import main_menu
