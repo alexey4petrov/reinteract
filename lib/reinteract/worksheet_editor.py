@@ -157,6 +157,13 @@ if __name__ == "__main__":
     import logging
     logging.basicConfig(level=logging.DEBUG, format="DEBUG: %(message)s")
 
+    import os, sys
+    script_path = os.path.realpath(os.path.abspath(sys.argv[0])).decode("UTF-8")
+    topdir = os.path.dirname(os.path.dirname(script_path))
+    topdir = os.path.dirname(topdir)
+    libdir = os.path.join(topdir, 'lib')
+    sys.path.insert(0, libdir)
+
     from global_settings import global_settings
     notebook_dir = os.path.expanduser(os.path.join(global_settings.notebooks_dir, "Main"))
 
