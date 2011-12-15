@@ -13,22 +13,23 @@
 
 #--------------------------------------------------------------------------------------
 def test_statement_0():
-    from notebook import Notebook
-    from worksheet import Worksheet
+    from test_utils import assert_equals, adjust_environment
+    adjust_environment()
+
     from statement import Statement
 
-    from test_utils import assert_equals
-
-    import stdout_capture
-    stdout_capture.init()
-
+    from notebook import Notebook
     nb = Notebook()
+
+    from worksheet import Worksheet
     worksheet = Worksheet(nb)
 
     def expect_result(text, result):
         s = Statement(text, worksheet)
         s.compile()
         s.execute()
+        if s.error_message != None :
+            raise Exception(s.error_message)
         if isinstance(result, basestring):
             assert_equals(s.results[0], result)
         else:
@@ -36,11 +37,6 @@ def test_statement_0():
             pass
         pass
     
-    s = Statement('from reinteract.statement import Statement; Statement.get_current()', worksheet)
-    s.compile()
-    s.execute()
-    print s.results
-
     # A bare expression should give the repr of the expression
     expect_result("'a'", repr('a'))
     expect_result("1,2", repr((1,2)))
@@ -98,6 +94,9 @@ def test_statement_0():
 
     s1 = Statement("import  __future__", worksheet) # just a normal import
     assert_equals(s1.future_features, None)
+
+    # Advanced use of "context manager" protocol
+    expect_result('from reinteract.statement import Statement; Statement.get_current() != None', repr(True))
 
     #--------------------------------------------------------------------------------------
     pass

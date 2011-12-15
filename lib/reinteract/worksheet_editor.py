@@ -148,11 +148,8 @@ class WorksheetEditor(Editor):
 ######################################################################
 if __name__ == "__main__":
     #--------------------------------------------------------------------------------------
-    import gobject
-    gobject.threads_init()
-
-    import stdout_capture
-    stdout_capture.init()
+    from test_utils import adjust_environment
+    adjust_environment()
 
     import logging
     logging.basicConfig(level=logging.DEBUG, format="DEBUG: %(message)s")

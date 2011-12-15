@@ -21,6 +21,7 @@ import reunicode
 from statement import Statement
 from thread_executor import ThreadExecutor
 from undo_stack import UndoStack, InsertOp, DeleteOp
+import signals
 
 _debug = logging.getLogger("Worksheet").debug
 
@@ -68,7 +69,6 @@ def order_positions(start_line, start_offset, end_line, end_offset):
 
 class Worksheet(object):
     def __init__(self, notebook, edit_only=False):
-        import signals
         # Chunk changed is emitted when the text or tokenization of a chunk
         # changes. Note that "changes" here specifically includes being
         # replaced by identical text, so if I have the two chunks
