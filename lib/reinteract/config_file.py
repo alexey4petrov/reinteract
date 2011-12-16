@@ -167,30 +167,3 @@ class ConfigFile(object):
             self.flush_timeout = glib.timeout_add(_FLUSH_INTERVAL, self.flush)
 
 ######################################################################
-
-if __name__ == '__main__': #pragma: no cover
-    import tempfile
-    from test_utils import assert_equals
-
-    def test_quote(s, expected):
-        quoted = _quote(s)
-        assert_equals(quoted, expected)
-        unquoted = _unquote(quoted)
-        assert_equals(unquoted, s)
-
-    test_quote(r'',  r'""')
-    test_quote(r'foo',  r'foo')
-    test_quote(r'fo"o', r'"fo\"o"')
-    test_quote(r'fo o', r'"fo o"')
-    test_quote(r'fo\o', r'fo\\o')
-
-    def test_quote_list(l, expected):
-        quoted = _quote_list(l)
-        assert_equals(quoted, expected)
-        unquoted = _unquote_list(quoted)
-        assert_equals(unquoted, l)
-
-    test_quote_list(['foo'], 'foo')
-    test_quote_list(['foo bar'], '"foo bar"')
-    test_quote_list(['foo', 'bar'], 'foo bar')
-    test_quote_list(['foo', 'bar baz'], 'foo "bar baz"')
