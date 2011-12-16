@@ -1143,7 +1143,11 @@ class ShellView(gtk.TextView):
 if __name__ == "__main__":
     #--------------------------------------------------------------------------------------
     from test_utils import adjust_environment
-    adjust_environment()
+    topdir = adjust_environment()
+
+    import os
+    examplesdir = os.path.join(topdir, 'examples')
+    filename = os.path.join(examplesdir, 'imshow.rws').decode('UTF-8')
 
     import logging
     logging.basicConfig(level=logging.DEBUG, format="DEBUG: %(message)s")
@@ -1164,6 +1168,10 @@ if __name__ == "__main__":
 
     from notebook import Notebook
     textbuffer = ShellBuffer(Notebook())
+
+    textbuffer.worksheet.load(filename, escape=False)
+    textbuffer.place_cursor(textbuffer.get_start_iter())
+
     textview = ShellView(textbuffer)
 
     scrolledwindow.add(textview)
