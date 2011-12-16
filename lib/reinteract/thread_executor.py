@@ -8,14 +8,12 @@
 ########################################################################
 
 import ctypes
-import glib
-import gobject
 import signal
 import sys
 import thread
 
-from destroyable import Destroyable
 from statement import Statement
+from event_loop import eventLoop
 
 #
 # The primary means we use to interrupt a running thread is a Python facility
@@ -60,7 +58,7 @@ if _pthread_kill is not None:
 
     signal.signal(signal.SIGUSR1, _ignore_handler)
 
-class ThreadExecutor(Destroyable, gobject.GObject):
+class ThreadExecutor(object):
     """Class to execute Python statements asynchronously in a thread
 
     Note that while ThreadExecutor inherits the Destroyable mixin, destroying a ThreadExecutor
@@ -71,60 +69,60 @@ class ThreadExecutor(Destroyable, gobject.GObject):
 
     Signals
     =======
-     -  B{statement-executing}(executor, statement) emitted when the executor starts processing a statement. There is no guarantee that this signal will be emitted for each processed statement.
-     -  B{statement-complete}(executor, statement) emitted when the executor is done with all processing it will do on a statement
-     -  B{complete}(executor): emitted when the executor is done with all processing
+     -  B{sig_statement_executing}(executor, statement) emitted when the executor starts processing a statement. There is no guarantee that this signal will be emitted for each processed statement.
+     -  B{sig_statement_complete}(executor, statement) emitted when the executor is done with all processing it will do on a statement
+     -  B{sig_complete}(executor): emitted when the executor is done with all processing
 
     """
-
-    __gsignals__ = {
-        'statement-executing' : (gobject.SIGNAL_RUN_LAST, gobject.TYPE_NONE, (gobject.TYPE_PYOBJECT,)),
-        'statement-complete' : (gobject.SIGNAL_RUN_LAST, gobject.TYPE_NONE, (gobject.TYPE_PYOBJECT,)),
-        'complete' : (gobject.SIGNAL_RUN_LAST, gobject.TYPE_NONE, ()),
-    }
-
-    def __init__(self, parent_statement=None):
+    def __init__(self, parent_statement=None, event_loop=eventLoop()):
         """Initialize the ThreadExecutor object
 
         @param parent_statement: prievous statement defining the execution environment for the first statement
 
         """
-        gobject.GObject.__init__(self)
+        import signals
+        self.sig_statement_executing = signals.Signal()
+        self.sig_statement_complete = signals.Signal()
+        self.sig_complete = signals.Signal()
 
         self.parent_statement = parent_statement
         self.statements = []
         self.lock = thread.allocate_lock()
 
-        self.idle_id = 0
+        self.event_loop = event_loop
         self.last_complete = -1
         self.last_signalled = -1
         self.complete = False
         self.interrupted = False
 
+    def destroy(self):
+        self.sig_statement_executing.disconnectAll()
+        self.sig_statement_complete.disconnectAll()
+        self.sig_complete.disconnectAll()
+        pass
+
     def __run_idle(self):
         self.lock.acquire()
         complete = self.complete
         last_complete = self.last_complete
-        self.idle_id = 0
         self.lock.release()
 
         for i in xrange(self.last_signalled + 1, last_complete + 1):
-            self.emit('statement-complete', self.statements[i])
+            self.sig_statement_complete(self, self.statements[i])
 
         self.last_signalled = last_complete
 
         if complete:
-            self.emit('complete')
+            self.sig_complete(self)
         elif last_complete < len(self.statements) - 1:
-            self.emit('statement-executing', self.statements[last_complete + 1])
+            self.sig_statement_executing(self, self.statements[last_complete + 1])
 
         return False
 
     def __queue_idle(self):
         # Must be called with the lock held
-        if not self.idle_id:
-            self.idle_id = glib.idle_add(self.__run_idle)
-
+        self.event_loop.cache_event(self.__run_idle)
+        
     def __run_thread(self):
         # The patten used twice here of:
         #
@@ -184,7 +182,7 @@ class ThreadExecutor(Destroyable, gobject.GObject):
         """Compile all statements.
 
         If compilation failed, then all processing for the executor is complete, so
-        ::statement-complete is emitted for each statement, then ::complete is emitted.
+        ::sig_statement_complete is emitted for each statement, then ::sig_complete is emitted.
         Otherwise no signals are emitted, until the executor is run using execute()
 
         @returns: True if all statements compiled successfully
@@ -201,8 +199,8 @@ class ThreadExecutor(Destroyable, gobject.GObject):
 
         if not success:
             for statement in self.statements:
-                self.emit('statement-complete', statement)
-            self.emit('complete')
+                self.sig_statement_complete(self, statement)
+            self.sig_complete(self)
 
         return success
 
@@ -219,7 +217,7 @@ class ThreadExecutor(Destroyable, gobject.GObject):
         Long-running native code-computations will also not be interrupted.
 
         Once the thread is succesfully interrupted, execution finishes as per normal
-        by emitting the ::statement-complete and ::complete signals, except that
+        by emitting the ::sig_statement_complete and ::sig_complete signals, except that
         the state of the interrupted statement will be Statement.INTERRUPTED,
         and subsequence statements will have a state of Statement.COMPILE_SUCCESS.
 
@@ -239,117 +237,3 @@ class ThreadExecutor(Destroyable, gobject.GObject):
         self.lock.release()
 
 ######################################################################
-
-if __name__ == '__main__': #pragma: no cover
-    gobject.threads_init()
-
-    import stdout_capture
-    stdout_capture.init()
-
-    import time
-
-    from notebook import Notebook
-    from statement import Statement
-    from test_utils import assert_equals
-    from worksheet import Worksheet
-
-    failed = False
-
-    notebook = Notebook()
-    worksheet = Worksheet(notebook)
-
-    # If we create more than one glib.MainLoop, we trigger a pygobject
-    # bug - https://bugzilla.gnome.org/show_bug.cgi?id=663068 - so create
-    # just one and use it for all the test runs.
-    loop = glib.MainLoop()
-
-    def test_execute(statements):
-        executor = ThreadExecutor()
-
-        for s, expected_state, expected_results in statements:
-            statement = Statement(s, worksheet)
-            statement._expected_state = expected_state
-            statement._expected_results = expected_results
-            statement._got_executing = False
-            executor.add_statement(statement)
-
-        def on_statement_executing(executor, statement):
-            if hasattr(statement, '_got_state'):
-                statement._out_of_order = True
-            statement._got_executing = True
-
-        def on_statement_complete(executor, statement):
-            statement._got_state = statement.state
-            statement._got_results = statement.results
-            statement._out_of_order = False
-
-        def on_complete(executor):
-            loop.quit()
-
-        def interrupt():
-            executor.interrupt()
-
-        global timed_out
-        timed_out = False
-        def timeout():
-            global timed_out
-            timed_out = True
-            loop.quit()
-
-        executor.connect('statement-executing', on_statement_executing)
-        executor.connect('statement-complete', on_statement_complete)
-        executor.connect('complete', on_complete)
-
-        if executor.compile():
-            executor.execute()
-            interrupt_source = glib.timeout_add(500, interrupt)
-            timeout_source = glib.timeout_add(1000, timeout)
-            loop.run()
-            if timed_out:
-                raise AssertionError("Interrupting ThreadExecutor failed")
-            glib.source_remove(interrupt_source)
-            glib.source_remove(timeout_source)
-
-        for s in executor.statements:
-            assert_equals(s._got_state, s._expected_state)
-            assert_equals(s._got_results, s._expected_results)
-            if s._out_of_order:
-                raise AssertionError("ThreadExecutor sent 'statement-executing' after 'statement-complete'")
-            if s._expected_state == Statement.INTERRUPTED and not s._got_executing:
-                raise AssertionError("ThreadExecutor did not send 'statement-executing' within timeout")
-
-    test_execute(
-        [
-            ("a = 1", Statement.COMPILE_SUCCESS, None),
-            ("a =", Statement.COMPILE_ERROR, None)
-        ])
-
-    test_execute(
-        [
-            ("a = 1", Statement.EXECUTE_SUCCESS, []),
-            ("a", Statement.EXECUTE_SUCCESS, ['1'])
-        ])
-
-    test_execute(
-        [
-            ("a = 1", Statement.EXECUTE_SUCCESS, []),
-            ("b", Statement.EXECUTE_ERROR, None),
-            ("c = 2", Statement.COMPILE_SUCCESS, None)
-        ])
-
-    # Test interrupting straight python code
-    test_execute(
-        [
-            ("y = 1", Statement.EXECUTE_SUCCESS, []),
-            ("for x in xrange(0,100000000):\n    y = y * 2\n    if y > 100: y = 1", Statement.INTERRUPTED, None),
-            ("z = 1", Statement.COMPILE_SUCCESS, None)
-        ])
-
-    # Test interrupting a blocking syscall, if support on this platform
-    if _pthread_kill is not None:
-        test_execute(
-            [
-                ("import sys", Statement.EXECUTE_SUCCESS, []),
-                ("sys.stdin.readline()", Statement.INTERRUPTED, None),
-                ("z = 1", Statement.COMPILE_SUCCESS, None)
-            ])

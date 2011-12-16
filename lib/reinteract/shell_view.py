@@ -1,3 +1,7 @@
+#!/usr/bin/env python
+
+########################################################################
+#
 # Copyright 2007-2011 Owen Taylor
 #
 # This file is part of Reinteract and distributed under the terms
@@ -1134,3 +1138,5 @@ class ShellView(gtk.TextView):
 
         self.__arg_highlight_start = buf.create_mark(None, start, left_gravity=True)
         self.__arg_highlight_end = buf.create_mark(None, end, left_gravity=False)
+
+######################################################################

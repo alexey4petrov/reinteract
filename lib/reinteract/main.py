@@ -1,3 +1,7 @@
+#!/usr/bin/env python
+
+########################################################################
+#
 # Copyright 2007-2009 Owen Taylor
 # Copyright 2008 Kai Willadsen
 #
@@ -119,3 +123,6 @@ def main():
             window.add_initial_worksheet()
 
     gtk.main()
+
+
+######################################################################

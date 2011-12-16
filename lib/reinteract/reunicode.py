@@ -163,33 +163,3 @@ def canonicalize_filename(filename):
     return filename
 
 ######################################################################
-
-if __name__ == '__main__': #pragma: no cover
-    from test_utils import assert_equals
-
-    def test_escape_unsafe(u, expected):
-        assert_equals(escape_unsafe(u), expected)
-
-    # Embedded NUL is \x00
-    test_escape_unsafe(u"a\x00b", u"a\\x00b")
-    # Test a tab is left untouched
-    test_escape_unsafe(u"\t", u"\t")
-    # Non-BMP character (represented as surrogates for UCS-2 python)
-    test_escape_unsafe(u"\U00010000", u"\\U00010000")
-    # Unpaired surrogate
-    test_escape_unsafe(u"\ud800", u"\\ud800")
-
-    def test_decode_escaped(s, expected):
-        assert_equals(decode(s, escape=True), expected)
-
-    # Valid UTF-8
-    test_decode_escaped(u"\u1234".encode("utf8"), u"\u1234")
-    # Invalid UTF-8
-    test_decode_escaped("abc\x80\x80abc", u"abc\\x80\\x80abc")
-    # Mixture
-    test_decode_escaped(u"\u1234".encode("utf8") + "\x80", u"\u1234\\x80")
-    # embedded NUL
-    test_decode_escaped("\x00", "\\x00")
-
-    # Test a non-UTF-8 encoding
-    assert_equals(decode("\xc0", encoding="ISO-8859-1"), u"\u00c0")

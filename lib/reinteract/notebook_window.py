@@ -1,3 +1,7 @@
+#!/usr/bin/env python
+
+########################################################################
+#
 # Copyright 2008-2009 Owen Taylor
 #
 # This file is part of Reinteract and distributed under the terms
@@ -235,3 +239,6 @@ class NotebookWindow(BaseNotebookWindow):
 
     def on_hpaned_notify_position(self, pane, gparamspec):
         self.state.set_pane_position(pane.get_property('position'))
+
+
+######################################################################

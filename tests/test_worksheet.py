@@ -11,20 +11,15 @@
 ######################################################################
 
 
+#--------------------------------------------------------------------------------------
 def test_worksheet_0() :
-    from chunks import StatementChunk, BlankChunk, CommentChunk
-    from notebook import Notebook, NotebookFile
-    from worksheet import Worksheet, _debug
+    #--------------------------------------------------------------------------------------
+    from test_utils import adjust_environment
+    adjust_environment()
 
-    import sys, gobject
-
-    if "-d" in sys.argv:
-        logging.basicConfig(level=logging.DEBUG, format="DEBUG: %(message)s")
-
-    gobject.threads_init()
-
-    import stdout_capture
-    stdout_capture.init()
+    from reinteract.chunks import StatementChunk, BlankChunk, CommentChunk
+    from reinteract.notebook import Notebook, NotebookFile
+    from reinteract.worksheet import Worksheet, _debug
 
     S = StatementChunk
     B = BlankChunk
@@ -327,6 +322,11 @@ def test_worksheet_0() :
     expect_results([['2']])
 
     clear()
+    insert(0, 0, "print 1")
+    calculate()
+    expect_results([['1']])
+
+    clear()
     insert(0, 0, "if True:\n    print 1\n    print 1")
     calculate()
     expect_results([['1', '1']])
@@ -605,8 +605,11 @@ b = 2"""
 #--------------------------------------------------------------------------------------
 def test_worksheet_1() :
     #--------------------------------------------------------------------------------------
-    from notebook import Notebook
-    from worksheet import Worksheet
+    from test_utils import adjust_environment
+    topdir = adjust_environment()
+
+    from reinteract.notebook import Notebook
+    from reinteract.worksheet import Worksheet
 
     #--------------------------------------------------------------------------------------
     class Logger :
@@ -644,10 +647,48 @@ def test_worksheet_1() :
 
 
 #--------------------------------------------------------------------------------------
+def test_worksheet_2() :
+    #--------------------------------------------------------------------------------------
+    from test_utils import adjust_environment
+    global_settings = adjust_environment()
+
+    import os
+    examplesdir = global_settings.examples_dir
+    filename = os.path.join(examplesdir, 'imshow.rws').decode('UTF-8')
+
+    #--------------------------------------------------------------------------------------
+    from reinteract.notebook import Notebook
+    from reinteract.worksheet import Worksheet
+    worksheet = Worksheet( Notebook() )
+    worksheet.load(filename)
+    worksheet.calculate(wait=True)
+
+    custom_results = []
+    from reinteract.chunks import StatementChunk
+    from reinteract.custom_result import CustomResult
+    for x in worksheet.iterate_chunks() :
+        if not isinstance(x,StatementChunk) :
+            continue
+        if len(x.results) == 0 :
+            continue
+        arg = x.results[0]
+        if isinstance(arg, CustomResult):
+           custom_results.append(arg) 
+           pass
+        pass
+
+    assert len(custom_results) == 2
+
+    #--------------------------------------------------------------------------------------
+    pass
+
+
+#--------------------------------------------------------------------------------------
 if __name__ == "__main__":
     #--------------------------------------------------------------------------------------
     test_worksheet_0()
     test_worksheet_1()
+    test_worksheet_2()
 
     #--------------------------------------------------------------------------------------
     pass

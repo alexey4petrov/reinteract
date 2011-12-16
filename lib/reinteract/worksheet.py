@@ -8,8 +8,6 @@
 #
 ########################################################################
 
-import glib
-import logging
 import os
 import re
 from StringIO import StringIO
@@ -21,7 +19,9 @@ import reunicode
 from statement import Statement
 from thread_executor import ThreadExecutor
 from undo_stack import UndoStack, InsertOp, DeleteOp
+import signals
 
+import logging
 _debug = logging.getLogger("Worksheet").debug
 
 _DEFINE_GLOBALS = compile("""
@@ -68,7 +68,6 @@ def order_positions(start_line, start_offset, end_line, end_offset):
 
 class Worksheet(object):
     def __init__(self, notebook, edit_only=False):
-        import signals
         # Chunk changed is emitted when the text or tokenization of a chunk
         # changes. Note that "changes" here specifically includes being
         # replaced by identical text, so if I have the two chunks
@@ -669,7 +668,7 @@ class Worksheet(object):
 
         if executor:
             if wait:
-                loop = glib.MainLoop()
+                loop = executor.event_loop
 
             def on_statement_execution_state_changed(executor, statement):
                 if (statement.state == Statement.COMPILE_ERROR or
@@ -701,9 +700,9 @@ class Worksheet(object):
             self.__executor = executor
             self.__executor_error = False
             self.__set_state(NotebookFile.EXECUTING)
-            executor.connect('statement-executing', on_statement_execution_state_changed)
-            executor.connect('statement-complete', on_statement_execution_state_changed)
-            executor.connect('complete', on_complete)
+            executor.sig_statement_executing.connect(on_statement_execution_state_changed)
+            executor.sig_statement_complete.connect(on_statement_execution_state_changed)
+            executor.sig_complete.connect(on_complete)
 
             if executor.compile():
                 executor.execute()

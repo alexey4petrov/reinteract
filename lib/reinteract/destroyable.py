@@ -1,3 +1,13 @@
+########################################################################
+#
+# Copyright 2008-2009 Owen Taylor
+#
+# This file is part of Reinteract and distributed under the terms
+# of the BSD license. See the file COPYING in the Reinteract
+# distribution for full details.
+#
+########################################################################
+
 import gobject
 
 class Destroyable(object):
@@ -65,33 +75,5 @@ class Destroyable(object):
         if not (hasattr(self, '_Destroyable__destroyed') and self.__destroyed):
             raise AssertionError("do_destroy() method on %s (or parent) failed to chain up" % type(self).__name__)
 
-if __name__ == '__main__':
-    from test_utils import assert_equals
 
-    class A(Destroyable, gobject.GObject):
-        __gsignals__ = {
-                'changed': (gobject.SIGNAL_RUN_LAST, gobject.TYPE_NONE, ())
-        }
-
-    def do_a(*args):
-        results.append('a')
-    def do_b(*args):
-        results.append('b')
-
-    a = A()
-
-    a.connect('changed', do_a)
-    handler_id = a.connect('changed', do_b)
-    a.disconnect(handler_id)
-
-    results = []
-    a.emit('changed')
-    assert_equals(results, ['a'])
-
-    a.destroy()
-
-    results = []
-    a.emit('changed')
-    assert_equals(results, [])
-
-
+########################################################################

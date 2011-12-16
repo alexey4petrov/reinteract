@@ -1,3 +1,7 @@
+#!/usr/bin/env python
+
+########################################################################
+#
 # Copyright 2008-2009 Owen Taylor
 #
 # This file is part of Reinteract and distributed under the terms
@@ -139,3 +143,6 @@ class WorksheetEditor(Editor):
 
     def redo(self):
         self.buf.worksheet.redo()
+
+
+######################################################################
