@@ -644,10 +644,37 @@ def test_worksheet_1() :
 
 
 #--------------------------------------------------------------------------------------
+def test_worksheet_2() :
+    #--------------------------------------------------------------------------------------
+    from test_utils import adjust_environment
+    topdir = adjust_environment()
+
+    import os
+    examplesdir = os.path.join(topdir, 'examples')
+    filename = os.path.join(examplesdir, 'imshow.rws').decode('UTF-8')
+
+    import logging
+    logging.basicConfig(level=logging.DEBUG, format="DEBUG: %(message)s")
+    import reinteract.custom_result
+    import custom_result
+
+    #--------------------------------------------------------------------------------------
+    from notebook import Notebook
+    from worksheet import Worksheet
+    worksheet = Worksheet( Notebook() )
+    worksheet.load(filename)
+    worksheet.calculate(wait=False)
+
+    #--------------------------------------------------------------------------------------
+    pass
+
+
+#--------------------------------------------------------------------------------------
 if __name__ == "__main__":
     #--------------------------------------------------------------------------------------
     test_worksheet_0()
     test_worksheet_1()
+    test_worksheet_2()
 
     #--------------------------------------------------------------------------------------
     pass
