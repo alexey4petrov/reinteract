@@ -12,27 +12,22 @@
 ########################################################################
 
 def test_thread_executor_0() :
-    from notebook import Notebook
-    from statement import Statement
-    from test_utils import assert_equals
-    from worksheet import Worksheet
+    from test_utils import adjust_environment, assert_equals
+    global_settings = adjust_environment()
+
+    from reinteract.notebook import Notebook
+    from reinteract.statement import Statement
+    from reinteract.worksheet import Worksheet
+
     import threading
-
-    from thread_executor import ThreadExecutor, _pthread_kill, eventLoop
-
-    import stdout_capture
-    stdout_capture.init()
-
-    import gobject
-    gobject.threads_init()
-
     import time
+
+    from reinteract.thread_executor import ThreadExecutor, _pthread_kill, eventLoop
 
     failed = False
 
     notebook = Notebook()
     worksheet = Worksheet(notebook)
-
 
     def test_execute(statements):
         executor = ThreadExecutor()

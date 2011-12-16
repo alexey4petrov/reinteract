@@ -16,12 +16,12 @@ def test_statement_0():
     from test_utils import assert_equals, adjust_environment
     adjust_environment()
 
-    from statement import Statement
+    from reinteract.statement import Statement
 
-    from notebook import Notebook
+    from reinteract.notebook import Notebook
     nb = Notebook()
 
-    from worksheet import Worksheet
+    from reinteract.worksheet import Worksheet
     worksheet = Worksheet(nb)
 
     def expect_result(text, result):

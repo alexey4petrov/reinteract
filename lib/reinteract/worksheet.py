@@ -8,8 +8,6 @@
 #
 ########################################################################
 
-import glib
-import logging
 import os
 import re
 from StringIO import StringIO
@@ -23,6 +21,7 @@ from thread_executor import ThreadExecutor
 from undo_stack import UndoStack, InsertOp, DeleteOp
 import signals
 
+import logging
 _debug = logging.getLogger("Worksheet").debug
 
 _DEFINE_GLOBALS = compile("""
@@ -669,7 +668,7 @@ class Worksheet(object):
 
         if executor:
             if wait:
-                loop = glib.MainLoop()
+                loop = executor.event_loop
 
             def on_statement_execution_state_changed(executor, statement):
                 if (statement.state == Statement.COMPILE_ERROR or

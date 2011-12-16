@@ -13,11 +13,12 @@
 
 #--------------------------------------------------------------------------------------
 def test_rewrite_0():
-    from rewrite import Rewriter, UnsupportedSyntaxError
-    from test_utils import assert_equals
+    #--------------------------------------------------------------------------------------
+    from test_utils import adjust_environment, assert_equals
+    adjust_environment()
 
-    import copy
-    import re
+    from reinteract.rewrite import Rewriter, UnsupportedSyntaxError
+    import copy, re
 
     def rewrite_and_compile(code, output_func_name=None, future_features=None, print_func_name=None, encoding="utf8"):
         return Rewriter(code, encoding, future_features).rewrite_and_compile(output_func_name, print_func_name)

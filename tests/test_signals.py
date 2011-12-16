@@ -11,7 +11,10 @@
 #--------------------------------------------------------------------------------------
 def test_signals_0() :
     #--------------------------------------------------------------------------------------
-    from signals import Signal
+    from test_utils import adjust_environment
+    global_settings = adjust_environment()
+
+    from reinteract.signals import Signal
 
     #--------------------------------------------------------------------------------------
     class Button:
@@ -156,7 +159,10 @@ def test_signals_0() :
 #--------------------------------------------------------------------------------------
 def test_signals_1() :
     #--------------------------------------------------------------------------------------
-    from signals import Signal
+    from test_utils import adjust_environment
+    global_settings = adjust_environment()
+
+    from reinteract.signals import Signal
 
     #--------------------------------------------------------------------------------------
     class Container( object ) :
@@ -198,7 +204,10 @@ def test_signals_1() :
 #--------------------------------------------------------------------------------------
 def test_signals_2() :
     #--------------------------------------------------------------------------------------
-    from signals import Signal, Append
+    from test_utils import adjust_environment
+    global_settings = adjust_environment()
+
+    from reinteract.signals import Signal, Append
 
     #--------------------------------------------------------------------------------------
     class Container( object ) :

@@ -10,29 +10,26 @@
 #
 ########################################################################
 
+
+#--------------------------------------------------------------------------------------
 def test_shell_buffer() :
+    #--------------------------------------------------------------------------------------
+    from test_utils import adjust_environment
+    adjust_environment()
+
     # The tests we include here are tests of the interaction of editing
     # with results. Results don't appear inline in a Worksheet, so these
     # tests have to be here rather than with Worksheet. Almost all other
     # testing is done in Worksheet.
 
-    from shell_buffer import ShellBuffer, ADJUST_NONE, _forward_line
-    from chunks import StatementChunk, BlankChunk, CommentChunk
+    from reinteract.shell_buffer import ShellBuffer, ADJUST_NONE, _forward_line
+    from reinteract.chunks import StatementChunk, BlankChunk, CommentChunk
 
-    import sys, gobject
-    import reunicode
+    from reinteract.notebook import Notebook
+    from reinteract import reunicode
 
-    gobject.threads_init()
-
-    from notebook import Notebook
-
-    if "-d" in sys.argv:
-        logging.basicConfig(level=logging.DEBUG, format="DEBUG: %(message)s")
-
+    import sys
     from StringIO import StringIO
-
-    import stdout_capture
-    stdout_capture.init()
 
     buf = ShellBuffer(Notebook())
 
