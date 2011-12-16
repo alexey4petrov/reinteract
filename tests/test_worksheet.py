@@ -15,7 +15,7 @@
 def test_worksheet_0() :
     #--------------------------------------------------------------------------------------
     from test_utils import adjust_environment
-    topdir = adjust_environment()
+    adjust_environment()
 
     from reinteract.chunks import StatementChunk, BlankChunk, CommentChunk
     from reinteract.notebook import Notebook, NotebookFile
