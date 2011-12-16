@@ -177,28 +177,3 @@ class EditorWindow(BaseWindow):
         return True
 
 ######################################################################
-if __name__ == "__main__":
-    #--------------------------------------------------------------------------------------
-    import os
-    script_path = os.path.realpath(os.path.abspath(sys.argv[0])).decode("UTF-8")
-    topdir = os.path.dirname(os.path.dirname(script_path))
-    topdir = os.path.dirname(topdir)
-    libdir = os.path.join(topdir, 'lib')
-    builderdir = os.path.join(topdir, 'dialogs')
-    examplesdir = os.path.join(topdir, 'examples')
-    icon_file = os.path.join(topdir, 'data', 'Reinteract.ico')
-
-    from global_settings import global_settings
-    global_settings.dialogs_dir = builderdir
-    global_settings.examples_dir = examplesdir
-    global_settings.icon_file = icon_file
-
-    a_window = EditorWindow()
-    a_window.window.show()
-    gtk.main()
-
-    #--------------------------------------------------------------------------------------
-    pass
-
-
-######################################################################
